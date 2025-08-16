@@ -4,6 +4,8 @@
 
 AppInsights Detective is an intelligent CLI tool that allows you to query your Azure Application Insights data using natural language. It leverages Azure OpenAI to convert your questions into KQL (Kusto Query Language) queries and presents the results in a user-friendly format.
 
+![example](image.png)
+
 ## ✨ Features
 
 - 🗣️ **Natural Language Queries**: Ask questions in plain English/Japanese
