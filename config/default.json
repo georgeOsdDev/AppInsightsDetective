@@ -1,0 +1,12 @@
+{
+  "appInsights": {
+    "applicationId": "",
+    "tenantId": "",
+    "endpoint": "https://api.applicationinsights.io/v1/apps"
+  },
+  "openAI": {
+    "endpoint": "",
+    "deploymentName": "gpt-4"
+  },
+  "logLevel": "info"
+}

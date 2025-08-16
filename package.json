@@ -1,0 +1,61 @@
+{
+  "name": "appinsights-detective",
+  "version": "1.0.0",
+  "description": "Query Azure Application Insights with natural language using AI",
+  "main": "dist/cli/index.js",
+  "bin": {
+    "aidx": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "watch": "nodemon --exec ts-node src/cli/index.ts",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "clean": "rm -rf dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "azure",
+    "application-insights",
+    "kql",
+    "cli",
+    "ai",
+    "openai",
+    "typescript"
+  ],
+  "author": "AppInsights Detective Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "config/**/*",
+    "README.md"
+  ],
+  "devDependencies": {
+    "@types/inquirer": "^9.0.9",
+    "@types/node": "^24.2.1",
+    "@typescript-eslint/eslint-plugin": "^8.39.1",
+    "@typescript-eslint/parser": "^8.39.1",
+    "eslint": "^9.33.0",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.6.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@azure/core-auth": "^1.10.0",
+    "@azure/identity": "^4.11.1",
+    "@azure/openai": "^2.0.0",
+    "axios": "^1.11.0",
+    "chalk": "^4.1.2",
+    "commander": "^14.0.0",
+    "dotenv": "^17.2.1",
+    "inquirer": "^12.9.2",
+    "openai": "^5.12.2",
+    "winston": "^3.17.0"
+  }
+}
