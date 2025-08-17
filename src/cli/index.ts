@@ -9,6 +9,7 @@ import chalk from 'chalk';
 import { AuthService } from '../services/authService';
 import { AppInsightsService } from '../services/appInsightsService';
 import { AIService } from '../services/aiService';
+import { StepExecutionService } from '../services/stepExecutionService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
 
@@ -28,6 +29,7 @@ program.addCommand(createStatusCommand());
 program
   .argument('[question]', 'Natural language question to ask')
   .option('-i, --interactive', 'Run in interactive mode')
+  .option('-s, --step', 'Enable step-by-step execution with user confirmation')
   .option('-r, --raw', 'Execute raw KQL query')
   .action(async (question, options) => {
     try {
@@ -89,6 +91,45 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
 
       // KQLクエリを生成
       const nlQuery = await aiService.generateKQLQuery(question, schema);
+
+      // ステップ実行モードまたは信頼度が低い場合
+      if (options.step || nlQuery.confidence < 0.7) {
+        const stepExecutionService = new StepExecutionService(aiService, appInsightsService, {
+          showConfidenceThreshold: 0.7,
+          allowEditing: true,
+          maxRegenerationAttempts: 3
+        });
+
+        const result = await stepExecutionService.executeStepByStep(nlQuery, question);
+
+        if (result) {
+          const executionTime = Date.now() - startTime;
+          Visualizer.displayResult(result);
+          const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
+          Visualizer.displaySummary(executionTime, totalRows);
+
+          // 結果が数値データの場合、簡単なチャートを表示
+          if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
+            const firstTable = result.tables[0];
+            if (firstTable.columns.length >= 2) {
+              const hasNumericData = firstTable.rows.some(row =>
+                typeof row[1] === 'number' || !isNaN(Number(row[1]))
+              );
+
+              if (hasNumericData) {
+                const chartData = firstTable.rows.slice(0, 10).map(row => ({
+                  label: row[0],
+                  value: Number(row[1]) || 0,
+                }));
+                Visualizer.displayChart(chartData, 'bar');
+              }
+            }
+          }
+        }
+        return;
+      }
+
+      // 通常の実行（高い信頼度の場合）
       Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
       // クエリを検証
@@ -139,6 +180,7 @@ function showWelcomeMessage(): void {
   console.log(chalk.cyan('  aidx setup') + chalk.dim('                    # Configure your settings'));
   console.log(chalk.cyan('  aidx status') + chalk.dim('                   # Check configuration status'));
   console.log(chalk.cyan('  aidx "show me errors"') + chalk.dim('        # Ask a question'));
+  console.log(chalk.cyan('  aidx --step "show me errors"') + chalk.dim('  # Step-by-step execution'));
   console.log(chalk.cyan('  aidx --interactive') + chalk.dim('           # Interactive mode'));
   console.log(chalk.cyan('  aidx --raw "requests | take 5"') + chalk.dim(' # Raw KQL query'));
   console.log('\nFor more help, use: aidx --help');

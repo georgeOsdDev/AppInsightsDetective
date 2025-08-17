@@ -40,6 +40,20 @@ export interface NaturalLanguageQuery {
   timestamp: Date;
 }
 
+// NLQuery for AI service responses
+export interface NLQuery {
+  generatedKQL: string;
+  confidence: number;
+  reasoning?: string;
+}
+
+// Regeneration context for AI service
+export interface RegenerationContext {
+  previousQuery: string;
+  previousReasoning?: string;
+  attemptNumber: number;
+}
+
 export interface QueryHistory {
   id: string;
   query: NaturalLanguageQuery;
