@@ -53,7 +53,7 @@ program
 async function executeDirectQuery(question: string, options: any): Promise<void> {
   try {
     const configManager = new ConfigManager();
-    
+
     if (!configManager.validateConfig()) {
       Visualizer.displayError('Configuration is invalid. Please run "aidx setup" first.');
       process.exit(1);
@@ -70,14 +70,14 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       Visualizer.displayInfo(`Executing raw KQL query: ${question}`);
       const result = await appInsightsService.executeQuery(question);
       const executionTime = Date.now() - startTime;
-      
+
       Visualizer.displayResult(result);
       const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
       Visualizer.displaySummary(executionTime, totalRows);
     } else {
       // 自然言語からKQLを生成して実行
       Visualizer.displayInfo(`Processing question: "${question}"`);
-      
+
       // スキーマを取得（オプション）
       let schema;
       try {
@@ -101,7 +101,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       // クエリを実行
       const result = await appInsightsService.executeQuery(nlQuery.generatedKQL);
       const executionTime = Date.now() - startTime;
-      
+
       Visualizer.displayResult(result);
       const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
       Visualizer.displaySummary(executionTime, totalRows);
@@ -110,10 +110,10 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
         const firstTable = result.tables[0];
         if (firstTable.columns.length >= 2) {
-          const hasNumericData = firstTable.rows.some(row => 
+          const hasNumericData = firstTable.rows.some(row =>
             typeof row[1] === 'number' || !isNaN(Number(row[1]))
           );
-          
+
           if (hasNumericData) {
             const chartData = firstTable.rows.slice(0, 10).map(row => ({
               label: row[0],
@@ -134,7 +134,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
 function showWelcomeMessage(): void {
   console.log(chalk.bold.blue('\n🔍 Welcome to AppInsights Detective!'));
   console.log(chalk.dim('Query your Application Insights data with natural language.\n'));
-  
+
   console.log('Quick start:');
   console.log(chalk.cyan('  aidx setup') + chalk.dim('                    # Configure your settings'));
   console.log(chalk.cyan('  aidx status') + chalk.dim('                   # Check configuration status'));

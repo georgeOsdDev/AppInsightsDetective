@@ -18,7 +18,9 @@ if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({
     format: winston.format.combine(
       winston.format.colorize(),
-      winston.format.simple()
+      winston.format.printf(({ level, message }) => {
+        return `${level}: ${message}`;
+      })
     )
   }));
 }
