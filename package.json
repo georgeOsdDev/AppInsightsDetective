@@ -51,7 +51,7 @@
     "@azure/identity": "^4.11.1",
     "@azure/openai": "^2.0.0",
     "axios": "^1.11.0",
-    "chalk": "^4.1.2",
+    "chalk": "^5.0.0",
     "commander": "^14.0.0",
     "dotenv": "^17.2.1",
     "inquirer": "^12.9.2",
