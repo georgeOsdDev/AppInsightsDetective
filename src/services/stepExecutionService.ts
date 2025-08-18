@@ -129,7 +129,7 @@ export class StepExecutionService {
   }
 
   /**
-   * クエリの概要を表示
+   * Display query summary
    */
   private displayQuerySummary(nlQuery: NLQuery, originalQuestion: string): void {
     console.log(chalk.cyan.bold('\n📝 Original Question:'));
@@ -156,7 +156,7 @@ export class StepExecutionService {
   }
 
   /**
-   * ユーザーアクションを取得
+   * Get user action
    */
   private async getUserAction(_nlQuery: NLQuery): Promise<QueryAction> {
     const choices = [
@@ -381,7 +381,7 @@ export class StepExecutionService {
       console.log(chalk.dim(`Temporary file: ${tempFile}`));
       console.log(chalk.dim('The query will open in your default editor. Save and close to continue.'));
 
-      // 編集方法の選択
+      // Select edit method
       const { editMethod } = await inquirer.prompt([
         {
           type: 'list',
