@@ -113,7 +113,7 @@ export class InteractiveService {
   /**
    * 実行モードを選択
    */
-  private async selectExecutionMode(question: string): Promise<'direct' | 'step' | 'raw'> {
+  private async selectExecutionMode(_question: string): Promise<'direct' | 'step' | 'raw'> {
     const { mode } = await inquirer.prompt([
       {
         type: 'list',
@@ -190,7 +190,7 @@ export class InteractiveService {
     try {
       schema = await this.appInsightsService.getSchema();
       logger.debug('Schema retrieved for query generation');
-    } catch (error) {
+    } catch (_error) {
       logger.warn('Could not retrieve schema, proceeding without it');
     }
 

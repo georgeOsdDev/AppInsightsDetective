@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 import { QueryResult, QueryTable } from '../types';
-import { logger } from './logger';
 
 export class Visualizer {
   public static displayResult(result: QueryResult): void {

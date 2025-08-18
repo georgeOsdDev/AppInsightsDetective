@@ -158,7 +158,7 @@ export class StepExecutionService {
   /**
    * ユーザーアクションを取得
    */
-  private async getUserAction(nlQuery: NLQuery): Promise<QueryAction> {
+  private async getUserAction(_nlQuery: NLQuery): Promise<QueryAction> {
     const choices = [
       {
         name: '🚀 Execute Query - Run this KQL query against Application Insights',

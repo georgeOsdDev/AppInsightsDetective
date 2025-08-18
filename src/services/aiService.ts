@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { DefaultAzureCredential } from '@azure/identity';
 import { AuthService } from './authService';
 import { ConfigManager } from '../utils/config';
-import { NaturalLanguageQuery, NLQuery, RegenerationContext, SupportedLanguage, ExplanationOptions } from '../types';
+import { NLQuery, RegenerationContext, SupportedLanguage, ExplanationOptions } from '../types';
 import { logger } from '../utils/logger';
 
 export class AIService {

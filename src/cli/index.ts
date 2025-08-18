@@ -112,7 +112,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       try {
         schema = await appInsightsService.getSchema();
         logger.debug('Schema retrieved for query generation');
-      } catch (error) {
+      } catch (_error) {
         logger.warn('Could not retrieve schema, proceeding without it');
       }
 
