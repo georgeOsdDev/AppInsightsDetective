@@ -14,6 +14,9 @@ export class Visualizer {
         console.log(chalk.bold.blue(`\n=== Table ${index + 1}: ${table.name || 'Unnamed'} ===`));
       }
 
+      // テーブル情報の表示
+      console.log(chalk.dim(`Columns: ${table.columns.length}, Rows: ${table.rows.length}`));
+
       this.displayTable(table);
     });
   }
@@ -24,46 +27,110 @@ export class Visualizer {
       return;
     }
 
-    // カラム幅を計算
-    const columnWidths = table.columns.map((col, index) => {
-      const headerWidth = col.name.length;
-      const dataWidth = Math.max(...table.rows.map(row =>
-        String(row[index] || '').length
-      ));
-      return Math.min(Math.max(headerWidth, dataWidth), 50); // 最大50文字で制限
-    });
+    // ターミナル幅を取得（利用可能な場合）
+    const terminalWidth = process.stdout.columns || 120;
+    const availableWidth = Math.max(terminalWidth - 10, 80); // マージンを考慮
+
+    // カラム幅を計算（改善版）
+    const columnWidths = this.calculateOptimalColumnWidths(table, availableWidth);
 
     // ヘッダーを表示
     const header = table.columns.map((col, index) =>
       this.padString(col.name, columnWidths[index])
     ).join(' | ');
 
-    console.log(chalk.bold.cyan(header));
-    console.log(chalk.gray('-'.repeat(header.length)));
+    console.log(chalk.bold.cyan('\n' + header));
+    console.log(chalk.gray('-'.repeat(Math.min(header.length, availableWidth))));
 
-    // データ行を表示
-    table.rows.forEach((row, rowIndex) => {
-      if (rowIndex >= 100) {
-        console.log(chalk.yellow(`... and ${table.rows.length - 100} more rows`));
-        return;
-      }
-
+    // データ行を表示（最初の100行まで）
+    const displayRows = Math.min(table.rows.length, 100);
+    for (let rowIndex = 0; rowIndex < displayRows; rowIndex++) {
+      const row = table.rows[rowIndex];
       const rowString = row.map((cell, colIndex) => {
         const cellStr = this.formatCell(cell, table.columns[colIndex].type);
         return this.padString(cellStr, columnWidths[colIndex]);
       }).join(' | ');
 
       console.log(rowString);
+    }
+
+    // 行数が多い場合の省略表示
+    if (table.rows.length > 100) {
+      console.log(chalk.yellow(`\n... and ${table.rows.length - 100} more rows (use LIMIT clause to see more)`));
+    }
+
+    console.log(chalk.dim(`\nDisplayed ${Math.min(displayRows, table.rows.length)} of ${table.rows.length} rows`));
+  }
+
+  /**
+   * 最適なカラム幅を計算
+   */
+  private static calculateOptimalColumnWidths(table: QueryTable, availableWidth: number): number[] {
+    const columnCount = table.columns.length;
+    const separatorSpace = (columnCount - 1) * 3; // ' | ' separators
+    const usableWidth = availableWidth - separatorSpace;
+
+    // 各カラムの理想的な幅を計算
+    const idealWidths = table.columns.map((col, index) => {
+      const headerWidth = col.name.length;
+      const sampleRows = table.rows.slice(0, Math.min(10, table.rows.length)); // サンプル行で計算
+
+      const dataWidths = sampleRows.map(row => {
+        const cell = row[index];
+        if (cell === null || cell === undefined) {
+          return 4; // "null"の長さ
+        }
+
+        // 日付型の場合は固定長
+        if (col.type.toLowerCase() === 'datetime') {
+          return 19; // "YYYY-MM-DD HH:mm:ss"形式
+        }
+
+        return String(cell).length;
+      });
+
+      const maxDataWidth = Math.max(0, ...dataWidths);
+      return Math.max(headerWidth, maxDataWidth);
     });
 
-    console.log(chalk.dim(`\nTotal rows: ${table.rows.length}`));
+    // 幅を調整
+    const totalIdealWidth = idealWidths.reduce((sum, width) => sum + width, 0);
+
+    if (totalIdealWidth <= usableWidth) {
+      // 十分なスペースがある場合
+      return idealWidths.map(width => Math.min(width, 60)); // 最大60文字制限
+    } else {
+      // スペースが不足している場合は比例配分
+      const minWidths = table.columns.map(col => Math.max(col.name.length, 8)); // 最小8文字
+      const minTotalWidth = minWidths.reduce((sum, width) => sum + width, 0);
+
+      if (minTotalWidth >= usableWidth) {
+        // 最小幅でも収まらない場合
+        return minWidths.map(width => Math.max(width, 6));
+      }
+
+      // 比例配分で調整
+      const extraSpace = usableWidth - minTotalWidth;
+      const totalExtraNeeded = idealWidths.reduce((sum, ideal, index) => sum + Math.max(0, ideal - minWidths[index]), 0);
+
+      return idealWidths.map((ideal, index) => {
+        const minWidth = minWidths[index];
+        const extraNeeded = Math.max(0, ideal - minWidth);
+        const extraAllocated = totalExtraNeeded > 0 ? Math.floor((extraNeeded / totalExtraNeeded) * extraSpace) : 0;
+        return Math.min(minWidth + extraAllocated, 60);
+      });
+    }
   }
 
   private static padString(str: string, width: number): string {
     if (str.length > width) {
+      // 重要な情報を保持するため、より賢い省略を行う
+      if (width <= 6) {
+        return str.substring(0, width);
+      }
       return str.substring(0, width - 3) + '...';
     }
-    return str.padEnd(width);
+    return str.padEnd(width, ' ');
   }
 
   private static formatCell(value: unknown, type: string): string {
@@ -71,20 +138,58 @@ export class Visualizer {
       return chalk.dim('null');
     }
 
+    // 空文字列の場合
+    if (value === '') {
+      return chalk.dim('(empty)');
+    }
+
     switch (type.toLowerCase()) {
       case 'datetime':
-        return chalk.green(new Date(value as string).toLocaleString());
+        try {
+          const date = new Date(value as string);
+          // より短い日時形式を使用
+          return chalk.green(date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          }));
+        } catch {
+          return chalk.red(String(value));
+        }
       case 'timespan':
         return chalk.blue(String(value));
       case 'real':
       case 'long':
       case 'int':
-        return chalk.yellow(String(value));
+        // 数値の場合、適切にフォーマット
+        const numValue = Number(value);
+        if (isNaN(numValue)) {
+          return chalk.red(String(value)); // 無効な数値
+        }
+
+        // 整数の場合は小数点を表示しない
+        if (type.toLowerCase() === 'int' || type.toLowerCase() === 'long') {
+          return chalk.yellow(Math.floor(numValue).toString());
+        } else {
+          // 実数の場合は適切な精度で表示
+          return chalk.yellow(numValue.toLocaleString());
+        }
       case 'bool':
       case 'boolean':
-        return value ? chalk.green('true') : chalk.red('false');
+        const boolValue = Boolean(value);
+        return boolValue ? chalk.green('true') : chalk.red('false');
+      case 'string':
       default:
-        return String(value);
+        const strValue = String(value);
+        // 長い文字列の場合は制限
+        if (strValue.length > 100) {
+          return strValue.substring(0, 97) + '...';
+        }
+        return strValue;
     }
   }
 

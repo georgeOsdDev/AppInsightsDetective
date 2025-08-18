@@ -1,6 +1,7 @@
 - ✅ Console出力が見にくい → 修正完了
 - ✅ ステップ実行機能 → 実装完了
 - ✅ Query Explanation多言語対応 → 実装完了
+- ✅ 結果レンダリング改善 → 修正完了
 - 結果に対するexplain機能
 - アウトプットフォーマット table, json ,csv,tsv
 - グラフ描画
