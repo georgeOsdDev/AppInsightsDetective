@@ -147,13 +147,11 @@ export class InteractiveService {
    * Execute query
    */
   private async executeQuery(question: string, mode: 'direct' | 'step' | 'raw'): Promise<void> {
-    const startTime = Date.now();
-
     try {
       if (mode === 'raw') {
         await this.executeRawQuery(question);
       } else {
-        await this.executeNaturalLanguageQuery(question, mode, startTime);
+        await this.executeNaturalLanguageQuery(question, mode);
       }
     } catch (error) {
       logger.error('Query execution failed:', error);
@@ -161,10 +159,11 @@ export class InteractiveService {
     }
   }
 
-    /**
+  /**
    * Execute raw KQL query
    */
   private async executeRawQuery(query: string): Promise<void> {
+    const startTime = Date.now();
     Visualizer.displayInfo(`Executing raw KQL query: ${query}`);
 
     const result = await this.appInsightsService.executeQuery(query);
@@ -180,9 +179,9 @@ export class InteractiveService {
    */
   private async executeNaturalLanguageQuery(
     question: string,
-    mode: 'direct' | 'step',
-    startTime: number
+    mode: 'direct' | 'step'
   ): Promise<void> {
+    const startTime = Date.now();
     Visualizer.displayInfo(`Processing question: "${question}"`);
 
     // Retrieve schema (optional)

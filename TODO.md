@@ -3,6 +3,7 @@
 - ✅ Query Explanation多言語対応 → 実装完了
 - ✅ 結果レンダリング改善 → 修正完了
 - ✅ stepオプションとinteractiveオプションの統合 → 完了
+- ✅ 日本語コメントを英語に変換 → リファクタリング完了
 - 結果に対するexplain機能
 - アウトプットフォーマット table, json ,csv,tsv
 - グラフ描画
