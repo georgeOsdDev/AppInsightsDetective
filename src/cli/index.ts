@@ -21,12 +21,12 @@ program
   .description('AppInsights Detective - Query Application Insights with natural language')
   .version('1.0.0');
 
-// サブコマンドを追加
+// Sub commands
 program.addCommand(createSetupCommand());
 program.addCommand(createQueryCommand());
 program.addCommand(createStatusCommand());
 
-// デフォルトアクション（直接質問を渡した場合）
+// Default Action
 program
   .argument('[question]', 'Natural language question to ask')
   .option('-i, --interactive', 'Run in interactive mode with step-by-step guidance')
@@ -36,10 +36,8 @@ program
   .action(async (question, options) => {
     try {
       if (question) {
-        // 質問が提供された場合、直接クエリを実行
         await executeDirectQuery(question, options);
       } else if (options.interactive) {
-        // インタラクティブモード（統合されたセッション）
         const configManager = new ConfigManager();
         if (!configManager.validateConfig()) {
           Visualizer.displayError('Configuration is invalid. Please run "aidx setup" first.');
@@ -64,7 +62,6 @@ program
         );
         await interactiveService.startSession();
       } else {
-        // ヘルプを表示
         program.help();
       }
     } catch (error) {
@@ -91,7 +88,6 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
     const startTime = Date.now();
 
     if (options.raw) {
-      // 生のKQLクエリとして実行
       Visualizer.displayInfo(`Executing raw KQL query: ${question}`);
       const result = await appInsightsService.executeQuery(question);
       const executionTime = Date.now() - startTime;
@@ -100,14 +96,12 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
       Visualizer.displaySummary(executionTime, totalRows);
     } else {
-      // 自然言語からKQLを生成して実行
       Visualizer.displayInfo(`Processing question: "${question}"`);
 
-      // AI サービスを事前初期化
       Visualizer.displayInfo('Initializing AI services...');
       await aiService.initialize();
 
-      // スキーマを取得（オプション）
+      // Retrieve schema (optional)
       let schema;
       try {
         schema = await appInsightsService.getSchema();
@@ -116,10 +110,10 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
         logger.warn('Could not retrieve schema, proceeding without it');
       }
 
-      // KQLクエリを生成
+      // Generate KQL query
       const nlQuery = await aiService.generateKQLQuery(question, schema);
 
-      // ステップ実行モードまたは信頼度が低い場合
+      // Step execution mode or row confidence
       const shouldUseStepMode = !options.direct && nlQuery.confidence < 0.7;
 
       if (shouldUseStepMode) {
@@ -129,7 +123,6 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
           maxRegenerationAttempts: 3
         });
 
-        // 言語設定を渡す
         if (options.language) {
           const config = configManager.getConfig();
           config.language = options.language;
@@ -167,14 +160,14 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       // 通常の実行（高い信頼度の場合）
       Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
-      // クエリを検証
+      // Validate query
       const validation = await aiService.validateQuery(nlQuery.generatedKQL);
       if (!validation.isValid) {
         Visualizer.displayError(`Generated query is invalid: ${validation.error}`);
         return;
       }
 
-      // クエリを実行
+      // Execute query
       const result = await appInsightsService.executeQuery(nlQuery.generatedKQL);
       const executionTime = Date.now() - startTime;
 

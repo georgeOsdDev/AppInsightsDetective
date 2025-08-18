@@ -14,7 +14,7 @@ export function createStatusCommand(): Command {
       try {
         Visualizer.displayInfo('Checking AppInsights Detective status...');
 
-        // 設定チェック
+        // Check configuration
         const configManager = new ConfigManager();
         const config = configManager.getConfig();
 
@@ -33,7 +33,7 @@ export function createStatusCommand(): Command {
           return;
         }
 
-        // 認証チェック
+        // Check authentication
         console.log('\n🔐 Authentication Status:');
         try {
           const authService = new AuthService();
@@ -44,7 +44,7 @@ export function createStatusCommand(): Command {
           logger.debug('Auth error:', error);
         }
 
-        // Application Insights接続チェック
+        // Check connectivity to Application Insights
         console.log('\n📊 Application Insights Status:');
         try {
           const authService = new AuthService();
@@ -62,7 +62,7 @@ export function createStatusCommand(): Command {
           logger.debug('AppInsights connection error:', error);
         }
 
-        // OpenAI接続チェック
+        // Check connectivity to OpenAI
         console.log('\n🤖 OpenAI Status:');
         try {
           const authService = new AuthService();

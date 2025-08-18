@@ -66,7 +66,7 @@ export class AppInsightsService {
 
   public async validateConnection(): Promise<boolean> {
     try {
-      // シンプルなクエリでコネクションをテスト
+      // Test connection with a simple query
       await this.executeQuery('requests | take 1');
       logger.info('Application Insights connection validated successfully');
       return true;

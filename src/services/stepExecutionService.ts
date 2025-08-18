@@ -47,7 +47,7 @@ export class StepExecutionService {
   }
 
   /**
-   * 生成されたKQLクエリに対してステップ実行を開始
+   * Start step execution for generated KQL query
    */
   async executeStepByStep(nlQuery: NLQuery, originalQuestion: string): Promise<QueryResult | null> {
     this.queryHistory = [nlQuery.generatedKQL];
@@ -63,10 +63,10 @@ export class StepExecutionService {
     console.log(chalk.dim('='.repeat(50)));
 
     while (true) {
-      // クエリを表示
+      // Display query
       this.displayQuerySummary(nlQuery, originalQuestion);
 
-      // ユーザーアクションを取得
+      // Get user action
       const action = await this.getUserAction(nlQuery);
 
       switch (action.action) {
@@ -92,7 +92,7 @@ export class StepExecutionService {
           if (editedQuery) {
             nlQuery = {
               generatedKQL: editedQuery,
-              confidence: 0.5, // 編集されたクエリの信頼度は中程度
+              confidence: 0.5, // Edited queries have moderate confidence
               reasoning: 'Manually edited query'
             };
             this.queryHistory.push(editedQuery);
@@ -113,7 +113,7 @@ export class StepExecutionService {
           if (selectedQuery) {
             nlQuery = {
               generatedKQL: selectedQuery,
-              confidence: 0.8, // 履歴から選択されたクエリの信頼度
+              confidence: 0.8, // Historical queries have high confidence
               reasoning: 'Selected from query history'
             };
             continue;
@@ -142,13 +142,13 @@ export class StepExecutionService {
       console.log(chalk.dim(`  ${nlQuery.reasoning}`));
     }
 
-    // 信頼度による推奨アクション
+    // Confidence-based recommended action
     if (nlQuery.confidence < (this.options.showConfidenceThreshold || 0.7)) {
       console.log(chalk.yellow.bold('\n⚠️  Low Confidence Warning:'));
       console.log(chalk.yellow('  This query has low confidence. Consider reviewing or regenerating it.'));
     }
 
-    // クエリ履歴
+    // Query history
     if (this.queryHistory.length > 1) {
       console.log(chalk.cyan.bold(`\n📜 Query History (${this.queryHistory.length} versions):`));
       console.log(chalk.dim('  Use ↑/↓ to see previous versions if needed.'));
@@ -172,7 +172,7 @@ export class StepExecutionService {
       }
     ];
 
-    // 再生成の上限チェック
+    // Check regeneration limit
     if (this.currentAttempt < (this.options.maxRegenerationAttempts || 3)) {
       choices.push({
         name: '🔄 Regenerate Query - Ask AI to create a different query approach',
@@ -181,7 +181,7 @@ export class StepExecutionService {
       });
     }
 
-    // 編集オプション
+    // Edit option
     if (this.options.allowEditing) {
       choices.push({
         name: '✏️  Edit Query - Manually modify the KQL query',
@@ -190,7 +190,7 @@ export class StepExecutionService {
       });
     }
 
-    // 履歴表示オプション（2件以上の履歴がある場合）
+    // Show history option (when 2+ history items exist)
     if (this.queryHistory.length > 1) {
       choices.push({
         name: '📜 View History - Browse and select from query history',
@@ -223,7 +223,7 @@ export class StepExecutionService {
    */
   private async explainQuery(nlQuery: NLQuery): Promise<void> {
     try {
-      // 言語選択プロンプト
+      // Language selection prompt
       const languageOptions = this.getLanguageOptions();
       const { selectedLanguage, technicalLevel, includeExamples } = await inquirer.prompt([
         {
@@ -267,7 +267,7 @@ export class StepExecutionService {
       console.log(chalk.white(explanation));
       console.log(chalk.dim('='.repeat(50)));
 
-      // 続行確認
+      // Continuation confirmation
       await inquirer.prompt([
         {
           type: 'input',
@@ -333,7 +333,7 @@ export class StepExecutionService {
       this.currentAttempt++;
       Visualizer.displayInfo(`Regenerating query (attempt ${this.currentAttempt})...`);
 
-      // 前のクエリの問題点を分析するためのコンテキスト
+      // Context for analyzing previous query issues
       const regenerationContext = {
         previousQuery: previousQuery.generatedKQL,
         previousReasoning: previousQuery.reasoning,
@@ -373,7 +373,7 @@ export class StepExecutionService {
    */
   private async editQuery(currentQuery: string): Promise<string | null> {
     try {
-      // 一時ファイルを作成
+      // Create temporary file
       const tempFile = join(tmpdir(), `aidx-query-${Date.now()}.kql`);
       writeFileSync(tempFile, currentQuery, 'utf8');
 

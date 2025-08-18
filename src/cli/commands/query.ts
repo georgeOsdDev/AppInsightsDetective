@@ -34,7 +34,7 @@ export function createQueryCommand(): Command {
 
         let queryText = question;
 
-        // 質問が提供されていない場合は、単発の質問を求める
+        // If no question is provided, prompt for a single question
         if (!queryText) {
           const response = await inquirer.prompt([
             {
@@ -50,7 +50,7 @@ export function createQueryCommand(): Command {
         const startTime = Date.now();
 
         if (options.raw) {
-          // 生のKQLクエリとして実行
+          // Execute as raw KQL query
           Visualizer.displayInfo(`Executing raw KQL query: ${queryText}`);
           const result = await appInsightsService.executeQuery(queryText);
           const executionTime = Date.now() - startTime;
@@ -59,10 +59,10 @@ export function createQueryCommand(): Command {
           const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
           Visualizer.displaySummary(executionTime, totalRows);
         } else {
-          // 自然言語からKQLを生成して実行
+          // Generate KQL from natural language and execute
           Visualizer.displayInfo(`Processing question: "${queryText}"`);
 
-          // スキーマを取得（オプション）
+          // Retrieve schema (optional)
           let schema;
           try {
             schema = await appInsightsService.getSchema();
@@ -71,21 +71,21 @@ export function createQueryCommand(): Command {
             logger.warn('Could not retrieve schema, proceeding without it');
           }
 
-          // KQLクエリを生成
+          // Generate KQL query
           const nlQuery = await aiService.generateKQLQuery(queryText, schema);
 
-          // 実行モードを決定
+          // Determine execution mode
           const shouldUseStepMode = !options.direct && nlQuery.confidence < 0.7;
 
           if (shouldUseStepMode) {
-            // ステップ実行モード（低信頼度の場合、または明示的に指定された場合）
+            // Step execution mode (for low confidence or explicitly specified)
             const stepExecutionService = new StepExecutionService(aiService, appInsightsService, {
               showConfidenceThreshold: 0.7,
               allowEditing: true,
               maxRegenerationAttempts: 3
             });
 
-            // 言語設定を渡す
+            // Pass language settings
             if (options.language) {
               const config = configManager.getConfig();
               config.language = options.language;
@@ -99,7 +99,7 @@ export function createQueryCommand(): Command {
               const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
               Visualizer.displaySummary(executionTime, totalRows);
 
-              // 結果が数値データの場合、簡単なチャートを表示
+              // Display simple chart for numeric data results
               if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
                 const firstTable = result.tables[0];
                 if (firstTable.columns.length >= 2) {
@@ -120,17 +120,17 @@ export function createQueryCommand(): Command {
             return;
           }
 
-          // 通常の実行（高い信頼度の場合）
+          // Normal execution (high confidence)
           Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
-          // クエリを検証
+          // Validate query
           const validation = await aiService.validateQuery(nlQuery.generatedKQL);
           if (!validation.isValid) {
             Visualizer.displayError(`Generated query is invalid: ${validation.error}`);
             return;
           }
 
-          // クエリを実行
+          // Execute query
           const result = await appInsightsService.executeQuery(nlQuery.generatedKQL);
           const executionTime = Date.now() - startTime;
 
@@ -138,7 +138,7 @@ export function createQueryCommand(): Command {
           const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
           Visualizer.displaySummary(executionTime, totalRows);
 
-          // 結果が数値データの場合、簡単なチャートを表示
+          // Display simple chart for numeric data results
           if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
             const firstTable = result.tables[0];
             if (firstTable.columns.length >= 2) {

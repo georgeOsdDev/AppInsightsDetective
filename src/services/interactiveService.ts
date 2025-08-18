@@ -24,14 +24,14 @@ export class InteractiveService {
   ) {}
 
   /**
-   * インタラクティブセッションを開始
+   * Start interactive session
    */
   async startSession(): Promise<void> {
     console.log(chalk.blue.bold('\n🔍 AppInsights Detective - Interactive Mode'));
     console.log(chalk.dim('Ask questions about your application in natural language'));
     console.log(chalk.dim('Type "exit" or "quit" to end the session'));
 
-    // AI サービスを事前初期化
+    // Pre-initialize AI service
     console.log(chalk.dim('\n🤖 Initializing AI services...'));
     try {
       await this.aiService.initialize();
@@ -43,7 +43,7 @@ export class InteractiveService {
 
     while (true) {
       try {
-        // 質問を取得
+        // Get question from user
         const { question } = await inquirer.prompt([
           {
             type: 'input',
@@ -54,26 +54,26 @@ export class InteractiveService {
                 return 'Please enter a question';
               }
               if (input.toLowerCase().trim() === 'exit' || input.toLowerCase().trim() === 'quit') {
-                return true; // exitコマンドは有効
+                return true; // exit command is valid
               }
               return true;
             },
           }
         ]);
 
-        // 終了コマンドのチェック
+        // Check for exit commands
         if (question.toLowerCase().trim() === 'exit' || question.toLowerCase().trim() === 'quit') {
           console.log(chalk.green('👋 Thanks for using AppInsights Detective!'));
           break;
         }
 
-        // 実行モードを選択
+        // Select execution mode
         const executionMode = await this.selectExecutionMode(question);
 
-        // クエリを実行
+        // Execute query
         await this.executeQuery(question, executionMode);
 
-        // 継続するかを確認
+        // Confirm if continuing
         const { continueSession } = await inquirer.prompt([
           {
             type: 'confirm',
@@ -110,10 +110,10 @@ export class InteractiveService {
     }
   }
 
-  /**
-   * 実行モードを選択
+    /**
+   * Select execution mode
    */
-  private async selectExecutionMode(_question: string): Promise<'direct' | 'step' | 'raw'> {
+  private async selectExecutionMode(question?: string): Promise<'direct' | 'step' | 'raw'> {
     const { mode } = await inquirer.prompt([
       {
         type: 'list',
@@ -136,7 +136,7 @@ export class InteractiveService {
             short: 'Raw'
           }
         ],
-        default: this.options.defaultMode || 'step' // デフォルトはレビューモード
+        default: this.options.defaultMode || 'step' // Default is step mode
       }
     ]);
 
@@ -144,14 +144,14 @@ export class InteractiveService {
   }
 
   /**
-   * クエリを実行
+   * Execute query
    */
   private async executeQuery(question: string, mode: 'direct' | 'step' | 'raw'): Promise<void> {
     const startTime = Date.now();
 
     try {
       if (mode === 'raw') {
-        await this.executeRawQuery(question, startTime);
+        await this.executeRawQuery(question);
       } else {
         await this.executeNaturalLanguageQuery(question, mode, startTime);
       }
@@ -161,10 +161,10 @@ export class InteractiveService {
     }
   }
 
-  /**
-   * 生のKQLクエリを実行
+    /**
+   * Execute raw KQL query
    */
-  private async executeRawQuery(query: string, startTime: number): Promise<void> {
+  private async executeRawQuery(query: string): Promise<void> {
     Visualizer.displayInfo(`Executing raw KQL query: ${query}`);
 
     const result = await this.appInsightsService.executeQuery(query);
@@ -176,7 +176,7 @@ export class InteractiveService {
   }
 
   /**
-   * 自然言語クエリを実行
+   * Execute natural language query
    */
   private async executeNaturalLanguageQuery(
     question: string,
@@ -185,7 +185,7 @@ export class InteractiveService {
   ): Promise<void> {
     Visualizer.displayInfo(`Processing question: "${question}"`);
 
-    // スキーマを取得（オプション）
+    // Retrieve schema (optional)
     let schema;
     try {
       schema = await this.appInsightsService.getSchema();
@@ -194,23 +194,23 @@ export class InteractiveService {
       logger.warn('Could not retrieve schema, proceeding without it');
     }
 
-    // 言語設定を適用
+    // Apply language settings
     if (this.options.language) {
       const config = this.configManager.getConfig();
       config.language = this.options.language;
     }
 
-    // KQLクエリを生成
+    // Generate KQL query
     const nlQuery = await this.aiService.generateKQLQuery(question, schema);
 
-    // デバッグ情報
+    // Debug information
     logger.debug(`Generated query with confidence: ${nlQuery.confidence}`);
     logger.debug(`Selected mode: ${mode}`);
 
     let result: QueryResult | null = null;
 
     if (mode === 'step' || nlQuery.confidence < 0.7) {
-      // ステップ実行モード
+      // Step execution mode
       Visualizer.displayInfo('Starting step-by-step query review...');
 
       const stepExecutionService = new StepExecutionService(
@@ -232,18 +232,18 @@ export class InteractiveService {
         Visualizer.displaySummary(executionTime, totalRows);
       }
     } else {
-      // 直接実行モード
+      // Direct execution mode
       Visualizer.displayInfo('Executing query in direct mode...');
       Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
-      // クエリを検証
+      // Validate query
       const validation = await this.aiService.validateQuery(nlQuery.generatedKQL);
       if (!validation.isValid) {
         Visualizer.displayError(`Generated query is invalid: ${validation.error}`);
         return;
       }
 
-      // クエリを実行
+      // Execute query
       result = await this.appInsightsService.executeQuery(nlQuery.generatedKQL);
 
       if (result) {
@@ -254,7 +254,7 @@ export class InteractiveService {
       }
     }
 
-    // 結果が数値データの場合、簡単なチャートの提案（直接実行モードのみ）
+    // Suggest simple chart for numeric data (direct execution mode only)
     if (result && mode === 'direct' && result.tables.length > 0 && result.tables[0].rows.length > 1) {
       const firstTable = result.tables[0];
       if (firstTable.columns.length >= 2) {
@@ -285,9 +285,9 @@ export class InteractiveService {
   }
 
   /**
-   * セッション設定を更新
+   * Update session settings
    */
-  async updateSessionSettings(): Promise<void> {
+  async updateSettings(currentLanguage?: SupportedLanguage): Promise<void> {
     const { language, defaultMode } = await inquirer.prompt([
       {
         type: 'list',
@@ -321,7 +321,7 @@ export class InteractiveService {
     this.options.language = language;
     this.options.defaultMode = defaultMode;
 
-    // 設定を永続化（一時的に設定に保存）
+    // Persist settings (temporarily save to config)
     const config = this.configManager.getConfig();
     config.language = language;
 
