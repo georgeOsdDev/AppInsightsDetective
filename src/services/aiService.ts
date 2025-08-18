@@ -18,7 +18,7 @@ export class AIService {
   }
 
   /**
-   * OpenAI クライアントの初期化完了を待つ
+   * Wait for OpenAI client initialization completion
    */
   async initialize(): Promise<void> {
     if (this.initializationPromise) {
@@ -31,7 +31,7 @@ export class AIService {
       const config = this.configManager.getConfig();
 
       if (config.openAI.apiKey) {
-        // API Key認証
+        // API Key authentication
         this.openAIClient = new OpenAI({
           apiKey: config.openAI.apiKey,
           baseURL: `${config.openAI.endpoint}/openai/deployments/${config.openAI.deploymentName}`,
@@ -41,7 +41,7 @@ export class AIService {
           },
         });
       } else {
-        // Managed Identity認証（簡略化）
+        // Managed Identity authentication (simplified)
         const credential = new DefaultAzureCredential();
         const tokenResponse = await credential.getToken(['https://cognitiveservices.azure.com/.default']);
 

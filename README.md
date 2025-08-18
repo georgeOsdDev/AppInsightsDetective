@@ -179,7 +179,6 @@ npm run dev
 ```bash
 npm run build        # Compile TypeScript
 npm run dev          # Run in development mode
-npm run watch        # Watch mode with auto-reload
 npm run lint         # Run ESLint
 npm run lint:fix     # Fix ESLint issues
 npm run test         # Run unit tests

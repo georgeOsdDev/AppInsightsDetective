@@ -15,7 +15,7 @@ export class ConfigManager {
 
   private loadConfig(): void {
     try {
-      // ユーザー設定を優先して読み込み
+      // Load user settings with priority
       if (fs.existsSync(USER_CONFIG_PATH)) {
         const userConfig = JSON.parse(fs.readFileSync(USER_CONFIG_PATH, 'utf-8'));
         this.config = userConfig;
@@ -23,7 +23,7 @@ export class ConfigManager {
         return;
       }
 
-      // デフォルト設定を読み込み
+      // Load default settings
       if (fs.existsSync(DEFAULT_CONFIG_PATH)) {
         const defaultConfig = JSON.parse(fs.readFileSync(DEFAULT_CONFIG_PATH, 'utf-8'));
         this.config = defaultConfig;

@@ -37,6 +37,24 @@ async function handleOutput(result: any, options: any, executionTime: number): P
     Visualizer.displayResult(result);
     const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
     Visualizer.displaySummary(executionTime, totalRows);
+
+    // Display chart for numeric data when showing table format
+    if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
+      const firstTable = result.tables[0];
+      if (firstTable.columns.length >= 2) {
+        const hasNumericData = firstTable.rows.some((row: any) =>
+          typeof row[1] === 'number' || !isNaN(Number(row[1]))
+        );
+
+        if (hasNumericData) {
+          const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
+            label: row[0],
+            value: Number(row[1]) || 0,
+          }));
+          Visualizer.displayChart(chartData, 'bar');
+        }
+      }
+    }
   }
 
   // Handle file output
@@ -210,7 +228,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
         return;
       }
 
-      // Normal execution (high confidence)
+      // Normal execution (high confidence case)
       Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
       // Validate query
