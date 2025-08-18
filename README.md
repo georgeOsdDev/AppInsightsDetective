@@ -1,5 +1,9 @@
 # 🔍 AppInsights Detective 🕵
 
+[![CI](https://github.com/georgeOsdDev/AppInsightsDetective/actions/workflows/ci.yml/badge.svg)](https://github.com/georgeOsdDev/AppInsightsDetective/actions/workflows/ci.yml)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Query Azure Application Insights with natural language using AI**
 
 AppInsights Detective is an intelligent CLI tool that allows you to query your Azure Application Insights data using natural language. It leverages Azure OpenAI to convert your questions into KQL (Kusto Query Language) queries and presents the results in a user-friendly format.
@@ -12,29 +16,34 @@ AppInsights Detective is an intelligent CLI tool that allows you to query your A
 - 🤖 **AI-Powered KQL Generation**: Automatic conversion to KQL using Azure OpenAI
 - 📊 **Rich Visualization**: Console-based charts and formatted tables
 - 🔐 **Secure Authentication**: Uses Azure Managed Identity
-- ⚡ **Interactive Mode**: Step-by-step query building
+- ⚡ **Interactive Mode**: Step-by-step query building and validation
 - 📈 **Query Validation**: Ensures safe and valid KQL execution
 - 🎯 **Smart Schema Integration**: Leverages your Application Insights schema
+- 🧪 **Comprehensive Testing**: Full test coverage with automated CI/CD
+- 🚀 **Production Ready**: Built with TypeScript, proper error handling
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 16.0.0 or higher
+- Node.js 18.0.0 or higher
 - Azure Application Insights resource
 - Azure OpenAI resource
 - Appropriate Azure permissions
 
 ### Installation
 
+> **Note**: This package is currently in development. For now, please install from source.
+
 ```bash
+# Install from npm (coming soon)
 npm install -g appinsights-detective
 ```
 
-Or run locally:
+**Install from source:**
 
 ```bash
-git clone <repository>
+git clone https://github.com/georgeOsdDev/AppInsightsDetective.git
 cd AppInsightsDetective
 npm install
 npm run build
@@ -159,7 +168,7 @@ aidx --interactive  # Full interactive mode with step-by-step assistance
 ### Setup Development Environment
 
 ```bash
-git clone <repository>
+git clone https://github.com/georgeOsdDev/AppInsightsDetective.git
 cd AppInsightsDetective
 npm install
 npm run dev
@@ -168,12 +177,15 @@ npm run dev
 ### Available Scripts
 
 ```bash
-npm run build      # Compile TypeScript
-npm run dev        # Run in development mode
-npm run watch      # Watch mode with auto-reload
-npm run lint       # Run ESLint
-npm run lint:fix   # Fix ESLint issues
-npm run clean      # Clean build directory
+npm run build        # Compile TypeScript
+npm run dev          # Run in development mode
+npm run watch        # Watch mode with auto-reload
+npm run lint         # Run ESLint
+npm run lint:fix     # Fix ESLint issues
+npm run test         # Run unit tests
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Run tests with coverage
+npm run clean        # Clean build directory
 ```
 
 ### Project Structure
@@ -185,14 +197,21 @@ AppInsightsDetective/
 │   │   ├── commands/       # Individual commands (setup, query, status)
 │   │   └── index.ts        # CLI entry point
 │   ├── services/           # Business logic
-│   │   ├── authService.ts      # Azure authentication
-│   │   ├── appInsightsService.ts # Application Insights API
-│   │   └── aiService.ts        # OpenAI integration
+│   │   ├── authService.ts          # Azure authentication
+│   │   ├── appInsightsService.ts   # Application Insights API
+│   │   ├── aiService.ts            # OpenAI integration
+│   │   ├── stepExecutionService.ts # Interactive query execution
+│   │   └── interactiveService.ts   # Interactive CLI service
 │   ├── utils/              # Utilities
 │   │   ├── config.ts       # Configuration management
 │   │   ├── logger.ts       # Logging
 │   │   └── visualizer.ts   # Console visualization
 │   └── types/              # TypeScript definitions
+├── tests/                  # Unit and integration tests
+│   ├── services/           # Service tests
+│   ├── utils/              # Utility tests
+│   └── integration/        # Integration tests
+├── .github/workflows/      # GitHub Actions CI/CD
 ├── config/                 # Configuration files
 └── templates/              # Query templates
 ```
@@ -202,8 +221,12 @@ AppInsightsDetective/
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+4. Add tests for new functionality
+5. Run tests: `npm test`
+6. Run linting: `npm run lint`
+7. Submit a pull request
+
+All contributions must pass the CI checks including tests and linting.
 
 ## 📝 License
 

@@ -30,7 +30,7 @@
   "author": "AppInsights Detective Team",
   "license": "MIT",
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   },
   "files": [
     "dist/**/*",
