@@ -7,7 +7,96 @@ import { StepExecutionService } from '../../services/stepExecutionService';
 import { InteractiveService } from '../../services/interactiveService';
 import { ConfigManager } from '../../utils/config';
 import { Visualizer } from '../../utils/visualizer';
+import { OutputFormatter } from '../../utils/outputFormatter';
+import { FileOutputManager } from '../../utils/fileOutput';
 import { logger } from '../../utils/logger';
+import { OutputFormat, QueryResult } from '../../types';
+import chalk from 'chalk';
+
+/**
+ * Handle output formatting and file writing
+ */
+async function handleOutput(result: QueryResult, options: any, executionTime: number): Promise<void> {
+  const outputFormat = options.format as OutputFormat;
+  const outputFile = options.output as string | undefined;
+  const encoding = FileOutputManager.isValidEncoding(options.encoding) ? options.encoding : 'utf8';
+
+  // Validate format
+  const validFormats: OutputFormat[] = ['table', 'json', 'csv', 'tsv', 'raw'];
+  if (!validFormats.includes(outputFormat)) {
+    logger.warn(`Invalid format '${outputFormat}', defaulting to table`);
+    options.format = 'table';
+  }
+
+  // Always show console output for table format or when no file is specified
+  if (outputFormat === 'table' || !outputFile) {
+    Visualizer.displayResult(result);
+    const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
+    Visualizer.displaySummary(executionTime, totalRows);
+
+    // Display simple chart for numeric data results (only for console table output)
+    if (outputFormat === 'table' && result.tables.length > 0 && result.tables[0].rows.length > 1) {
+      const firstTable = result.tables[0];
+      if (firstTable.columns.length >= 2) {
+        const hasNumericData = firstTable.rows.some(row =>
+          typeof row[1] === 'number' || !isNaN(Number(row[1]))
+        );
+
+        if (hasNumericData) {
+          const chartData = firstTable.rows.slice(0, 10).map(row => ({
+            label: row[0],
+            value: Number(row[1]) || 0,
+          }));
+          Visualizer.displayChart(chartData, 'bar');
+        }
+      }
+    }
+  }
+
+  // Handle file output
+  if (outputFile) {
+    try {
+      // Resolve output path and check permissions
+      const resolvedPath = FileOutputManager.resolveOutputPath(outputFile, outputFormat);
+      
+      if (!FileOutputManager.checkWritePermission(resolvedPath)) {
+        Visualizer.displayError(`Cannot write to file: ${resolvedPath}`);
+        return;
+      }
+
+      // Format the output
+      const formattedOutput = OutputFormatter.formatResult(result, outputFormat, {
+        pretty: options.pretty,
+        includeHeaders: !options.noHeaders
+      });
+
+      // Create backup if file exists
+      FileOutputManager.createBackup(resolvedPath);
+
+      // Write to file
+      await FileOutputManager.writeToFile(formattedOutput, resolvedPath, encoding);
+
+      // Show success message
+      const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
+      console.log(chalk.green(`✅ Successfully saved ${totalRows} rows to ${resolvedPath}`));
+      
+      // Show execution summary if not already shown
+      if (outputFormat !== 'table') {
+        Visualizer.displaySummary(executionTime, totalRows);
+      }
+
+    } catch (error) {
+      logger.error('File output failed:', error);
+      Visualizer.displayError(`Failed to save to file: ${error}`);
+      
+      // Fallback to console output
+      if (outputFormat !== 'table') {
+        console.log(chalk.yellow('Falling back to console output:'));
+        Visualizer.displayResult(result);
+      }
+    }
+  }
+}
 
 export function createQueryCommand(): Command {
   const queryCommand = new Command('query');
@@ -19,6 +108,11 @@ export function createQueryCommand(): Command {
     .option('-r, --raw', 'Execute raw KQL query')
     .option('--direct', 'Execute query directly without confirmation (bypass step mode)')
     .option('--no-cache', 'Disable query caching')
+    .option('-f, --format <format>', 'Output format (table, json, csv, tsv, raw)', 'table')
+    .option('-o, --output <file>', 'Output file path')
+    .option('--pretty', 'Pretty print JSON output')
+    .option('--no-headers', 'Exclude headers in CSV/TSV output')
+    .option('--encoding <encoding>', 'File encoding (utf8, utf16le, etc.)', 'utf8')
     .action(async (question, options) => {
       try {
         const configManager = new ConfigManager();
@@ -55,9 +149,7 @@ export function createQueryCommand(): Command {
           const result = await appInsightsService.executeQuery(queryText);
           const executionTime = Date.now() - startTime;
 
-          Visualizer.displayResult(result);
-          const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
-          Visualizer.displaySummary(executionTime, totalRows);
+          await handleOutput(result, options, executionTime);
         } else {
           // Generate KQL from natural language and execute
           Visualizer.displayInfo(`Processing question: "${queryText}"`);
@@ -95,27 +187,7 @@ export function createQueryCommand(): Command {
 
             if (result) {
               const executionTime = Date.now() - startTime;
-              Visualizer.displayResult(result);
-              const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
-              Visualizer.displaySummary(executionTime, totalRows);
-
-              // Display simple chart for numeric data results
-              if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
-                const firstTable = result.tables[0];
-                if (firstTable.columns.length >= 2) {
-                  const hasNumericData = firstTable.rows.some(row =>
-                    typeof row[1] === 'number' || !isNaN(Number(row[1]))
-                  );
-
-                  if (hasNumericData) {
-                    const chartData = firstTable.rows.slice(0, 10).map(row => ({
-                      label: row[0],
-                      value: Number(row[1]) || 0,
-                    }));
-                    Visualizer.displayChart(chartData, 'bar');
-                  }
-                }
-              }
+              await handleOutput(result, options, executionTime);
             }
             return;
           }
@@ -134,27 +206,7 @@ export function createQueryCommand(): Command {
           const result = await appInsightsService.executeQuery(nlQuery.generatedKQL);
           const executionTime = Date.now() - startTime;
 
-          Visualizer.displayResult(result);
-          const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
-          Visualizer.displaySummary(executionTime, totalRows);
-
-          // Display simple chart for numeric data results
-          if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
-            const firstTable = result.tables[0];
-            if (firstTable.columns.length >= 2) {
-              const hasNumericData = firstTable.rows.some(row =>
-                typeof row[1] === 'number' || !isNaN(Number(row[1]))
-              );
-
-              if (hasNumericData) {
-                const chartData = firstTable.rows.slice(0, 10).map(row => ({
-                  label: row[0],
-                  value: Number(row[1]) || 0,
-                }));
-                Visualizer.displayChart(chartData, 'bar');
-              }
-            }
-          }
+          await handleOutput(result, options, executionTime);
         }
 
       } catch (error) {
