@@ -136,7 +136,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
           const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
           Visualizer.displaySummary(executionTime, totalRows);
 
-          // 結果が数値データの場合、簡単なチャートを表示
+          // Display simple chart for numeric data results
           if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
             const firstTable = result.tables[0];
             if (firstTable.columns.length >= 2) {
@@ -157,7 +157,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
         return;
       }
 
-      // 通常の実行（高い信頼度の場合）
+      // Normal execution (high confidence case)
       Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
       // Validate query
@@ -175,7 +175,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
       Visualizer.displaySummary(executionTime, totalRows);
 
-      // 結果が数値データの場合、簡単なチャートを表示
+      // Display simple chart for numeric data results
       if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
         const firstTable = result.tables[0];
         if (firstTable.columns.length >= 2) {
