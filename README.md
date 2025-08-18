@@ -67,7 +67,9 @@ aidx "How many users visited my app this week?"
 **Interactive mode:**
 
 ```bash
-aidx query --interactive
+aidx -i
+# or
+aidx --interactive
 ```
 
 **Raw KQL queries:**
@@ -83,7 +85,7 @@ aidx query --raw "requests | take 10"
 | `aidx setup` | Configure Application Insights and OpenAI settings |
 | `aidx status` | Check configuration and connection status |
 | `aidx query [question]` | Query with natural language |
-| `aidx query --interactive` | Interactive query mode |
+| `aidx -i` or `aidx --interactive` | Interactive query mode |
 | `aidx query --raw [kql]` | Execute raw KQL query |
 
 ## ⚙️ Configuration
@@ -146,6 +148,10 @@ aidx "What browsers are users using?"
 # Custom Metrics
 aidx "Show me custom events by type"
 aidx "What's the trend for failed logins?"
+
+# Interactive Mode Examples
+aidx -i  # Start interactive session with guided queries
+aidx --interactive  # Full interactive mode with step-by-step assistance
 ```
 
 ## 🏗️ Development

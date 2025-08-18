@@ -9,11 +9,21 @@ export class AIService {
   private openAIClient: OpenAI | null = null;
   private authService: AuthService;
   private configManager: ConfigManager;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor(authService: AuthService, configManager: ConfigManager) {
     this.authService = authService;
     this.configManager = configManager;
-    this.initializeOpenAI();
+    this.initializationPromise = this.initializeOpenAI();
+  }
+
+  /**
+   * OpenAI クライアントの初期化完了を待つ
+   */
+  async initialize(): Promise<void> {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
   }
 
   private async initializeOpenAI(): Promise<void> {
@@ -53,6 +63,9 @@ export class AIService {
   }
 
   public async generateKQLQuery(naturalLanguageQuery: string, schema?: any): Promise<NLQuery> {
+    // 初期化完了を待つ
+    await this.initialize();
+
     if (!this.openAIClient) {
       throw new Error('OpenAI client not initialized');
     }
@@ -173,6 +186,9 @@ Respond with only the KQL query, no explanations or additional text.`;
    * KQLクエリの詳細な説明を生成
    */
   public async explainKQLQuery(kqlQuery: string, options: ExplanationOptions = {}): Promise<string> {
+    // 初期化完了を待つ
+    await this.initialize();
+
     if (!this.openAIClient) {
       throw new Error('OpenAI client not initialized');
     }
@@ -298,6 +314,9 @@ ${exampleInstructions}`;
     context: RegenerationContext,
     schema?: any
   ): Promise<NLQuery | null> {
+    // 初期化完了を待つ
+    await this.initialize();
+
     if (!this.openAIClient) {
       throw new Error('OpenAI client not initialized');
     }

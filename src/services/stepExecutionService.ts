@@ -17,13 +17,20 @@ export interface StepExecutionOptions {
 }
 
 export interface QueryAction {
-  action: 'execute' | 'explain' | 'regenerate' | 'edit' | 'cancel';
+  action: 'execute' | 'explain' | 'regenerate' | 'edit' | 'history' | 'cancel';
   modifiedQuery?: string;
   originalQuestion?: string;
 }
 
 export class StepExecutionService {
   private queryHistory: string[] = [];
+  private detailedHistory: Array<{
+    query: string;
+    timestamp: Date;
+    confidence: number;
+    action: 'generated' | 'edited' | 'regenerated';
+    reason?: string;
+  }> = [];
   private currentAttempt: number = 0;
 
   constructor(
@@ -44,6 +51,12 @@ export class StepExecutionService {
    */
   async executeStepByStep(nlQuery: NLQuery, originalQuestion: string): Promise<QueryResult | null> {
     this.queryHistory = [nlQuery.generatedKQL];
+    this.detailedHistory = [{
+      query: nlQuery.generatedKQL,
+      timestamp: new Date(),
+      confidence: nlQuery.confidence,
+      action: 'generated'
+    }];
     this.currentAttempt = 1;
 
     console.log(chalk.blue.bold('\n🔍 Generated KQL Query Review'));
@@ -83,6 +96,26 @@ export class StepExecutionService {
               reasoning: 'Manually edited query'
             };
             this.queryHistory.push(editedQuery);
+            this.detailedHistory.push({
+              query: editedQuery,
+              timestamp: new Date(),
+              confidence: 0.5,
+              action: 'edited',
+              reason: 'Manual user edit'
+            });
+            continue;
+          } else {
+            continue;
+          }
+
+        case 'history':
+          const selectedQuery = await this.showQueryHistory();
+          if (selectedQuery) {
+            nlQuery = {
+              generatedKQL: selectedQuery,
+              confidence: 0.8, // 履歴から選択されたクエリの信頼度
+              reasoning: 'Selected from query history'
+            };
             continue;
           } else {
             continue;
@@ -102,7 +135,6 @@ export class StepExecutionService {
     console.log(chalk.cyan.bold('\n📝 Original Question:'));
     console.log(chalk.white(`  "${originalQuestion}"`));
 
-    console.log(chalk.cyan.bold('\n🤖 Generated KQL Query:'));
     Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
     if (nlQuery.reasoning) {
@@ -155,6 +187,15 @@ export class StepExecutionService {
         name: '✏️  Edit Query - Manually modify the KQL query',
         value: 'edit',
         short: 'Edit'
+      });
+    }
+
+    // 履歴表示オプション（2件以上の履歴がある場合）
+    if (this.queryHistory.length > 1) {
+      choices.push({
+        name: '📜 View History - Browse and select from query history',
+        value: 'history',
+        short: 'History'
       });
     }
 
@@ -308,6 +349,13 @@ export class StepExecutionService {
 
       if (newQuery) {
         this.queryHistory.push(newQuery.generatedKQL);
+        this.detailedHistory.push({
+          query: newQuery.generatedKQL,
+          timestamp: new Date(),
+          confidence: newQuery.confidence,
+          action: 'regenerated',
+          reason: `Regeneration attempt ${this.currentAttempt}`
+        });
         Visualizer.displaySuccess('New query generated successfully!');
         return newQuery;
       }
@@ -428,5 +476,115 @@ export class StepExecutionService {
    */
   getCurrentAttempt(): number {
     return this.currentAttempt;
+  }
+
+  /**
+   * クエリ履歴を表示して選択させる
+   */
+  private async showQueryHistory(): Promise<string | null> {
+    if (this.detailedHistory.length === 0) {
+      Visualizer.displayInfo('No query history available.');
+      return null;
+    }
+
+    console.log(chalk.blue.bold('\n📜 Query History'));
+    console.log(chalk.dim('='.repeat(60)));
+
+    // 履歴を逆順（最新から古い順）で表示
+    const historyChoices = this.detailedHistory
+      .slice()
+      .reverse()
+      .map((item, index) => {
+        const timeAgo = this.getTimeAgo(item.timestamp);
+        const actionIcon = this.getActionIcon(item.action);
+        const confidenceColor = item.confidence >= 0.8 ? chalk.green :
+                               item.confidence >= 0.5 ? chalk.yellow :
+                               chalk.red;
+
+        return {
+          name: `${actionIcon} ${confidenceColor(`${Math.round(item.confidence * 100)}%`)} - ${timeAgo}${item.reason ? ` (${item.reason})` : ''}
+${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
+          value: item.query,
+          short: `Query ${this.detailedHistory.length - index}`
+        };
+      });
+
+    // 戻るオプションを追加
+    historyChoices.push({
+      name: chalk.cyan('🔙 Back to query actions'),
+      value: '__BACK__', // nullの代わりに特別な文字列を使用
+      short: 'Back'
+    });
+
+    const { selectedQuery } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedQuery',
+        message: 'Select a query from history:',
+        choices: historyChoices,
+        pageSize: 8
+      }
+    ]);
+
+    // 特別な値の場合はnullを返す
+    if (selectedQuery === '__BACK__') {
+      return null;
+    }
+
+    if (selectedQuery) {
+      console.log(chalk.green('\n✅ Query selected from history'));
+      console.log(chalk.dim('Selected query:'));
+      Visualizer.displayKQLQuery(selectedQuery, 0.8);
+    }
+
+    return selectedQuery;
+  }
+
+  /**
+   * アクションに対応するアイコンを取得
+   */
+  private getActionIcon(action: string): string {
+    const icons: Record<string, string> = {
+      generated: '🤖',
+      edited: '✏️',
+      regenerated: '🔄'
+    };
+    return icons[action] || '📝';
+  }
+
+  /**
+   * 経過時間を人間が読みやすい形式で取得
+   */
+  private getTimeAgo(timestamp: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - timestamp.getTime();
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+
+    if (diffSeconds < 60) {
+      return `${diffSeconds}s ago`;
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else {
+      const diffDays = Math.floor(diffHours / 24);
+      return `${diffDays}d ago`;
+    }
+  }
+
+  /**
+   * クエリを指定された長さに切り詰める
+   */
+  private truncateQuery(query: string, maxLength: number): string {
+    // 改行を削除してスペースで置き換え
+    const cleanQuery = query.replace(/\s+/g, ' ').trim();
+
+    if (cleanQuery.length <= maxLength) {
+      return cleanQuery;
+    }
+
+    return cleanQuery.substring(0, maxLength - 3) + '...';
   }
 }

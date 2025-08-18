@@ -8,6 +8,6 @@
     "endpoint": "",
     "deploymentName": "gpt-4"
   },
-  "logLevel": "info",
+  "logLevel": "debug",
   "language": "auto"
 }

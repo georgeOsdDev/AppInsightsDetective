@@ -4,6 +4,7 @@ import { AuthService } from '../../services/authService';
 import { AppInsightsService } from '../../services/appInsightsService';
 import { AIService } from '../../services/aiService';
 import { StepExecutionService } from '../../services/stepExecutionService';
+import { InteractiveService } from '../../services/interactiveService';
 import { ConfigManager } from '../../utils/config';
 import { Visualizer } from '../../utils/visualizer';
 import { logger } from '../../utils/logger';
@@ -14,10 +15,9 @@ export function createQueryCommand(): Command {
   queryCommand
     .description('Query Application Insights with natural language')
     .argument('[question]', 'Natural language question to ask')
-    .option('-i, --interactive', 'Run in interactive mode')
-    .option('-s, --step', 'Enable step-by-step execution with user confirmation')
     .option('-l, --language <language>', 'Language for explanations (en, ja, ko, zh, es, fr, de, etc.)')
     .option('-r, --raw', 'Execute raw KQL query')
+    .option('--direct', 'Execute query directly without confirmation (bypass step mode)')
     .option('--no-cache', 'Disable query caching')
     .action(async (question, options) => {
       try {
@@ -34,8 +34,8 @@ export function createQueryCommand(): Command {
 
         let queryText = question;
 
-        // インタラクティブモードまたは質問が提供されていない場合
-        if (options.interactive || !queryText) {
+        // 質問が提供されていない場合は、単発の質問を求める
+        if (!queryText) {
           const response = await inquirer.prompt([
             {
               type: 'input',
@@ -74,8 +74,11 @@ export function createQueryCommand(): Command {
           // KQLクエリを生成
           const nlQuery = await aiService.generateKQLQuery(queryText, schema);
 
-          // ステップ実行モードまたは信頼度が低い場合
-          if (options.step || nlQuery.confidence < 0.7) {
+          // 実行モードを決定
+          const shouldUseStepMode = !options.direct && nlQuery.confidence < 0.7;
+
+          if (shouldUseStepMode) {
+            // ステップ実行モード（低信頼度の場合、または明示的に指定された場合）
             const stepExecutionService = new StepExecutionService(aiService, appInsightsService, {
               showConfidenceThreshold: 0.7,
               allowEditing: true,
@@ -84,7 +87,6 @@ export function createQueryCommand(): Command {
 
             // 言語設定を渡す
             if (options.language) {
-              // ConfigManagerに一時的に言語設定を適用
               const config = configManager.getConfig();
               config.language = options.language;
             }

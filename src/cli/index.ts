@@ -10,6 +10,7 @@ import { AuthService } from '../services/authService';
 import { AppInsightsService } from '../services/appInsightsService';
 import { AIService } from '../services/aiService';
 import { StepExecutionService } from '../services/stepExecutionService';
+import { InteractiveService } from '../services/interactiveService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
 
@@ -28,19 +29,40 @@ program.addCommand(createStatusCommand());
 // デフォルトアクション（直接質問を渡した場合）
 program
   .argument('[question]', 'Natural language question to ask')
-  .option('-i, --interactive', 'Run in interactive mode')
-  .option('-s, --step', 'Enable step-by-step execution with user confirmation')
+  .option('-i, --interactive', 'Run in interactive mode with step-by-step guidance')
   .option('-l, --language <language>', 'Language for explanations (en, ja, ko, zh, es, fr, de, etc.)')
   .option('-r, --raw', 'Execute raw KQL query')
+  .option('--direct', 'Execute query directly without confirmation')
   .action(async (question, options) => {
     try {
       if (question) {
         // 質問が提供された場合、直接クエリを実行
         await executeDirectQuery(question, options);
       } else if (options.interactive) {
-        // インタラクティブモード
-        const queryCommand = createQueryCommand();
-        await queryCommand.parseAsync(['--interactive'], { from: 'user' });
+        // インタラクティブモード（統合されたセッション）
+        const configManager = new ConfigManager();
+        if (!configManager.validateConfig()) {
+          Visualizer.displayError('Configuration is invalid. Please run "aidx setup" first.');
+          process.exit(1);
+        }
+
+        console.log(chalk.dim('🚀 Starting interactive session...'));
+
+        const authService = new AuthService();
+        const appInsightsService = new AppInsightsService(authService, configManager);
+        const aiService = new AIService(authService, configManager);
+
+        const interactiveService = new InteractiveService(
+          authService,
+          appInsightsService,
+          aiService,
+          configManager,
+          {
+            language: options.language,
+            defaultMode: options.raw ? 'raw' : 'step'
+          }
+        );
+        await interactiveService.startSession();
       } else {
         // ヘルプを表示
         program.help();
@@ -81,6 +103,10 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       // 自然言語からKQLを生成して実行
       Visualizer.displayInfo(`Processing question: "${question}"`);
 
+      // AI サービスを事前初期化
+      Visualizer.displayInfo('Initializing AI services...');
+      await aiService.initialize();
+
       // スキーマを取得（オプション）
       let schema;
       try {
@@ -94,7 +120,9 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       const nlQuery = await aiService.generateKQLQuery(question, schema);
 
       // ステップ実行モードまたは信頼度が低い場合
-      if (options.step || nlQuery.confidence < 0.7) {
+      const shouldUseStepMode = !options.direct && nlQuery.confidence < 0.7;
+
+      if (shouldUseStepMode) {
         const stepExecutionService = new StepExecutionService(aiService, appInsightsService, {
           showConfidenceThreshold: 0.7,
           allowEditing: true,
@@ -112,19 +140,19 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
         if (result) {
           const executionTime = Date.now() - startTime;
           Visualizer.displayResult(result);
-          const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
+          const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
           Visualizer.displaySummary(executionTime, totalRows);
 
           // 結果が数値データの場合、簡単なチャートを表示
           if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
             const firstTable = result.tables[0];
             if (firstTable.columns.length >= 2) {
-              const hasNumericData = firstTable.rows.some(row =>
+              const hasNumericData = firstTable.rows.some((row: any) =>
                 typeof row[1] === 'number' || !isNaN(Number(row[1]))
               );
 
               if (hasNumericData) {
-                const chartData = firstTable.rows.slice(0, 10).map(row => ({
+                const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
                   label: row[0],
                   value: Number(row[1]) || 0,
                 }));
@@ -186,10 +214,10 @@ function showWelcomeMessage(): void {
   console.log('Quick start:');
   console.log(chalk.cyan('  aidx setup') + chalk.dim('                    # Configure your settings'));
   console.log(chalk.cyan('  aidx status') + chalk.dim('                   # Check configuration status'));
-  console.log(chalk.cyan('  aidx "show me errors"') + chalk.dim('        # Ask a question'));
-  console.log(chalk.cyan('  aidx --step "show me errors"') + chalk.dim('  # Step-by-step execution'));
+  console.log(chalk.cyan('  aidx "show me errors"') + chalk.dim('        # Ask a question (auto step-mode for low confidence)'));
+  console.log(chalk.cyan('  aidx --direct "show me errors"') + chalk.dim(' # Direct execution (bypass step-mode)'));
   console.log(chalk.cyan('  aidx --language ja "errors"') + chalk.dim('   # Japanese explanations'));
-  console.log(chalk.cyan('  aidx --interactive') + chalk.dim('           # Interactive mode'));
+  console.log(chalk.cyan('  aidx --interactive') + chalk.dim('           # Full interactive session'));
   console.log(chalk.cyan('  aidx --raw "requests | take 5"') + chalk.dim(' # Raw KQL query'));
   console.log('\nFor more help, use: aidx --help');
 }
