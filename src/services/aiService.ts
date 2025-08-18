@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { DefaultAzureCredential } from '@azure/identity';
 import { AuthService } from './authService';
 import { ConfigManager } from '../utils/config';
-import { NaturalLanguageQuery, NLQuery, RegenerationContext } from '../types';
+import { NaturalLanguageQuery, NLQuery, RegenerationContext, SupportedLanguage, ExplanationOptions } from '../types';
 import { logger } from '../utils/logger';
 
 export class AIService {
@@ -172,28 +172,21 @@ Respond with only the KQL query, no explanations or additional text.`;
   /**
    * KQLクエリの詳細な説明を生成
    */
-  public async explainKQLQuery(kqlQuery: string): Promise<string> {
+  public async explainKQLQuery(kqlQuery: string, options: ExplanationOptions = {}): Promise<string> {
     if (!this.openAIClient) {
       throw new Error('OpenAI client not initialized');
     }
 
     try {
       const config = this.configManager.getConfig();
-      const systemPrompt = `You are an expert in KQL (Kusto Query Language) for Azure Application Insights.
-Your task is to explain KQL queries in a clear, detailed, and educational way.
+      const language = (options.language || config.language || 'auto') as SupportedLanguage;
+      const technicalLevel = options.technicalLevel || 'intermediate';
+      const includeExamples = options.includeExamples !== false;
 
-Explain:
-1. What the query does overall
-2. Each operator and function used
-3. What data it retrieves
-4. How the results are processed
-5. Any performance considerations
-
-Use simple language and provide examples when helpful.`;
-
+      const systemPrompt = this.buildExplanationSystemPrompt(language, technicalLevel, includeExamples);
       const userPrompt = `Please explain this KQL query in detail:\n\n${kqlQuery}`;
 
-      logger.info('Generating KQL explanation');
+      logger.info(`Generating KQL explanation in language: ${language}`);
 
       const response = await this.openAIClient.chat.completions.create({
         model: config.openAI.deploymentName || 'gpt-4',
@@ -215,6 +208,85 @@ Use simple language and provide examples when helpful.`;
     } catch (error) {
       logger.error('Failed to generate KQL explanation:', error);
       throw new Error(`KQL explanation failed: ${error}`);
+    }
+  }
+
+  /**
+   * 説明用のシステムプロンプトを構築
+   */
+  private buildExplanationSystemPrompt(
+    language: SupportedLanguage,
+    technicalLevel: 'beginner' | 'intermediate' | 'advanced',
+    includeExamples: boolean
+  ): string {
+    const languageInstructions = this.getLanguageInstructions(language);
+    const levelInstructions = this.getTechnicalLevelInstructions(technicalLevel);
+    const exampleInstructions = includeExamples ? 'Provide practical examples when helpful.' : 'Focus on clear explanations without extensive examples.';
+
+    return `You are an expert in KQL (Kusto Query Language) for Azure Application Insights.
+Your task is to explain KQL queries in a clear, detailed, and educational way.
+
+${languageInstructions}
+
+${levelInstructions}
+
+Explain:
+1. What the query does overall
+2. Each operator and function used
+3. What data it retrieves
+4. How the results are processed
+5. Any performance considerations
+
+${exampleInstructions}`;
+  }
+
+  /**
+   * 言語固有の指示を取得
+   */
+  private getLanguageInstructions(language: SupportedLanguage): string {
+    switch (language) {
+      case 'ja':
+        return 'Respond in Japanese (日本語). Use technical terms in Japanese where appropriate, but include English terms in parentheses for clarity.';
+      case 'ko':
+        return 'Respond in Korean (한국어). Use technical terms in Korean where appropriate, but include English terms in parentheses for clarity.';
+      case 'zh':
+        return 'Respond in Simplified Chinese (简体中文). Use technical terms in Chinese where appropriate, but include English terms in parentheses for clarity.';
+      case 'zh-TW':
+        return 'Respond in Traditional Chinese (繁體中文). Use technical terms in Chinese where appropriate, but include English terms in parentheses for clarity.';
+      case 'es':
+        return 'Respond in Spanish (Español). Use technical terms in Spanish where appropriate, but include English terms in parentheses for clarity.';
+      case 'fr':
+        return 'Respond in French (Français). Use technical terms in French where appropriate, but include English terms in parentheses for clarity.';
+      case 'de':
+        return 'Respond in German (Deutsch). Use technical terms in German where appropriate, but include English terms in parentheses for clarity.';
+      case 'it':
+        return 'Respond in Italian (Italiano). Use technical terms in Italian where appropriate, but include English terms in parentheses for clarity.';
+      case 'pt':
+        return 'Respond in Portuguese (Português). Use technical terms in Portuguese where appropriate, but include English terms in parentheses for clarity.';
+      case 'ru':
+        return 'Respond in Russian (Русский). Use technical terms in Russian where appropriate, but include English terms in parentheses for clarity.';
+      case 'ar':
+        return 'Respond in Arabic (العربية). Use technical terms in Arabic where appropriate, but include English terms in parentheses for clarity.';
+      case 'en':
+        return 'Respond in English. Use clear and precise technical terminology.';
+      case 'auto':
+      default:
+        return 'Respond in the most appropriate language based on the context. If unclear, use English as the default language.';
+    }
+  }
+
+  /**
+   * 技術レベル固有の指示を取得
+   */
+  private getTechnicalLevelInstructions(level: 'beginner' | 'intermediate' | 'advanced'): string {
+    switch (level) {
+      case 'beginner':
+        return 'Target explanation for beginners: Use simple language, avoid complex jargon, and explain basic concepts thoroughly.';
+      case 'advanced':
+        return 'Target explanation for advanced users: Use precise technical terminology, focus on performance implications, and provide detailed technical insights.';
+      case 'intermediate':
+      default:
+        return 'Target explanation for intermediate users: Balance technical accuracy with clear explanations, assuming familiarity with basic KQL concepts.';
     }
   }
 

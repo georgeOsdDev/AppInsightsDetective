@@ -14,6 +14,7 @@ export interface Config {
   appInsights: AppInsightsConfig;
   openAI: OpenAIConfig;
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  language?: string;
 }
 
 export interface QueryResult {
@@ -69,4 +70,26 @@ export interface OpenAIChoice {
     content?: string;
   };
   finish_reason?: string;
+}
+
+// Language settings for explanation translation
+export type SupportedLanguage =
+  | 'auto'
+  | 'en'      // English
+  | 'ja'      // Japanese
+  | 'ko'      // Korean
+  | 'zh'      // Chinese (Simplified)
+  | 'zh-TW'   // Chinese (Traditional)
+  | 'es'      // Spanish
+  | 'fr'      // French
+  | 'de'      // German
+  | 'it'      // Italian
+  | 'pt'      // Portuguese
+  | 'ru'      // Russian
+  | 'ar';     // Arabic
+
+export interface ExplanationOptions {
+  language?: SupportedLanguage;
+  includeExamples?: boolean;
+  technicalLevel?: 'beginner' | 'intermediate' | 'advanced';
 }

@@ -16,6 +16,7 @@ export function createQueryCommand(): Command {
     .argument('[question]', 'Natural language question to ask')
     .option('-i, --interactive', 'Run in interactive mode')
     .option('-s, --step', 'Enable step-by-step execution with user confirmation')
+    .option('-l, --language <language>', 'Language for explanations (en, ja, ko, zh, es, fr, de, etc.)')
     .option('-r, --raw', 'Execute raw KQL query')
     .option('--no-cache', 'Disable query caching')
     .action(async (question, options) => {
@@ -80,6 +81,13 @@ export function createQueryCommand(): Command {
               allowEditing: true,
               maxRegenerationAttempts: 3
             });
+
+            // 言語設定を渡す
+            if (options.language) {
+              // ConfigManagerに一時的に言語設定を適用
+              const config = configManager.getConfig();
+              config.language = options.language;
+            }
 
             const result = await stepExecutionService.executeStepByStep(nlQuery, queryText);
 

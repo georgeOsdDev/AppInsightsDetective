@@ -30,6 +30,7 @@ program
   .argument('[question]', 'Natural language question to ask')
   .option('-i, --interactive', 'Run in interactive mode')
   .option('-s, --step', 'Enable step-by-step execution with user confirmation')
+  .option('-l, --language <language>', 'Language for explanations (en, ja, ko, zh, es, fr, de, etc.)')
   .option('-r, --raw', 'Execute raw KQL query')
   .action(async (question, options) => {
     try {
@@ -99,6 +100,12 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
           allowEditing: true,
           maxRegenerationAttempts: 3
         });
+
+        // 言語設定を渡す
+        if (options.language) {
+          const config = configManager.getConfig();
+          config.language = options.language;
+        }
 
         const result = await stepExecutionService.executeStepByStep(nlQuery, question);
 
@@ -181,6 +188,7 @@ function showWelcomeMessage(): void {
   console.log(chalk.cyan('  aidx status') + chalk.dim('                   # Check configuration status'));
   console.log(chalk.cyan('  aidx "show me errors"') + chalk.dim('        # Ask a question'));
   console.log(chalk.cyan('  aidx --step "show me errors"') + chalk.dim('  # Step-by-step execution'));
+  console.log(chalk.cyan('  aidx --language ja "errors"') + chalk.dim('   # Japanese explanations'));
   console.log(chalk.cyan('  aidx --interactive') + chalk.dim('           # Interactive mode'));
   console.log(chalk.cyan('  aidx --raw "requests | take 5"') + chalk.dim(' # Raw KQL query'));
   console.log('\nFor more help, use: aidx --help');

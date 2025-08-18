@@ -8,7 +8,7 @@ import { logger } from '../utils/logger';
 import { Visualizer } from '../utils/visualizer';
 import { AIService } from './aiService';
 import { AppInsightsService } from './appInsightsService';
-import { NLQuery, QueryResult } from '../types';
+import { NLQuery, QueryResult, SupportedLanguage, ExplanationOptions } from '../types';
 
 export interface StepExecutionOptions {
   showConfidenceThreshold?: number;
@@ -182,9 +182,44 @@ export class StepExecutionService {
    */
   private async explainQuery(nlQuery: NLQuery): Promise<void> {
     try {
-      Visualizer.displayInfo('Generating detailed query explanation...');
+      // 言語選択プロンプト
+      const languageOptions = this.getLanguageOptions();
+      const { selectedLanguage, technicalLevel, includeExamples } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'selectedLanguage',
+          message: 'Select explanation language:',
+          choices: languageOptions,
+          default: 'auto'
+        },
+        {
+          type: 'list',
+          name: 'technicalLevel',
+          message: 'Select technical level:',
+          choices: [
+            { name: '🟢 Beginner - Simple explanations with basic concepts', value: 'beginner' },
+            { name: '🟡 Intermediate - Balanced technical explanations', value: 'intermediate' },
+            { name: '🔴 Advanced - Detailed technical insights', value: 'advanced' }
+          ],
+          default: 'intermediate'
+        },
+        {
+          type: 'confirm',
+          name: 'includeExamples',
+          message: 'Include practical examples?',
+          default: true
+        }
+      ]);
 
-      const explanation = await this.aiService.explainKQLQuery(nlQuery.generatedKQL);
+      const explanationOptions: ExplanationOptions = {
+        language: selectedLanguage,
+        technicalLevel,
+        includeExamples
+      };
+
+      Visualizer.displayInfo(`Generating detailed query explanation in ${this.getLanguageName(selectedLanguage)}...`);
+
+      const explanation = await this.aiService.explainKQLQuery(nlQuery.generatedKQL, explanationOptions);
 
       console.log(chalk.green.bold('\n📚 Query Explanation:'));
       console.log(chalk.dim('='.repeat(50)));
@@ -204,6 +239,49 @@ export class StepExecutionService {
       logger.error('Failed to explain query:', error);
       Visualizer.displayError(`Failed to generate explanation: ${error}`);
     }
+  }
+
+  /**
+   * 言語選択オプションを取得
+   */
+  private getLanguageOptions() {
+    return [
+      { name: '🌐 Auto - Detect best language', value: 'auto' },
+      { name: '🇺🇸 English', value: 'en' },
+      { name: '🇯🇵 Japanese (日本語)', value: 'ja' },
+      { name: '🇰🇷 Korean (한국어)', value: 'ko' },
+      { name: '🇨🇳 Chinese Simplified (简体中文)', value: 'zh' },
+      { name: '🇹🇼 Chinese Traditional (繁體中文)', value: 'zh-TW' },
+      { name: '🇪🇸 Spanish (Español)', value: 'es' },
+      { name: '🇫🇷 French (Français)', value: 'fr' },
+      { name: '🇩🇪 German (Deutsch)', value: 'de' },
+      { name: '🇮🇹 Italian (Italiano)', value: 'it' },
+      { name: '🇵🇹 Portuguese (Português)', value: 'pt' },
+      { name: '🇷🇺 Russian (Русский)', value: 'ru' },
+      { name: '🇸🇦 Arabic (العربية)', value: 'ar' }
+    ];
+  }
+
+  /**
+   * 言語コードから言語名を取得
+   */
+  private getLanguageName(languageCode: SupportedLanguage): string {
+    const languageMap: Record<SupportedLanguage, string> = {
+      'auto': 'Auto-detect',
+      'en': 'English',
+      'ja': 'Japanese',
+      'ko': 'Korean',
+      'zh': 'Chinese (Simplified)',
+      'zh-TW': 'Chinese (Traditional)',
+      'es': 'Spanish',
+      'fr': 'French',
+      'de': 'German',
+      'it': 'Italian',
+      'pt': 'Portuguese',
+      'ru': 'Russian',
+      'ar': 'Arabic'
+    };
+    return languageMap[languageCode] || 'Unknown';
   }
 
   /**
