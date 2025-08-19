@@ -8,3 +8,5 @@ dist/
 coverage/
 *.tgz
 .DS_Store
+docs/issues/
+docs/design/
