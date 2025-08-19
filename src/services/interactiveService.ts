@@ -260,7 +260,7 @@ export class InteractiveService {
   private async handleInteractiveOutput(result: QueryResult, executionTime: number): Promise<void> {
     const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
 
-    // Always display to console first
+    // Always display to console first (default: hide empty columns in interactive mode)
     Visualizer.displayResult(result);
     Visualizer.displaySummary(executionTime, totalRows);
 

@@ -37,7 +37,8 @@ async function handleOutput(result: any, options: any, executionTime: number): P
     // No output file specified - display to console
     if (outputFormat === 'table') {
       // Table format: use visualizer with charts
-      Visualizer.displayResult(result);
+      const hideEmptyColumns = !options.showEmptyColumns;
+      Visualizer.displayResult(result, { hideEmptyColumns });
       const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
       Visualizer.displaySummary(executionTime, totalRows);
 
@@ -74,7 +75,8 @@ async function handleOutput(result: any, options: any, executionTime: number): P
   } else {
     // Output file specified - show table format to console if format is table
     if (outputFormat === 'table') {
-      Visualizer.displayResult(result);
+      const hideEmptyColumns = !options.showEmptyColumns;
+      Visualizer.displayResult(result, { hideEmptyColumns });
       const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
       Visualizer.displaySummary(executionTime, totalRows);
 
@@ -134,7 +136,8 @@ async function handleOutput(result: any, options: any, executionTime: number): P
       // Fallback to console output
       if (outputFormat === 'table') {
         // Show table format if that was the original format
-        Visualizer.displayResult(result);
+        const hideEmptyColumns = !options.showEmptyColumns;
+        Visualizer.displayResult(result, { hideEmptyColumns });
       } else {
         // Show formatted output for non-table formats
         const formattedOutput = OutputFormatter.formatResult(result, outputFormat, {
@@ -172,6 +175,7 @@ program
   .option('--pretty', 'Pretty print JSON output')
   .option('--no-headers', 'Exclude headers in CSV/TSV output')
   .option('--encoding <encoding>', 'File encoding (utf8, utf16le, etc.)', 'utf8')
+  .option('--show-empty-columns', 'Show all columns including empty ones (default: hide empty columns)')
   .action(async (question, options) => {
     try {
       if (question) {

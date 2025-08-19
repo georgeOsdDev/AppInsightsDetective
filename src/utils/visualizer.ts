@@ -1,8 +1,8 @@
 import chalk from 'chalk';
-import { QueryResult, QueryTable } from '../types';
+import { QueryResult, QueryTable, QueryColumn } from '../types';
 
 export class Visualizer {
-  public static displayResult(result: QueryResult): void {
+  public static displayResult(result: QueryResult, options?: { hideEmptyColumns?: boolean }): void {
     if (!result.tables || result.tables.length === 0) {
       console.log(chalk.yellow('No data returned from query'));
       return;
@@ -16,38 +16,54 @@ export class Visualizer {
       // Display table information
       console.log(chalk.dim(`Columns: ${table.columns.length}, Rows: ${table.rows.length}`));
 
-      this.displayTable(table);
+      this.displayTable(table, options);
     });
   }
 
-  private static displayTable(table: QueryTable): void {
+  private static displayTable(table: QueryTable, options?: { hideEmptyColumns?: boolean }): void {
     if (table.rows.length === 0) {
       console.log(chalk.yellow('No rows in result'));
       return;
     }
 
+    // Get visible columns (filtering empty columns if enabled)
+    const hideEmpty = options?.hideEmptyColumns ?? true; // Default: hide empty columns
+    const { visibleColumns, visibleColumnIndices, hiddenCount } = this.getVisibleColumns(table, hideEmpty);
+    
+    // If all columns are empty, show informative message
+    if (visibleColumns.length === 0) {
+      console.log(chalk.yellow('All columns contain empty data'));
+      return;
+    }
+
+    // Create filtered table for display
+    const filteredTable: QueryTable = {
+      ...table,
+      columns: visibleColumns
+    };
+
     // Get terminal width (if available)
     const terminalWidth = process.stdout.columns || 120;
     const availableWidth = Math.max(terminalWidth - 10, 80); // Consider margins
 
-    // Calculate column widths (improved version)
-    const columnWidths = this.calculateOptimalColumnWidths(table, availableWidth);
+    // Calculate column widths for visible columns only
+    const columnWidths = this.calculateOptimalColumnWidths(filteredTable, availableWidth);
 
     // Display header
-    const header = table.columns.map((col, index) =>
+    const header = visibleColumns.map((col, index) =>
       this.padString(col.name, columnWidths[index], col.type)
     ).join(' | ');
 
     console.log(chalk.bold.cyan('\n' + header));
     console.log(chalk.gray('-'.repeat(Math.min(header.length, availableWidth))));
 
-    // Display data rows (first 100 rows maximum)
+    // Display data rows (first 100 rows maximum) - only visible columns
     const displayRows = Math.min(table.rows.length, 100);
     for (let rowIndex = 0; rowIndex < displayRows; rowIndex++) {
       const row = table.rows[rowIndex];
-      const rowString = row.map((cell, colIndex) => {
-        const cellStr = this.formatCell(cell, table.columns[colIndex].type);
-        return this.padString(cellStr, columnWidths[colIndex], table.columns[colIndex].type);
+      const rowString = visibleColumnIndices.map((colIndex, visibleIndex) => {
+        const cellStr = this.formatCell(row[colIndex], visibleColumns[visibleIndex].type);
+        return this.padString(cellStr, columnWidths[visibleIndex], visibleColumns[visibleIndex].type);
       }).join(' | ');
 
       console.log(rowString);
@@ -58,7 +74,61 @@ export class Visualizer {
       console.log(chalk.yellow(`\n... and ${table.rows.length - 100} more rows (use LIMIT clause to see more)`));
     }
 
-    console.log(chalk.dim(`\nDisplayed ${Math.min(displayRows, table.rows.length)} of ${table.rows.length} rows`));
+    // Enhanced summary with hidden columns info
+    const totalColumns = table.columns.length;
+    const visibleColumnsCount = visibleColumns.length;
+    
+    if (hiddenCount > 0) {
+      console.log(chalk.dim(`\nDisplayed ${Math.min(displayRows, table.rows.length)} of ${table.rows.length} rows (${visibleColumnsCount} columns displayed, ${hiddenCount} empty columns hidden)`));
+    } else {
+      console.log(chalk.dim(`\nDisplayed ${Math.min(displayRows, table.rows.length)} of ${table.rows.length} rows`));
+    }
+  }
+
+  /**
+   * Analyze which columns contain only empty values
+   */
+  private static analyzeEmptyColumns(table: QueryTable): boolean[] {
+    return table.columns.map((_, colIndex) => {
+      return table.rows.every(row => {
+        const value = row[colIndex];
+        
+        if (value === null || value === undefined) return true;
+        if (typeof value === 'string' && value.trim() === '') return true;
+        
+        return false;
+      });
+    });
+  }
+
+  /**
+   * Get visible columns (filtering empty columns if enabled)
+   */
+  private static getVisibleColumns(table: QueryTable, hideEmpty: boolean): {
+    visibleColumns: QueryColumn[];
+    visibleColumnIndices: number[];
+    hiddenCount: number;
+  } {
+    if (!hideEmpty) {
+      return {
+        visibleColumns: table.columns,
+        visibleColumnIndices: table.columns.map((_, index) => index),
+        hiddenCount: 0
+      };
+    }
+
+    const emptyColumns = this.analyzeEmptyColumns(table);
+    const visibleColumnIndices = table.columns
+      .map((_, index) => index)
+      .filter(index => !emptyColumns[index]);
+    
+    const hiddenCount = table.columns.length - visibleColumnIndices.length;
+    
+    return {
+      visibleColumns: visibleColumnIndices.map(index => table.columns[index]),
+      visibleColumnIndices,
+      hiddenCount
+    };
   }
 
   /**

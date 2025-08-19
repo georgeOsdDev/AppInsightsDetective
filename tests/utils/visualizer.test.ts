@@ -516,4 +516,333 @@ describe('Visualizer', () => {
       consoleSpy.mockRestore();
     });
   });
+
+  describe('hide empty columns feature', () => {
+    it('should hide columns with all null values by default', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'TestResult',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'count', type: 'long' },
+              { name: 'empty_col', type: 'string' }, // All null
+            ],
+            rows: [
+              ['Page1', 100, null],
+              ['Page2', 200, null],
+              ['Page3', 150, null],
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+
+      // Should show only name and count columns
+      expect(output).toContain('name');
+      expect(output).toContain('count');
+      expect(output).not.toContain('empty_col');
+
+      // Should show summary with hidden columns info
+      expect(output).toContain('1 empty columns hidden');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should hide columns with all empty strings by default', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'TestResult',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'empty_str', type: 'string' }, // All empty strings
+            ],
+            rows: [
+              ['Page1', ''],
+              ['Page2', ''],
+              ['Page3', ''],
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+
+      expect(output).toContain('name');
+      expect(output).not.toContain('empty_str');
+      expect(output).toContain('1 empty columns hidden');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should hide columns with all whitespace-only strings', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'TestResult',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'whitespace', type: 'string' }, // All whitespace
+            ],
+            rows: [
+              ['Page1', '   '],
+              ['Page2', '\t  '],
+              ['Page3', ' \n '],
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+
+      expect(output).toContain('name');
+      expect(output).not.toContain('whitespace');
+      expect(output).toContain('1 empty columns hidden');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should hide columns with mix of null, undefined, and empty strings', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'TestResult',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'mixed_empty', type: 'string' }, // Mix of null, undefined, empty
+            ],
+            rows: [
+              ['Page1', null],
+              ['Page2', undefined],
+              ['Page3', ''],
+              ['Page4', '   '],
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+
+      expect(output).toContain('name');
+      expect(output).not.toContain('mixed_empty');
+      expect(output).toContain('1 empty columns hidden');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should keep columns that have at least one non-empty value', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'TestResult',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'mixed', type: 'string' }, // Has some data
+            ],
+            rows: [
+              ['Page1', null],
+              ['Page2', ''],
+              ['Page3', 'data'], // This makes the column visible
+              ['Page4', '   '],
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+
+      expect(output).toContain('name');
+      expect(output).toContain('mixed');
+      expect(output).toContain('data');
+      expect(output).not.toContain('empty columns hidden');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should show all columns when hideEmptyColumns is false', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'TestResult',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'empty_col', type: 'string' },
+            ],
+            rows: [
+              ['Page1', null],
+              ['Page2', null],
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult, { hideEmptyColumns: false });
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+
+      expect(output).toContain('name');
+      expect(output).toContain('empty_col');
+      expect(output).not.toContain('empty columns hidden');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle case where all columns are empty', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'TestResult',
+            columns: [
+              { name: 'null_col', type: 'string' },
+              { name: 'empty_col', type: 'string' },
+            ],
+            rows: [
+              [null, ''],
+              [null, ''],
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+
+      expect(output).toContain('All columns contain empty data');
+      expect(output).not.toContain('null_col');
+      expect(output).not.toContain('empty_col');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle multiple empty columns', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'TestResult',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'empty1', type: 'string' },
+              { name: 'count', type: 'long' },
+              { name: 'empty2', type: 'string' },
+              { name: 'empty3', type: 'string' },
+            ],
+            rows: [
+              ['Page1', null, 100, '', '   '],
+              ['Page2', null, 200, '', '   '],
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+
+      expect(output).toContain('name');
+      expect(output).toContain('count');
+      expect(output).not.toContain('empty1');
+      expect(output).not.toContain('empty2');
+      expect(output).not.toContain('empty3');
+      expect(output).toContain('3 empty columns hidden');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle numeric columns with zeros vs nulls correctly', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'TestResult',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'zero_col', type: 'long' }, // Has zeros, should be visible
+              { name: 'null_col', type: 'long' }, // Has nulls, should be hidden
+            ],
+            rows: [
+              ['Page1', 0, null],
+              ['Page2', 0, null],
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+
+      expect(output).toContain('name');
+      expect(output).toContain('zero_col');
+      expect(output).not.toContain('null_col');
+      expect(output).toContain('1 empty columns hidden');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should work with multiple tables', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'Table1',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'empty1', type: 'string' },
+            ],
+            rows: [['value1', null]],
+          },
+          {
+            name: 'Table2',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'empty2', type: 'string' },
+            ],
+            rows: [['value2', '']],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+
+      expect(output).toContain('value1');
+      expect(output).toContain('value2');
+      expect(output).not.toContain('empty1');
+      expect(output).not.toContain('empty2');
+
+      consoleSpy.mockRestore();
+    });
+  });
 });

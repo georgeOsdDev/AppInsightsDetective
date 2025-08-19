@@ -21,6 +21,7 @@ AppInsights Detective is an intelligent CLI tool that allows you to query your A
 - ⚡ **Interactive Mode**: Step-by-step query building and validation
 - 📈 **Query Validation**: Ensures safe and valid KQL execution
 - 🎯 **Smart Schema Integration**: Leverages your Application Insights schema
+- 🧹 **Smart Column Hiding**: Automatically hides empty columns for cleaner output
 - 🧪 **Comprehensive Testing**: Full test coverage with automated CI/CD
 - 🚀 **Production Ready**: Built with TypeScript, proper error handling
 
@@ -99,7 +100,23 @@ aidx query --raw "requests | take 10"
 | `aidx -i` or `aidx --interactive` | Interactive query mode |
 | `aidx query --raw [kql]` | Execute raw KQL query |
 
-## 📁 Output Formats & File Export
+### Query Command Options
+
+The `aidx query` command supports various options for customizing output and behavior:
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | Output format: table, json, csv, tsv, raw | table |
+| `--output <file>` | Save results to file | - |
+| `--pretty` | Pretty print JSON output | false |
+| `--no-headers` | Exclude headers in CSV/TSV output | false |
+| `--encoding <encoding>` | File encoding (utf8, utf16le, etc.) | utf8 |
+| `--show-empty-columns` | Show all columns including empty ones | false |
+| `--raw` | Execute raw KQL query instead of natural language | false |
+| `--direct` | Execute query directly without confirmation | false |
+| `--language <lang>` | Language for explanations (en, ja, ko, etc.) | en |
+
+## 📁 Output Formats & Display Options
 
 AppInsights Detective supports multiple output formats for both console display and file export:
 
@@ -109,6 +126,12 @@ AppInsights Detective supports multiple output formats for both console display 
 - **csv** - Comma-separated values for spreadsheet import  
 - **tsv** - Tab-separated values for data processing tools
 - **raw** - Human-readable debug format showing table structure
+
+### Smart Column Management
+By default, AppInsights Detective automatically hides empty columns in table output to improve readability:
+- **Empty columns** (containing only null, undefined, empty strings, or whitespace) are hidden
+- **Column summary** shows how many columns were hidden: `"3 columns displayed, 2 empty columns hidden"`
+- Use `--show-empty-columns` flag to display all columns including empty ones
 
 ### Usage Patterns
 - **Console only**: Use `--format` to display results in the specified format to console
@@ -121,6 +144,7 @@ AppInsights Detective supports multiple output formats for both console display 
 - **--pretty** - Enable pretty-printed JSON output
 - **--no-headers** - Exclude column headers in CSV/TSV output
 - **--encoding** - File encoding (utf8, utf16le, ascii, latin1, base64)
+- **--show-empty-columns** - Show all columns including empty ones
 
 ## ⚙️ Configuration
 
@@ -161,8 +185,11 @@ Create `~/.aidx/config.json`:
 
 ### Console Output
 ```bash
-# Table format with ASCII charts (default)
-aidx "Show me top 10 requests"
+# Table format with smart column hiding (default)
+aidx "Show me top 10 requests"  # Automatically hides empty columns
+
+# Table format showing all columns including empty ones
+aidx "Show me top 10 requests" --show-empty-columns
 
 # JSON format to console
 aidx "Show me errors" --format json
@@ -172,6 +199,27 @@ aidx "Show request counts" --format csv
 
 # Pretty-printed JSON to console
 aidx "Show me errors" --format json --pretty
+```
+
+### Smart Column Hiding Examples
+```bash
+# Default behavior - cleaner output with empty columns hidden
+aidx "Show request performance data"
+# Output example:
+# request_name       | count | avg_duration
+# -----------------------------------------
+# GET /api/health    | 1250  | 45.2
+# POST /api/login    | 890   | 156.8
+# 
+# Displayed 2 of 3 rows (3 columns displayed, 2 empty columns hidden)
+
+# Show all columns including empty ones
+aidx "Show request performance data" --show-empty-columns
+# Output example:
+# request_name       | count | empty_field | unused_col | avg_duration
+# --------------------------------------------------------------------
+# GET /api/health    | 1250  | null        | (empty)    | 45.2
+# POST /api/login    | 890   | null        | (empty)    | 156.8
 ```
 
 ### JSON Export
@@ -226,6 +274,12 @@ aidx "What browsers are users using?"
 # Custom Metrics
 aidx "Show me custom events by type"
 aidx "What's the trend for failed logins?"
+
+# Smart Column Display (Default - Empty columns hidden)
+aidx "Show me request data"  # Hides columns with all null/empty values
+
+# Show All Columns Including Empty Ones
+aidx "Show me request data" --show-empty-columns  # Shows all columns
 
 # Output to JSON file with pretty printing
 aidx "Show me errors from last hour" --output errors.json --format json --pretty
