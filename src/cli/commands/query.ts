@@ -183,11 +183,10 @@ export function createQueryCommand(): Command {
               config.language = options.language;
             }
 
-            const result = await stepExecutionService.executeStepByStep(nlQuery, queryText);
+            const stepResult = await stepExecutionService.executeStepByStep(nlQuery, queryText);
 
-            if (result) {
-              const executionTime = Date.now() - startTime;
-              await handleOutput(result, options, executionTime);
+            if (stepResult) {
+              await handleOutput(stepResult.result, options, stepResult.executionTime);
             }
             return;
           }
@@ -203,8 +202,9 @@ export function createQueryCommand(): Command {
           }
 
           // Execute query
+          const queryStartTime = Date.now();
           const result = await appInsightsService.executeQuery(nlQuery.generatedKQL);
-          const executionTime = Date.now() - startTime;
+          const executionTime = Date.now() - queryStartTime;
 
           await handleOutput(result, options, executionTime);
         }

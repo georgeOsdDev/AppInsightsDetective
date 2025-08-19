@@ -112,3 +112,8 @@ export interface FormattedOutput {
   extension: string;
   mimeType: string;
 }
+
+export interface QueryResultWithTiming {
+  result: QueryResult;
+  executionTime: number; // in milliseconds
+}

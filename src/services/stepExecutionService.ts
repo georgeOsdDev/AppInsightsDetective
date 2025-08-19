@@ -49,7 +49,7 @@ export class StepExecutionService {
   /**
    * Start step execution for generated KQL query
    */
-  async executeStepByStep(nlQuery: NLQuery, originalQuestion: string): Promise<QueryResult | null> {
+  async executeStepByStep(nlQuery: NLQuery, originalQuestion: string): Promise<{ result: QueryResult; executionTime: number } | null> {
     this.queryHistory = [nlQuery.generatedKQL];
     this.detailedHistory = [{
       query: nlQuery.generatedKQL,
@@ -452,12 +452,16 @@ export class StepExecutionService {
   /**
    * クエリを実行
    */
-  private async executeQuery(query: string): Promise<QueryResult> {
+  private async executeQuery(query: string): Promise<{ result: QueryResult; executionTime: number }> {
     try {
       Visualizer.displayInfo('Executing query...');
+      
+      const startTime = Date.now();
       const result = await this.appInsightsService.executeQuery(query);
+      const executionTime = Date.now() - startTime;
+      
       Visualizer.displaySuccess('Query executed successfully!');
-      return result;
+      return { result, executionTime };
     } catch (error) {
       logger.error('Query execution failed:', error);
       throw new Error(`Query execution failed: ${error}`);
