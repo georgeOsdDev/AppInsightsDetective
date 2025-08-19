@@ -30,7 +30,10 @@ async function handleOutput(result: QueryResult, options: any, executionTime: nu
 
   // Always show console output for table format or when no file is specified
   if (outputFormat === 'table' || !outputFile) {
-    Visualizer.displayResult(result);
+    // Determine if empty columns should be hidden (default: true, disabled with --show-empty-columns)
+    const hideEmptyColumns = !options.showEmptyColumns;
+    
+    Visualizer.displayResult(result, { hideEmptyColumns });
     const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
     Visualizer.displaySummary(executionTime, totalRows);
 
@@ -92,7 +95,8 @@ async function handleOutput(result: QueryResult, options: any, executionTime: nu
       // Fallback to console output
       if (outputFormat !== 'table') {
         console.log(chalk.yellow('Falling back to console output:'));
-        Visualizer.displayResult(result);
+        const hideEmptyColumns = !options.showEmptyColumns;
+        Visualizer.displayResult(result, { hideEmptyColumns });
       }
     }
   }
@@ -113,6 +117,7 @@ export function createQueryCommand(): Command {
     .option('--pretty', 'Pretty print JSON output')
     .option('--no-headers', 'Exclude headers in CSV/TSV output')
     .option('--encoding <encoding>', 'File encoding (utf8, utf16le, etc.)', 'utf8')
+    .option('--show-empty-columns', 'Show all columns including empty ones (default: hide empty columns)')
     .action(async (question, options) => {
       try {
         const configManager = new ConfigManager();
