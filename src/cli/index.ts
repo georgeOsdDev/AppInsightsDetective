@@ -32,26 +32,67 @@ async function handleOutput(result: any, options: any, executionTime: number): P
     options.format = 'table';
   }
 
-  // Always show console output for table format or when no file is specified
-  if (outputFormat === 'table' || !outputFile) {
-    Visualizer.displayResult(result);
-    const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
-    Visualizer.displaySummary(executionTime, totalRows);
+  // Handle console output based on format and output file options
+  if (!outputFile) {
+    // No output file specified - display to console
+    if (outputFormat === 'table') {
+      // Table format: use visualizer with charts
+      Visualizer.displayResult(result);
+      const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
+      Visualizer.displaySummary(executionTime, totalRows);
 
-    // Display chart for numeric data when showing table format
-    if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
-      const firstTable = result.tables[0];
-      if (firstTable.columns.length >= 2) {
-        const hasNumericData = firstTable.rows.some((row: any) =>
-          typeof row[1] === 'number' || !isNaN(Number(row[1]))
-        );
+      // Display chart for numeric data when showing table format
+      if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
+        const firstTable = result.tables[0];
+        if (firstTable.columns.length >= 2) {
+          const hasNumericData = firstTable.rows.some((row: any) =>
+            typeof row[1] === 'number' || !isNaN(Number(row[1]))
+          );
 
-        if (hasNumericData) {
-          const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
-            label: row[0],
-            value: Number(row[1]) || 0,
-          }));
-          Visualizer.displayChart(chartData, 'bar');
+          if (hasNumericData) {
+            const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
+              label: row[0],
+              value: Number(row[1]) || 0,
+            }));
+            Visualizer.displayChart(chartData, 'bar');
+          }
+        }
+      }
+    } else {
+      // Non-table format: display formatted output to console
+      const formattedOutput = OutputFormatter.formatResult(result, outputFormat, {
+        pretty: options.pretty,
+        includeHeaders: !options.noHeaders
+      });
+      
+      console.log(formattedOutput.content);
+      
+      // Show summary for non-table formats
+      const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
+      Visualizer.displaySummary(executionTime, totalRows);
+    }
+  } else {
+    // Output file specified - show table format to console if format is table
+    if (outputFormat === 'table') {
+      Visualizer.displayResult(result);
+      const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
+      Visualizer.displaySummary(executionTime, totalRows);
+
+      // Display chart for table format
+      if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
+        const firstTable = result.tables[0];
+        if (firstTable.columns.length >= 2) {
+          const hasNumericData = firstTable.rows.some((row: any) =>
+            typeof row[1] === 'number' || !isNaN(Number(row[1]))
+          );
+
+          if (hasNumericData) {
+            const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
+              label: row[0],
+              value: Number(row[1]) || 0,
+            }));
+            Visualizer.displayChart(chartData, 'bar');
+          }
         }
       }
     }
@@ -84,19 +125,24 @@ async function handleOutput(result: any, options: any, executionTime: number): P
       const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
       console.log(chalk.green(`✅ Successfully saved ${totalRows} rows to ${resolvedPath}`));
       
-      // Show execution summary if not already shown
-      if (outputFormat !== 'table') {
-        Visualizer.displaySummary(executionTime, totalRows);
-      }
+      // Summary is handled in console output section above
 
     } catch (error) {
       logger.error('File output failed:', error);
       Visualizer.displayError(`Failed to save to file: ${error}`);
       
       // Fallback to console output
-      if (outputFormat !== 'table') {
-        console.log(chalk.yellow('Falling back to console output:'));
+      if (outputFormat === 'table') {
+        // Show table format if that was the original format
         Visualizer.displayResult(result);
+      } else {
+        // Show formatted output for non-table formats
+        const formattedOutput = OutputFormatter.formatResult(result, outputFormat, {
+          pretty: options.pretty,
+          includeHeaders: !options.noHeaders
+        });
+        console.log(chalk.yellow('Falling back to console output:'));
+        console.log(formattedOutput.content);
       }
     }
   }
@@ -265,8 +311,10 @@ function showWelcomeMessage(): void {
   console.log(chalk.cyan('  aidx --raw "requests | take 5"') + chalk.dim(' # Raw KQL query'));
   console.log('');
   console.log('Output formats:');
-  console.log(chalk.cyan('  aidx "errors" --output data.json --format json') + chalk.dim(' # Save to JSON file'));
-  console.log(chalk.cyan('  aidx "errors" --output data.csv --format csv') + chalk.dim('  # Save to CSV file'));
+  console.log(chalk.cyan('  aidx "errors" --format json') + chalk.dim('                          # Display JSON to console'));
+  console.log(chalk.cyan('  aidx "errors" --format csv') + chalk.dim('                           # Display CSV to console'));
+  console.log(chalk.cyan('  aidx "errors" --output data.json --format json') + chalk.dim('       # Save to JSON file'));
+  console.log(chalk.cyan('  aidx "errors" --output data.csv --format csv') + chalk.dim('         # Save to CSV file'));
   console.log(chalk.cyan('  aidx "errors" --output data.tsv --format tsv --pretty') + chalk.dim(' # Save to TSV with pretty printing'));
   console.log(chalk.cyan('  aidx "errors" --output out.json --format json --encoding utf16le') + chalk.dim(' # Custom encoding'));
   console.log('\nFor more help, use: aidx --help');

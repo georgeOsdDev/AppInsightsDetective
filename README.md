@@ -101,7 +101,7 @@ aidx query --raw "requests | take 10"
 
 ## 📁 Output Formats & File Export
 
-AppInsights Detective supports multiple output formats and file export capabilities:
+AppInsights Detective supports multiple output formats for both console display and file export:
 
 ### Output Formats
 - **table** (default) - Colored console display with ASCII charts for numeric data
@@ -109,6 +109,11 @@ AppInsights Detective supports multiple output formats and file export capabilit
 - **csv** - Comma-separated values for spreadsheet import  
 - **tsv** - Tab-separated values for data processing tools
 - **raw** - Human-readable debug format showing table structure
+
+### Usage Patterns
+- **Console only**: Use `--format` to display results in the specified format to console
+- **File output**: Use `--output` with optional `--format` to save results to file
+- **Both**: When `--output` and `--format table` are used, results display to console AND save to file
 
 ### File Export Options
 - **--output** - Save results to file (auto-detects format from extension)
@@ -154,10 +159,19 @@ Create `~/.aidx/config.json`:
 
 ## 🔄 Output Format Examples
 
-### Console Output (Default)
+### Console Output
 ```bash
+# Table format with ASCII charts (default)
 aidx "Show me top 10 requests"
-# Displays colored table with ASCII charts for numeric data
+
+# JSON format to console
+aidx "Show me errors" --format json
+
+# CSV format to console  
+aidx "Show request counts" --format csv
+
+# Pretty-printed JSON to console
+aidx "Show me errors" --format json --pretty
 ```
 
 ### JSON Export
