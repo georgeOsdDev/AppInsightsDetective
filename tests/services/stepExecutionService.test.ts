@@ -85,7 +85,10 @@ describe('StepExecutionService', () => {
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
       expect(mockAppInsightsService.executeQuery).toHaveBeenCalledWith(mockNLQuery.generatedKQL);
-      expect(result).toEqual(mockQueryResult);
+      expect(result).toEqual({
+        result: mockQueryResult,
+        executionTime: expect.any(Number)
+      });
     });
 
     it('should handle explain action', async () => {
@@ -114,7 +117,10 @@ describe('StepExecutionService', () => {
         })
       );
       expect(mockAppInsightsService.executeQuery).toHaveBeenCalledWith(mockNLQuery.generatedKQL);
-      expect(result).toEqual(mockQueryResult);
+      expect(result).toEqual({
+        result: mockQueryResult,
+        executionTime: expect.any(Number)
+      });
     });
 
     it('should handle regenerate action', async () => {
@@ -141,7 +147,10 @@ describe('StepExecutionService', () => {
         }),
         undefined
       );
-      expect(result).toEqual(mockQueryResult);
+      expect(result).toEqual({
+        result: mockQueryResult,
+        executionTime: expect.any(Number)
+      });
     });
 
     it('should handle edit action', async () => {
@@ -158,7 +167,10 @@ describe('StepExecutionService', () => {
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
       expect(mockAppInsightsService.executeQuery).toHaveBeenCalledWith(editedQuery);
-      expect(result).toEqual(mockQueryResult);
+      expect(result).toEqual({
+        result: mockQueryResult,
+        executionTime: expect.any(Number)
+      });
     });
 
     it('should handle cancel action', async () => {
@@ -199,7 +211,10 @@ describe('StepExecutionService', () => {
 
       const result = await service.executeStepByStep(secondQuery, 'test question');
 
-      expect(result).toEqual(mockQueryResult);
+      expect(result).toEqual({
+        result: mockQueryResult,
+        executionTime: expect.any(Number)
+      });
     });
   });  describe('error handling', () => {
     it('should handle query execution errors', async () => {
@@ -247,7 +262,10 @@ describe('StepExecutionService', () => {
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
-      expect(result).toEqual(mockQueryResult);
+      expect(result).toEqual({
+        result: mockQueryResult,
+        executionTime: expect.any(Number)
+      });
     });
   });
 
@@ -269,7 +287,10 @@ describe('StepExecutionService', () => {
 
       const result = await service.executeStepByStep(lowConfidenceQuery, 'test question');
 
-      expect(result).toEqual(mockQueryResult);
+      expect(result).toEqual({
+        result: mockQueryResult,
+        executionTime: expect.any(Number)
+      });
     });
   });
 

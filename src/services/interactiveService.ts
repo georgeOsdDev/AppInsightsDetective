@@ -186,7 +186,6 @@ export class InteractiveService {
     question: string,
     mode: 'direct' | 'step'
   ): Promise<void> {
-    const startTime = Date.now();
     Visualizer.displayInfo(`Processing question: "${question}"`);
 
     // Retrieve schema (optional)
@@ -227,11 +226,10 @@ export class InteractiveService {
         }
       );
 
-      result = await stepExecutionService.executeStepByStep(nlQuery, question);
+      const stepResult = await stepExecutionService.executeStepByStep(nlQuery, question);
 
-      if (result) {
-        const executionTime = Date.now() - startTime;
-        await this.handleInteractiveOutput(result, executionTime);
+      if (stepResult) {
+        await this.handleInteractiveOutput(stepResult.result, stepResult.executionTime);
       }
     } else {
       // Direct execution mode
@@ -246,10 +244,11 @@ export class InteractiveService {
       }
 
       // Execute query
+      const queryStartTime = Date.now();
       result = await this.appInsightsService.executeQuery(nlQuery.generatedKQL);
+      const executionTime = Date.now() - queryStartTime;
 
       if (result) {
-        const executionTime = Date.now() - startTime;
         await this.handleInteractiveOutput(result, executionTime);
       }
     }
