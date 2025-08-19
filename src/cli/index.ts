@@ -265,10 +265,10 @@ function showWelcomeMessage(): void {
   console.log(chalk.cyan('  aidx --raw "requests | take 5"') + chalk.dim(' # Raw KQL query'));
   console.log('');
   console.log('Output formats:');
-  console.log(chalk.cyan('  aidx "errors" --format json') + chalk.dim('    # JSON output'));
-  console.log(chalk.cyan('  aidx "errors" --output data.csv') + chalk.dim('  # Save to CSV file'));
-  console.log(chalk.cyan('  aidx "errors" -f tsv --pretty') + chalk.dim('   # TSV format with pretty printing'));
-  console.log(chalk.cyan('  aidx "errors" -o out.json --encoding utf16le') + chalk.dim(' # Custom encoding'));
+  console.log(chalk.cyan('  aidx "errors" --output data.json --format json') + chalk.dim(' # Save to JSON file'));
+  console.log(chalk.cyan('  aidx "errors" --output data.csv --format csv') + chalk.dim('  # Save to CSV file'));
+  console.log(chalk.cyan('  aidx "errors" --output data.tsv --format tsv --pretty') + chalk.dim(' # Save to TSV with pretty printing'));
+  console.log(chalk.cyan('  aidx "errors" --output out.json --format json --encoding utf16le') + chalk.dim(' # Custom encoding'));
   console.log('\nFor more help, use: aidx --help');
 }
 

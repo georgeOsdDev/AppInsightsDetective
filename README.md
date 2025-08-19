@@ -15,6 +15,8 @@ AppInsights Detective is an intelligent CLI tool that allows you to query your A
 - 🗣️ **Natural Language Queries**: Ask questions in plain English/Japanese
 - 🤖 **AI-Powered KQL Generation**: Automatic conversion to KQL using Azure OpenAI
 - 📊 **Rich Visualization**: Console-based charts and formatted tables
+- 📁 **Multiple Output Formats**: JSON, CSV, TSV, Raw, and Table formats
+- 💾 **File Export**: Save results to files with configurable encoding
 - 🔐 **Secure Authentication**: Uses Azure Managed Identity
 - ⚡ **Interactive Mode**: Step-by-step query building and validation
 - 📈 **Query Validation**: Ensures safe and valid KQL execution
@@ -97,6 +99,24 @@ aidx query --raw "requests | take 10"
 | `aidx -i` or `aidx --interactive` | Interactive query mode |
 | `aidx query --raw [kql]` | Execute raw KQL query |
 
+## 📁 Output Formats & File Export
+
+AppInsights Detective supports multiple output formats and file export capabilities:
+
+### Output Formats
+- **table** (default) - Colored console display with ASCII charts for numeric data
+- **json** - Structured JSON format with optional pretty printing
+- **csv** - Comma-separated values for spreadsheet import  
+- **tsv** - Tab-separated values for data processing tools
+- **raw** - Human-readable debug format showing table structure
+
+### File Export Options
+- **--output** - Save results to file (auto-detects format from extension)
+- **--format** - Specify output format (works with or without file output)
+- **--pretty** - Enable pretty-printed JSON output
+- **--no-headers** - Exclude column headers in CSV/TSV output
+- **--encoding** - File encoding (utf8, utf16le, ascii, latin1, base64)
+
 ## ⚙️ Configuration
 
 ### Option 1: Interactive Setup
@@ -132,6 +152,41 @@ Create `~/.aidx/config.json`:
 }
 ```
 
+## 🔄 Output Format Examples
+
+### Console Output (Default)
+```bash
+aidx "Show me top 10 requests"
+# Displays colored table with ASCII charts for numeric data
+```
+
+### JSON Export
+```bash
+# Pretty-printed JSON
+aidx "Show me errors" --output errors.json --format json --pretty
+
+# Compact JSON  
+aidx "Show me errors" --output errors.json --format json
+```
+
+### CSV Export
+```bash
+# With headers (default)
+aidx "Show request counts" --output requests.csv --format csv
+
+# Without headers for data processing
+aidx "Show request counts" --output requests.csv --format csv --no-headers
+```
+
+### TSV Export
+```bash
+# Tab-separated values
+aidx "Performance data" --output perf.tsv --format tsv
+
+# Custom encoding for international data
+aidx "User data" --output users.tsv --format tsv --encoding utf16le
+```
+
 ## 🔐 Authentication
 
 AppInsights Detective uses Azure Managed Identity for secure authentication. Ensure you have the following permissions:
@@ -157,6 +212,21 @@ aidx "What browsers are users using?"
 # Custom Metrics
 aidx "Show me custom events by type"
 aidx "What's the trend for failed logins?"
+
+# Output to JSON file with pretty printing
+aidx "Show me errors from last hour" --output errors.json --format json --pretty
+
+# Export to CSV for spreadsheet analysis
+aidx "Show request counts by operation" --output requests.csv --format csv
+
+# Save to TSV without headers for data processing
+aidx "Performance metrics" --output metrics.tsv --format tsv --no-headers
+
+# Custom encoding for international data
+aidx "User data" --output users.csv --format csv --encoding utf16le
+
+# Console output with visualization (default behavior)
+aidx "Show top 10 requests"  # displays table + ASCII chart for numeric data
 
 # Interactive Mode Examples
 aidx -i  # Start interactive session with guided queries
