@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { QueryResult, QueryTable, QueryColumn } from '../types';
+import { QueryResult, QueryTable, QueryColumn, AnalysisResult, StatisticalAnalysis, PatternAnalysis, ContextualInsights } from '../types';
 
 export class Visualizer {
   public static displayResult(result: QueryResult, options?: { hideEmptyColumns?: boolean }): void {
@@ -360,5 +360,244 @@ export class Visualizer {
     console.log(chalk.bold.cyan('\n🔍 Generated KQL Query:'));
     console.log(chalk.white(query));
     console.log(chalk.dim(`Confidence: ${Math.round(confidence * 100)}%`));
+  }
+
+  /**
+   * Display analysis results in formatted output
+   */
+  public static displayAnalysisResult(analysis: AnalysisResult, analysisType: string): void {
+    console.log(chalk.bold.magenta('\n🧠 Analysis Results'));
+    console.log(chalk.dim('═'.repeat(50)));
+
+    if (analysis.statistical) {
+      this.displayStatisticalAnalysis(analysis.statistical);
+    }
+
+    if (analysis.patterns) {
+      this.displayPatternAnalysis(analysis.patterns);
+    }
+
+    if (analysis.insights) {
+      this.displayContextualInsights(analysis.insights);
+    }
+
+    if (analysis.aiInsights) {
+      this.displayAIInsights(analysis.aiInsights);
+    }
+
+    if (analysis.recommendations && analysis.recommendations.length > 0) {
+      this.displayRecommendations(analysis.recommendations);
+    }
+
+    if (analysis.followUpQueries && analysis.followUpQueries.length > 0) {
+      this.displayFollowUpQueries(analysis.followUpQueries);
+    }
+  }
+
+  private static displayStatisticalAnalysis(stats: StatisticalAnalysis): void {
+    console.log(chalk.bold.blue('\n📈 Statistical Summary'));
+    console.log(chalk.dim('─'.repeat(30)));
+
+    // Dataset overview
+    console.log(chalk.cyan('\n📊 Dataset Overview:'));
+    console.log(`   • Total Rows: ${stats.summary.totalRows.toLocaleString()}`);
+    
+    if (Object.keys(stats.summary.uniqueValues).length > 0) {
+      console.log(`   • Columns: ${Object.keys(stats.summary.uniqueValues).length}`);
+      
+      // Show top columns with unique values
+      const topColumns = Object.entries(stats.summary.uniqueValues)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 3);
+      
+      topColumns.forEach(([col, unique]) => {
+        const nullPct = stats.summary.nullPercentage[col]?.toFixed(1) || '0.0';
+        console.log(`   • ${col}: ${unique} unique values (${nullPct}% null)`);
+      });
+    }
+
+    // Numerical analysis
+    if (stats.numerical) {
+      console.log(chalk.cyan('\n📈 Numerical Analysis:'));
+      console.log(`   • Mean: ${stats.numerical.mean}`);
+      console.log(`   • Median: ${stats.numerical.median}`);
+      console.log(`   • Std Dev: ${stats.numerical.stdDev}`);
+      console.log(`   • Distribution: ${stats.numerical.distribution}`);
+      
+      if (stats.numerical.outliers.length > 0) {
+        console.log(`   • Outliers: ${stats.numerical.outliers.length} detected`);
+        if (stats.numerical.outliers.length <= 5) {
+          console.log(`     Values: [${stats.numerical.outliers.join(', ')}]`);
+        } else {
+          console.log(`     Sample: [${stats.numerical.outliers.slice(0, 3).join(', ')}, ...]`);
+        }
+      }
+    }
+
+    // Temporal analysis
+    if (stats.temporal) {
+      console.log(chalk.cyan('\n🕒 Temporal Analysis:'));
+      console.log(`   • Time Range: ${stats.temporal.timeRange.start.toISOString().split('T')[0]} - ${stats.temporal.timeRange.end.toISOString().split('T')[0]}`);
+      console.log(`   • Trend: ${this.formatTrend(stats.temporal.trends)}`);
+      
+      if (stats.temporal.gaps.length > 0) {
+        console.log(`   • Data Gaps: ${stats.temporal.gaps.length} detected`);
+      } else {
+        console.log(`   • Data Gaps: None detected`);
+      }
+    }
+  }
+
+  private static displayPatternAnalysis(patterns: PatternAnalysis): void {
+    console.log(chalk.bold.blue('\n🔍 Pattern Analysis'));
+    console.log(chalk.dim('─'.repeat(30)));
+
+    // Trends
+    if (patterns.trends.length > 0) {
+      console.log(chalk.cyan('\n📈 Identified Trends:'));
+      patterns.trends.forEach((trend, index) => {
+        const confidenceColor = trend.confidence > 0.8 ? chalk.green : trend.confidence > 0.6 ? chalk.yellow : chalk.red;
+        console.log(`   ${index + 1}. ${chalk.bold(trend.description)}`);
+        console.log(`      Confidence: ${confidenceColor(`${Math.round(trend.confidence * 100)}%`)}`);
+        if (trend.visualization) {
+          console.log(`      ${chalk.dim(trend.visualization)}`);
+        }
+      });
+    }
+
+    // Anomalies
+    if (patterns.anomalies.length > 0) {
+      console.log(chalk.cyan('\n🚨 Anomalies Detected:'));
+      patterns.anomalies.forEach((anomaly, index) => {
+        const severityColor = anomaly.severity === 'high' ? chalk.red : anomaly.severity === 'medium' ? chalk.yellow : chalk.cyan;
+        const severityIcon = anomaly.severity === 'high' ? '🔴' : anomaly.severity === 'medium' ? '🟡' : '🔵';
+        
+        console.log(`   ${index + 1}. ${severityIcon} ${chalk.bold(anomaly.description)} ${severityColor(`(${anomaly.severity.toUpperCase()} severity)`)}`);
+        console.log(`      Type: ${anomaly.type}`);
+        if (anomaly.affectedRows.length > 0) {
+          const rowSample = anomaly.affectedRows.slice(0, 5);
+          console.log(`      Affected Rows: [${rowSample.join(', ')}${anomaly.affectedRows.length > 5 ? ', ...' : ''}]`);
+        }
+      });
+    }
+
+    // Correlations
+    if (patterns.correlations.length > 0) {
+      console.log(chalk.cyan('\n🔗 Correlations Found:'));
+      patterns.correlations.forEach((correlation, index) => {
+        const significanceColor = correlation.significance === 'strong' ? chalk.green : correlation.significance === 'moderate' ? chalk.yellow : chalk.cyan;
+        console.log(`   ${index + 1}. ${chalk.bold(`${correlation.columns[0]} ↔ ${correlation.columns[1]}`)} (r=${correlation.coefficient.toFixed(2)})`);
+        console.log(`      Significance: ${significanceColor(correlation.significance)}`);
+      });
+    }
+
+    if (patterns.trends.length === 0 && patterns.anomalies.length === 0 && patterns.correlations.length === 0) {
+      console.log(chalk.dim('   No significant patterns detected in the current dataset.'));
+    }
+  }
+
+  private static displayContextualInsights(insights: ContextualInsights): void {
+    console.log(chalk.bold.blue('\n💡 Contextual Insights'));
+    console.log(chalk.dim('─'.repeat(30)));
+
+    // Data quality
+    console.log(chalk.cyan('\n🎯 Data Quality Assessment:'));
+    console.log(`   • Completeness: ${insights.dataQuality.completeness}%`);
+    
+    if (insights.dataQuality.consistency.length > 0) {
+      console.log(`   • Consistency Issues:`);
+      insights.dataQuality.consistency.forEach(issue => {
+        console.log(`     - ${issue}`);
+      });
+    }
+
+    if (insights.dataQuality.recommendations.length > 0) {
+      console.log(`   • Quality Recommendations:`);
+      insights.dataQuality.recommendations.forEach(rec => {
+        console.log(`     - ${rec}`);
+      });
+    }
+
+    // Business insights
+    if (insights.businessInsights.keyFindings.length > 0) {
+      console.log(chalk.cyan('\n🎪 Key Business Findings:'));
+      insights.businessInsights.keyFindings.forEach(finding => {
+        console.log(`   • ${finding}`);
+      });
+    }
+
+    if (insights.businessInsights.potentialIssues.length > 0) {
+      console.log(chalk.cyan('\n⚠️  Potential Issues:'));
+      insights.businessInsights.potentialIssues.forEach(issue => {
+        console.log(`   • ${chalk.yellow(issue)}`);
+      });
+    }
+
+    if (insights.businessInsights.opportunities.length > 0) {
+      console.log(chalk.cyan('\n🎪 Opportunities:'));
+      insights.businessInsights.opportunities.forEach(opp => {
+        console.log(`   • ${chalk.green(opp)}`);
+      });
+    }
+  }
+
+  private static displayAIInsights(insights: string): void {
+    console.log(chalk.bold.blue('\n🤖 AI-Powered Insights'));
+    console.log(chalk.dim('─'.repeat(30)));
+    
+    // Split insights into paragraphs for better formatting
+    const paragraphs = insights.split('\n').filter(p => p.trim());
+    
+    paragraphs.forEach(paragraph => {
+      if (paragraph.trim().startsWith('-') || paragraph.trim().startsWith('•')) {
+        console.log(`   ${paragraph.trim()}`);
+      } else if (paragraph.trim().match(/^\d+\./)) {
+        console.log(`\n${chalk.cyan(paragraph.trim())}`);
+      } else {
+        console.log(paragraph.trim());
+      }
+    });
+  }
+
+  private static displayRecommendations(recommendations: string[]): void {
+    console.log(chalk.bold.blue('\n📋 Recommendations'));
+    console.log(chalk.dim('─'.repeat(30)));
+
+    recommendations.forEach((rec, index) => {
+      console.log(`   ${chalk.green(`${index + 1}.`)} ${rec}`);
+    });
+  }
+
+  private static displayFollowUpQueries(queries: Array<{ query: string; purpose: string; priority: 'high' | 'medium' | 'low' }>): void {
+    console.log(chalk.bold.blue('\n🔄 Suggested Follow-up Queries'));
+    console.log(chalk.dim('─'.repeat(30)));
+
+    const sortedQueries = queries.sort((a, b) => {
+      const priorityOrder = { high: 3, medium: 2, low: 1 };
+      return priorityOrder[b.priority] - priorityOrder[a.priority];
+    });
+
+    sortedQueries.forEach((query, index) => {
+      const priorityColor = query.priority === 'high' ? chalk.red : query.priority === 'medium' ? chalk.yellow : chalk.cyan;
+      const priorityIcon = query.priority === 'high' ? '🔴' : query.priority === 'medium' ? '🟡' : '🔵';
+      
+      console.log(`\n   ${chalk.cyan(`${index + 1}.`)} ${priorityIcon} ${chalk.bold(query.purpose)} ${priorityColor(`(${query.priority.toUpperCase()} priority)`)}`);
+      console.log(`      ${chalk.dim('Query:')} ${chalk.white(query.query)}`);
+    });
+  }
+
+  private static formatTrend(trend: string): string {
+    switch (trend) {
+      case 'increasing':
+        return chalk.green('📈 Increasing');
+      case 'decreasing':
+        return chalk.red('📉 Decreasing');
+      case 'stable':
+        return chalk.blue('➡️  Stable');
+      case 'seasonal':
+        return chalk.magenta('🔄 Seasonal');
+      default:
+        return chalk.dim('❓ Unknown');
+    }
   }
 }

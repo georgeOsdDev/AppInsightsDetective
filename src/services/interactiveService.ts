@@ -3,13 +3,14 @@ import chalk from 'chalk';
 import { AuthService } from './authService';
 import { AppInsightsService } from './appInsightsService';
 import { AIService } from './aiService';
+import { AnalysisService } from './analysisService';
 import { StepExecutionService } from './stepExecutionService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
 import { OutputFormatter } from '../utils/outputFormatter';
 import { FileOutputManager } from '../utils/fileOutput';
 import { logger } from '../utils/logger';
-import { QueryResult, SupportedLanguage, OutputFormat } from '../types';
+import { QueryResult, SupportedLanguage, OutputFormat, AnalysisType } from '../types';
 
 export interface InteractiveSessionOptions {
   language?: SupportedLanguage;
@@ -22,13 +23,17 @@ export interface InteractiveSessionOptions {
 }
 
 export class InteractiveService {
+  private analysisService: AnalysisService;
+
   constructor(
     private authService: AuthService,
     private appInsightsService: AppInsightsService,
     private aiService: AIService,
     private configManager: ConfigManager,
     private options: InteractiveSessionOptions = {}
-  ) {}
+  ) {
+    this.analysisService = new AnalysisService(this.aiService, this.configManager);
+  }
 
   /**
    * Start interactive session
@@ -176,7 +181,7 @@ export class InteractiveService {
     const result = await this.appInsightsService.executeQuery(query);
     const executionTime = Date.now() - startTime;
 
-    await this.handleInteractiveOutput(result, executionTime);
+    await this.handleInteractiveOutput(result, executionTime, query);
   }
 
   /**
@@ -229,7 +234,7 @@ export class InteractiveService {
       const stepResult = await stepExecutionService.executeStepByStep(nlQuery, question);
 
       if (stepResult) {
-        await this.handleInteractiveOutput(stepResult.result, stepResult.executionTime);
+        await this.handleInteractiveOutput(stepResult.result, stepResult.executionTime, nlQuery.generatedKQL);
       }
     } else {
       // Direct execution mode
@@ -249,7 +254,7 @@ export class InteractiveService {
       const executionTime = Date.now() - queryStartTime;
 
       if (result) {
-        await this.handleInteractiveOutput(result, executionTime);
+        await this.handleInteractiveOutput(result, executionTime, nlQuery.generatedKQL);
       }
     }
   }
@@ -257,7 +262,7 @@ export class InteractiveService {
   /**
    * Handle output formatting and file writing with interactive prompts
    */
-  private async handleInteractiveOutput(result: QueryResult, executionTime: number): Promise<void> {
+  private async handleInteractiveOutput(result: QueryResult, executionTime: number, originalQuery?: string): Promise<void> {
     const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
 
     // Always display to console first (default: hide empty columns in interactive mode)
@@ -266,6 +271,11 @@ export class InteractiveService {
 
     // Show chart for numeric data
     await this.showChartIfApplicable(result);
+
+    // Offer analysis option if we have data and query
+    if (totalRows > 0 && originalQuery) {
+      await this.promptForAnalysisOption(result, originalQuery);
+    }
 
     // Ask about output format and file saving
     const outputChoice = await this.promptForOutputOptions(totalRows);
@@ -441,6 +451,132 @@ export class InteractiveService {
           }
         }
       }
+    }
+  }
+
+  /**
+   * Prompt user for analysis option
+   */
+  private async promptForAnalysisOption(result: QueryResult, originalQuery: string): Promise<void> {
+    const { wantAnalysis } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'wantAnalysis',
+        message: '🧠 Would you like to analyze these results for patterns and insights?',
+        default: false
+      }
+    ]);
+
+    if (!wantAnalysis) {
+      return;
+    }
+
+    // Show analysis options
+    const { analysisType } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'analysisType',
+        message: 'What type of analysis would you like to perform?',
+        choices: [
+          {
+            name: '📈 Statistical Summary - Basic statistics and data distributions',
+            value: 'statistical',
+            short: 'Stats'
+          },
+          {
+            name: '🔍 Pattern Detection - Identify trends and correlations',
+            value: 'patterns',
+            short: 'Patterns'
+          },
+          {
+            name: '🚨 Anomaly Detection - Find outliers and unusual data points',
+            value: 'anomalies',
+            short: 'Anomalies'
+          },
+          {
+            name: '💡 Smart Insights - AI-powered recommendations and insights',
+            value: 'insights',
+            short: 'Insights'
+          },
+          {
+            name: '📋 Full Analysis Report - Comprehensive analysis of all aspects',
+            value: 'full',
+            short: 'Full Report'
+          }
+        ],
+        pageSize: 8
+      }
+    ]);
+
+    // Perform analysis
+    try {
+      console.log(chalk.dim('\n🔍 Analyzing data... This may take a few seconds.'));
+      
+      const analysis = await this.analysisService.analyzeQueryResult(
+        result, 
+        originalQuery, 
+        analysisType as AnalysisType
+      );
+      
+      // Display the analysis results
+      Visualizer.displayAnalysisResult(analysis, analysisType);
+      
+      // Offer to execute follow-up queries if available
+      if (analysis.followUpQueries && analysis.followUpQueries.length > 0) {
+        await this.promptForFollowUpQuery(analysis.followUpQueries);
+      }
+      
+    } catch (error) {
+      logger.error('Analysis failed:', error);
+      Visualizer.displayError(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Prompt user for follow-up query execution
+   */
+  private async promptForFollowUpQuery(followUpQueries: Array<{ query: string; purpose: string; priority: 'high' | 'medium' | 'low' }>): Promise<void> {
+    const { executeFollowUp } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'executeFollowUp',
+        message: '🔄 Would you like to execute one of the suggested follow-up queries?',
+        default: false
+      }
+    ]);
+
+    if (!executeFollowUp) {
+      return;
+    }
+
+    const choices = followUpQueries.map((query, index) => {
+      const priorityIcon = query.priority === 'high' ? '🔴' : query.priority === 'medium' ? '🟡' : '🔵';
+      return {
+        name: `${priorityIcon} ${query.purpose}\n    ${chalk.dim(query.query)}`,
+        value: query.query,
+        short: `Query ${index + 1}`
+      };
+    });
+
+    choices.push({
+      name: chalk.cyan('🔙 Skip - Continue to other options'),
+      value: '__SKIP__',
+      short: 'Skip'
+    });
+
+    const { selectedQuery } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedQuery',
+        message: 'Select a follow-up query to execute:',
+        choices,
+        pageSize: Math.min(followUpQueries.length + 1, 10)
+      }
+    ]);
+
+    if (selectedQuery !== '__SKIP__') {
+      console.log(chalk.dim('\n🔄 Executing follow-up query...'));
+      await this.executeQuery(selectedQuery, 'raw');
     }
   }
 

@@ -117,3 +117,86 @@ export interface QueryResultWithTiming {
   result: QueryResult;
   executionTime: number; // in milliseconds
 }
+
+// Analysis types for interactive query result analysis
+export type AnalysisType = 'statistical' | 'patterns' | 'anomalies' | 'insights' | 'full';
+
+export interface StatisticalAnalysis {
+  summary: {
+    totalRows: number;
+    uniqueValues: Record<string, number>;
+    nullPercentage: Record<string, number>;
+  };
+  numerical: {
+    mean: number;
+    median: number;
+    stdDev: number;
+    outliers: any[];
+    distribution: 'normal' | 'skewed' | 'uniform' | 'unknown';
+  } | null;
+  temporal: {
+    timeRange: { start: Date; end: Date };
+    trends: 'increasing' | 'decreasing' | 'stable' | 'seasonal' | 'unknown';
+    gaps: Date[];
+  } | null;
+}
+
+export interface PatternAnalysis {
+  trends: {
+    description: string;
+    confidence: number;
+    visualization: string;
+  }[];
+  anomalies: {
+    type: 'outlier' | 'spike' | 'dip' | 'missing_data';
+    description: string;
+    severity: 'low' | 'medium' | 'high';
+    affectedRows: number[];
+  }[];
+  correlations: {
+    columns: [string, string];
+    coefficient: number;
+    significance: 'strong' | 'moderate' | 'weak';
+  }[];
+}
+
+export interface ContextualInsights {
+  dataQuality: {
+    completeness: number;
+    consistency: string[];
+    recommendations: string[];
+  };
+  businessInsights: {
+    keyFindings: string[];
+    potentialIssues: string[];
+    opportunities: string[];
+  };
+  followUpQueries: {
+    query: string;
+    purpose: string;
+    priority: 'high' | 'medium' | 'low';
+  }[];
+}
+
+export interface AnalysisResult {
+  statistical?: StatisticalAnalysis;
+  patterns?: PatternAnalysis;
+  insights?: ContextualInsights;
+  aiInsights?: string;
+  recommendations?: string[];
+  followUpQueries?: {
+    query: string;
+    purpose: string;
+    priority: 'high' | 'medium' | 'low';
+  }[];
+}
+
+export interface AnalysisOptions {
+  enabled: boolean;
+  autoAnalyze: boolean;
+  defaultAnalysisType: AnalysisType;
+  maxDataSampleSize: number;
+  includeFollowUpQueries: boolean;
+  showStatisticalDetails: boolean;
+  anomalyDetectionSensitivity: 'low' | 'medium' | 'high';
+}

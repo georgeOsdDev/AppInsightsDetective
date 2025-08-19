@@ -407,4 +407,46 @@ Respond with only the new KQL query, no explanations.`;
       return { isValid: false, error: `Validation error: ${error}` };
     }
   }
+
+  /**
+   * Generate AI response for analysis prompts
+   */
+  public async generateResponse(prompt: string): Promise<string> {
+    await this.initialize();
+
+    if (!this.openAIClient) {
+      throw new Error('OpenAI client not initialized');
+    }
+
+    try {
+      const config = this.configManager.getConfig();
+      
+      logger.info('Generating AI response for analysis');
+
+      const response = await this.openAIClient.chat.completions.create({
+        model: config.openAI.deploymentName || 'gpt-4',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are an expert Application Insights data analyst. Provide concise, actionable insights based on the query results. Always focus on practical recommendations for application monitoring and performance optimization.' 
+          },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 1500,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No response generated from OpenAI');
+      }
+
+      logger.info('AI response generated successfully');
+      return content;
+      
+    } catch (error) {
+      logger.error('AI response generation failed:', error);
+      throw error;
+    }
+  }
 }
