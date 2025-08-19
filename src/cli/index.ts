@@ -13,6 +13,140 @@ import { StepExecutionService } from '../services/stepExecutionService';
 import { InteractiveService } from '../services/interactiveService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
+import { OutputFormatter } from '../utils/outputFormatter';
+import { FileOutputManager } from '../utils/fileOutput';
+import { OutputFormat } from '../types';
+
+/**
+ * Handle output formatting and file writing
+ */
+async function handleOutput(result: any, options: any, executionTime: number): Promise<void> {
+  const outputFormat = options.format as OutputFormat;
+  const outputFile = options.output as string | undefined;
+  const encoding = FileOutputManager.isValidEncoding(options.encoding) ? options.encoding : 'utf8';
+
+  // Validate format
+  const validFormats: OutputFormat[] = ['table', 'json', 'csv', 'tsv', 'raw'];
+  if (!validFormats.includes(outputFormat)) {
+    logger.warn(`Invalid format '${outputFormat}', defaulting to table`);
+    options.format = 'table';
+  }
+
+  // Handle console output based on format and output file options
+  if (!outputFile) {
+    // No output file specified - display to console
+    if (outputFormat === 'table') {
+      // Table format: use visualizer with charts
+      Visualizer.displayResult(result);
+      const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
+      Visualizer.displaySummary(executionTime, totalRows);
+
+      // Display chart for numeric data when showing table format
+      if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
+        const firstTable = result.tables[0];
+        if (firstTable.columns.length >= 2) {
+          const hasNumericData = firstTable.rows.some((row: any) =>
+            typeof row[1] === 'number' || !isNaN(Number(row[1]))
+          );
+
+          if (hasNumericData) {
+            const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
+              label: row[0],
+              value: Number(row[1]) || 0,
+            }));
+            Visualizer.displayChart(chartData, 'bar');
+          }
+        }
+      }
+    } else {
+      // Non-table format: display formatted output to console
+      const formattedOutput = OutputFormatter.formatResult(result, outputFormat, {
+        pretty: options.pretty,
+        includeHeaders: !options.noHeaders
+      });
+      
+      console.log(formattedOutput.content);
+      
+      // Show summary for non-table formats
+      const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
+      Visualizer.displaySummary(executionTime, totalRows);
+    }
+  } else {
+    // Output file specified - show table format to console if format is table
+    if (outputFormat === 'table') {
+      Visualizer.displayResult(result);
+      const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
+      Visualizer.displaySummary(executionTime, totalRows);
+
+      // Display chart for table format
+      if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
+        const firstTable = result.tables[0];
+        if (firstTable.columns.length >= 2) {
+          const hasNumericData = firstTable.rows.some((row: any) =>
+            typeof row[1] === 'number' || !isNaN(Number(row[1]))
+          );
+
+          if (hasNumericData) {
+            const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
+              label: row[0],
+              value: Number(row[1]) || 0,
+            }));
+            Visualizer.displayChart(chartData, 'bar');
+          }
+        }
+      }
+    }
+  }
+
+  // Handle file output
+  if (outputFile) {
+    try {
+      // Resolve output path and check permissions
+      const resolvedPath = FileOutputManager.resolveOutputPath(outputFile, outputFormat);
+      
+      if (!FileOutputManager.checkWritePermission(resolvedPath)) {
+        Visualizer.displayError(`Cannot write to file: ${resolvedPath}`);
+        return;
+      }
+
+      // Format the output
+      const formattedOutput = OutputFormatter.formatResult(result, outputFormat, {
+        pretty: options.pretty,
+        includeHeaders: !options.noHeaders
+      });
+
+      // Create backup if file exists
+      FileOutputManager.createBackup(resolvedPath);
+
+      // Write to file
+      await FileOutputManager.writeToFile(formattedOutput, resolvedPath, encoding);
+
+      // Show success message
+      const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
+      console.log(chalk.green(`✅ Successfully saved ${totalRows} rows to ${resolvedPath}`));
+      
+      // Summary is handled in console output section above
+
+    } catch (error) {
+      logger.error('File output failed:', error);
+      Visualizer.displayError(`Failed to save to file: ${error}`);
+      
+      // Fallback to console output
+      if (outputFormat === 'table') {
+        // Show table format if that was the original format
+        Visualizer.displayResult(result);
+      } else {
+        // Show formatted output for non-table formats
+        const formattedOutput = OutputFormatter.formatResult(result, outputFormat, {
+          pretty: options.pretty,
+          includeHeaders: !options.noHeaders
+        });
+        console.log(chalk.yellow('Falling back to console output:'));
+        console.log(formattedOutput.content);
+      }
+    }
+  }
+}
 
 const program = new Command();
 
@@ -33,6 +167,11 @@ program
   .option('-l, --language <language>', 'Language for explanations (en, ja, ko, zh, es, fr, de, etc.)')
   .option('-r, --raw', 'Execute raw KQL query')
   .option('--direct', 'Execute query directly without confirmation')
+  .option('-f, --format <format>', 'Output format (table, json, csv, tsv, raw)', 'table')
+  .option('-o, --output <file>', 'Output file path')
+  .option('--pretty', 'Pretty print JSON output')
+  .option('--no-headers', 'Exclude headers in CSV/TSV output')
+  .option('--encoding <encoding>', 'File encoding (utf8, utf16le, etc.)', 'utf8')
   .action(async (question, options) => {
     try {
       if (question) {
@@ -92,9 +231,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       const result = await appInsightsService.executeQuery(question);
       const executionTime = Date.now() - startTime;
 
-      Visualizer.displayResult(result);
-      const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
-      Visualizer.displaySummary(executionTime, totalRows);
+      await handleOutput(result, options, executionTime);
     } else {
       Visualizer.displayInfo(`Processing question: "${question}"`);
 
@@ -132,27 +269,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
 
         if (result) {
           const executionTime = Date.now() - startTime;
-          Visualizer.displayResult(result);
-          const totalRows = result.tables.reduce((sum: number, table: any) => sum + table.rows.length, 0);
-          Visualizer.displaySummary(executionTime, totalRows);
-
-          // Display simple chart for numeric data results
-          if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
-            const firstTable = result.tables[0];
-            if (firstTable.columns.length >= 2) {
-              const hasNumericData = firstTable.rows.some((row: any) =>
-                typeof row[1] === 'number' || !isNaN(Number(row[1]))
-              );
-
-              if (hasNumericData) {
-                const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
-                  label: row[0],
-                  value: Number(row[1]) || 0,
-                }));
-                Visualizer.displayChart(chartData, 'bar');
-              }
-            }
-          }
+          await handleOutput(result, options, executionTime);
         }
         return;
       }
@@ -171,27 +288,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       const result = await appInsightsService.executeQuery(nlQuery.generatedKQL);
       const executionTime = Date.now() - startTime;
 
-      Visualizer.displayResult(result);
-      const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
-      Visualizer.displaySummary(executionTime, totalRows);
-
-      // Display simple chart for numeric data results
-      if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
-        const firstTable = result.tables[0];
-        if (firstTable.columns.length >= 2) {
-          const hasNumericData = firstTable.rows.some(row =>
-            typeof row[1] === 'number' || !isNaN(Number(row[1]))
-          );
-
-          if (hasNumericData) {
-            const chartData = firstTable.rows.slice(0, 10).map(row => ({
-              label: row[0],
-              value: Number(row[1]) || 0,
-            }));
-            Visualizer.displayChart(chartData, 'bar');
-          }
-        }
-      }
+      await handleOutput(result, options, executionTime);
     }
   } catch (error) {
     logger.error('Query execution failed:', error);
@@ -212,6 +309,14 @@ function showWelcomeMessage(): void {
   console.log(chalk.cyan('  aidx --language ja "errors"') + chalk.dim('   # Japanese explanations'));
   console.log(chalk.cyan('  aidx --interactive') + chalk.dim('           # Full interactive session'));
   console.log(chalk.cyan('  aidx --raw "requests | take 5"') + chalk.dim(' # Raw KQL query'));
+  console.log('');
+  console.log('Output formats:');
+  console.log(chalk.cyan('  aidx "errors" --format json') + chalk.dim('                          # Display JSON to console'));
+  console.log(chalk.cyan('  aidx "errors" --format csv') + chalk.dim('                           # Display CSV to console'));
+  console.log(chalk.cyan('  aidx "errors" --output data.json --format json') + chalk.dim('       # Save to JSON file'));
+  console.log(chalk.cyan('  aidx "errors" --output data.csv --format csv') + chalk.dim('         # Save to CSV file'));
+  console.log(chalk.cyan('  aidx "errors" --output data.tsv --format tsv --pretty') + chalk.dim(' # Save to TSV with pretty printing'));
+  console.log(chalk.cyan('  aidx "errors" --output out.json --format json --encoding utf16le') + chalk.dim(' # Custom encoding'));
   console.log('\nFor more help, use: aidx --help');
 }
 

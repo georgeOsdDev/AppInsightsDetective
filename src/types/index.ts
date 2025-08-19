@@ -93,3 +93,22 @@ export interface ExplanationOptions {
   includeExamples?: boolean;
   technicalLevel?: 'beginner' | 'intermediate' | 'advanced';
 }
+
+// Output format types
+export type OutputFormat = 'table' | 'json' | 'csv' | 'tsv' | 'raw';
+export type OutputDestination = 'console' | 'file' | 'both';
+
+export interface OutputOptions {
+  format: OutputFormat;
+  destination: OutputDestination;
+  filePath?: string;
+  pretty?: boolean;
+  includeHeaders?: boolean;
+  encoding?: BufferEncoding;
+}
+
+export interface FormattedOutput {
+  content: string;
+  extension: string;
+  mimeType: string;
+}

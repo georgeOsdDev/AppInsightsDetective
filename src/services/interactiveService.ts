@@ -6,12 +6,19 @@ import { AIService } from './aiService';
 import { StepExecutionService } from './stepExecutionService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
+import { OutputFormatter } from '../utils/outputFormatter';
+import { FileOutputManager } from '../utils/fileOutput';
 import { logger } from '../utils/logger';
-import { QueryResult, SupportedLanguage } from '../types';
+import { QueryResult, SupportedLanguage, OutputFormat } from '../types';
 
 export interface InteractiveSessionOptions {
   language?: SupportedLanguage;
   defaultMode?: 'direct' | 'step' | 'raw';
+  outputFormat?: OutputFormat;
+  outputFile?: string;
+  prettyJson?: boolean;
+  includeHeaders?: boolean;
+  encoding?: BufferEncoding;
 }
 
 export class InteractiveService {
@@ -169,9 +176,7 @@ export class InteractiveService {
     const result = await this.appInsightsService.executeQuery(query);
     const executionTime = Date.now() - startTime;
 
-    Visualizer.displayResult(result);
-    const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
-    Visualizer.displaySummary(executionTime, totalRows);
+    await this.handleInteractiveOutput(result, executionTime);
   }
 
   /**
@@ -226,9 +231,7 @@ export class InteractiveService {
 
       if (result) {
         const executionTime = Date.now() - startTime;
-        Visualizer.displayResult(result);
-        const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
-        Visualizer.displaySummary(executionTime, totalRows);
+        await this.handleInteractiveOutput(result, executionTime);
       }
     } else {
       // Direct execution mode
@@ -247,14 +250,173 @@ export class InteractiveService {
 
       if (result) {
         const executionTime = Date.now() - startTime;
-        Visualizer.displayResult(result);
-        const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
-        Visualizer.displaySummary(executionTime, totalRows);
+        await this.handleInteractiveOutput(result, executionTime);
       }
     }
+  }
 
-    // Suggest simple chart for numeric data (direct execution mode only)
-    if (result && mode === 'direct' && result.tables.length > 0 && result.tables[0].rows.length > 1) {
+  /**
+   * Handle output formatting and file writing with interactive prompts
+   */
+  private async handleInteractiveOutput(result: QueryResult, executionTime: number): Promise<void> {
+    const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
+
+    // Always display to console first
+    Visualizer.displayResult(result);
+    Visualizer.displaySummary(executionTime, totalRows);
+
+    // Show chart for numeric data
+    await this.showChartIfApplicable(result);
+
+    // Ask about output format and file saving
+    const outputChoice = await this.promptForOutputOptions(totalRows);
+    
+    if (outputChoice.saveToFile && outputChoice.format) {
+      try {
+        await this.saveResultToFile(result, {
+          format: outputChoice.format,
+          filePath: outputChoice.filePath,
+          pretty: outputChoice.pretty,
+          includeHeaders: outputChoice.includeHeaders,
+          encoding: outputChoice.encoding
+        });
+      } catch (error) {
+        logger.error('File save failed:', error);
+        Visualizer.displayError(`Failed to save to file: ${error}`);
+      }
+    }
+  }
+
+  /**
+   * Prompt user for output options
+   */
+  private async promptForOutputOptions(totalRows: number): Promise<{
+    saveToFile: boolean;
+    format?: OutputFormat;
+    filePath?: string;
+    pretty?: boolean;
+    includeHeaders?: boolean;
+    encoding?: BufferEncoding;
+  }> {
+    const { saveToFile } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'saveToFile',
+        message: `Would you like to save these ${totalRows} rows to a file?`,
+        default: false
+      }
+    ]);
+
+    if (!saveToFile) {
+      return { saveToFile: false };
+    }
+
+    const { format, filePath, pretty, includeHeaders, encoding } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'format',
+        message: 'Select output format:',
+        choices: [
+          { name: '📊 JSON - Structured data format', value: 'json' },
+          { name: '📋 CSV - Comma-separated values for spreadsheets', value: 'csv' },
+          { name: '📑 TSV - Tab-separated values', value: 'tsv' },
+          { name: '📄 Raw - Human-readable debug format', value: 'raw' }
+        ],
+        default: this.options.outputFormat || 'json'
+      },
+      {
+        type: 'input',
+        name: 'filePath',
+        message: 'Enter output file path (or press Enter for auto-generated):',
+        default: '',
+        validate: (input: string) => {
+          if (!input.trim()) return true; // Allow empty for auto-generation
+          return input.length > 0 || 'Please enter a valid file path';
+        }
+      },
+      {
+        type: 'confirm',
+        name: 'pretty',
+        message: 'Pretty print JSON output?',
+        default: this.options.prettyJson !== false,
+        when: (answers) => answers.format === 'json'
+      },
+      {
+        type: 'confirm',
+        name: 'includeHeaders',
+        message: 'Include column headers?',
+        default: this.options.includeHeaders !== false,
+        when: (answers) => answers.format === 'csv' || answers.format === 'tsv'
+      },
+      {
+        type: 'list',
+        name: 'encoding',
+        message: 'Select file encoding:',
+        choices: [
+          { name: 'UTF-8 (recommended)', value: 'utf8' },
+          { name: 'UTF-16 Little Endian', value: 'utf16le' },
+          { name: 'ASCII', value: 'ascii' },
+          { name: 'Latin-1', value: 'latin1' }
+        ],
+        default: this.options.encoding || 'utf8'
+      }
+    ]);
+
+    return {
+      saveToFile: true,
+      format,
+      filePath: filePath.trim() || undefined,
+      pretty,
+      includeHeaders,
+      encoding
+    };
+  }
+
+  /**
+   * Save result to file with user-specified options
+   */
+  private async saveResultToFile(result: QueryResult, options: {
+    format: OutputFormat;
+    filePath?: string;
+    pretty?: boolean;
+    includeHeaders?: boolean;
+    encoding?: BufferEncoding;
+  }): Promise<void> {
+    // Generate filename if not provided
+    const outputPath = options.filePath || FileOutputManager.generateFileName({
+      format: options.format,
+      destination: 'file'
+    });
+
+    // Resolve and check path
+    const resolvedPath = FileOutputManager.resolveOutputPath(outputPath, options.format);
+    
+    if (!FileOutputManager.checkWritePermission(resolvedPath)) {
+      throw new Error(`Cannot write to file: ${resolvedPath}`);
+    }
+
+    // Format the output
+    const formattedOutput = OutputFormatter.formatResult(result, options.format, {
+      pretty: options.pretty,
+      includeHeaders: options.includeHeaders
+    });
+
+    // Create backup if file exists
+    FileOutputManager.createBackup(resolvedPath);
+
+    // Write to file
+    await FileOutputManager.writeToFile(formattedOutput, resolvedPath, options.encoding || 'utf8');
+
+    // Show success message
+    const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
+    console.log(chalk.green(`✅ Successfully saved ${totalRows} rows to ${resolvedPath}`));
+  }
+
+  /**
+   * Show chart for numeric data if applicable
+   */
+  private async showChartIfApplicable(result: QueryResult): Promise<void> {
+    if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
       const firstTable = result.tables[0];
       if (firstTable.columns.length >= 2) {
         const hasNumericData = firstTable.rows.some(row =>
