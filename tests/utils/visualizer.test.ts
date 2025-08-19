@@ -408,4 +408,112 @@ describe('Visualizer', () => {
       consoleSpy.mockRestore();
     });
   });
+
+  describe('numeric column display', () => {
+    it('should display small integers completely without truncation', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'NumericTest',
+            columns: [
+              { name: 'name', type: 'string' },
+              { name: 'count_', type: 'long' }
+            ],
+            rows: [
+              ['HTTPExample', 16],
+              ['APICall', 25],
+              ['Test', 156]
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const originalColumns = process.stdout.columns;
+      process.stdout.columns = 40; // Simulate narrow terminal
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      
+      // The numeric values should appear completely, not truncated
+      expect(output).toContain('16');
+      expect(output).toContain('25'); 
+      expect(output).toContain('156');
+      
+      // Should not contain truncated versions
+      expect(output).not.toMatch(/HTTPExample.*1[^6]/); // Should not be just "1" instead of "16"
+
+      process.stdout.columns = originalColumns;
+      consoleSpy.mockRestore();
+    });
+
+    it('should display large numbers completely when space allows', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'LargeNumbers',
+            columns: [
+              { name: 'id', type: 'long' },
+              { name: 'count', type: 'long' }
+            ],
+            rows: [
+              [12345, 67890],
+              [98765, 43210]
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      
+      expect(output).toContain('12345');
+      expect(output).toContain('67890');
+      expect(output).toContain('98765');
+      expect(output).toContain('43210');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should prioritize numeric columns over text in tight spaces', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'MixedContent',
+            columns: [
+              { name: 'very_long_description_column', type: 'string' },
+              { name: 'num', type: 'int' }
+            ],
+            rows: [
+              ['This is a very long text that should be truncated when space is tight', 42],
+              ['Another long description that exceeds available space', 123]
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const originalColumns = process.stdout.columns;
+      process.stdout.columns = 50; // Very narrow terminal
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      
+      // Numeric values should be preserved
+      expect(output).toContain('42');
+      expect(output).toContain('123');
+      
+      // Text might be truncated but numbers should not
+      expect(output).not.toMatch(/42.*4[^2]/); // Should not be truncated
+      expect(output).not.toMatch(/123.*12[^3]/); // Should not be truncated
+
+      process.stdout.columns = originalColumns;
+      consoleSpy.mockRestore();
+    });
+  });
 });
