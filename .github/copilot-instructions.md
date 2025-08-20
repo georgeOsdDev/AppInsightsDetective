@@ -52,3 +52,5 @@ When generating code:
 3. Include error handling
 4. Add logging for debugging
 5. Follow Azure SDK best practices
+6. Write comment in English
+7. Update README if needed
