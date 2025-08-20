@@ -4,6 +4,7 @@ import { AuthService } from './authService';
 import { ConfigManager } from '../utils/config';
 import { NLQuery, RegenerationContext, SupportedLanguage, ExplanationOptions } from '../types';
 import { logger } from '../utils/logger';
+import { getLanguageInstructions } from '../utils/languageUtils';
 
 export class AIService {
   private openAIClient: OpenAI | null = null;
@@ -235,7 +236,7 @@ Respond with only the KQL query, no explanations or additional text.`;
     technicalLevel: 'beginner' | 'intermediate' | 'advanced',
     includeExamples: boolean
   ): string {
-    const languageInstructions = this.getLanguageInstructions(language);
+    const languageInstructions = getLanguageInstructions(language);
     const levelInstructions = this.getTechnicalLevelInstructions(technicalLevel);
     const exampleInstructions = includeExamples ? 'Provide practical examples when helpful.' : 'Focus on clear explanations without extensive examples.';
 
@@ -254,41 +255,6 @@ Explain:
 5. Any performance considerations
 
 ${exampleInstructions}`;
-  }
-
-  /**
-   * 言語固有の指示を取得
-   */
-  private getLanguageInstructions(language: SupportedLanguage): string {
-    switch (language) {
-      case 'ja':
-        return 'Respond in Japanese (日本語). Use technical terms in Japanese where appropriate, but include English terms in parentheses for clarity.';
-      case 'ko':
-        return 'Respond in Korean (한국어). Use technical terms in Korean where appropriate, but include English terms in parentheses for clarity.';
-      case 'zh':
-        return 'Respond in Simplified Chinese (简体中文). Use technical terms in Chinese where appropriate, but include English terms in parentheses for clarity.';
-      case 'zh-TW':
-        return 'Respond in Traditional Chinese (繁體中文). Use technical terms in Chinese where appropriate, but include English terms in parentheses for clarity.';
-      case 'es':
-        return 'Respond in Spanish (Español). Use technical terms in Spanish where appropriate, but include English terms in parentheses for clarity.';
-      case 'fr':
-        return 'Respond in French (Français). Use technical terms in French where appropriate, but include English terms in parentheses for clarity.';
-      case 'de':
-        return 'Respond in German (Deutsch). Use technical terms in German where appropriate, but include English terms in parentheses for clarity.';
-      case 'it':
-        return 'Respond in Italian (Italiano). Use technical terms in Italian where appropriate, but include English terms in parentheses for clarity.';
-      case 'pt':
-        return 'Respond in Portuguese (Português). Use technical terms in Portuguese where appropriate, but include English terms in parentheses for clarity.';
-      case 'ru':
-        return 'Respond in Russian (Русский). Use technical terms in Russian where appropriate, but include English terms in parentheses for clarity.';
-      case 'ar':
-        return 'Respond in Arabic (العربية). Use technical terms in Arabic where appropriate, but include English terms in parentheses for clarity.';
-      case 'en':
-        return 'Respond in English. Use clear and precise technical terminology.';
-      case 'auto':
-      default:
-        return 'Respond in the most appropriate language based on the context. If unclear, use English as the default language.';
-    }
   }
 
   /**
@@ -405,6 +371,48 @@ Respond with only the new KQL query, no explanations.`;
       return { isValid: true };
     } catch (error) {
       return { isValid: false, error: `Validation error: ${error}` };
+    }
+  }
+
+  /**
+   * Generate AI response for analysis prompts
+   */
+  public async generateResponse(prompt: string): Promise<string> {
+    await this.initialize();
+
+    if (!this.openAIClient) {
+      throw new Error('OpenAI client not initialized');
+    }
+
+    try {
+      const config = this.configManager.getConfig();
+      
+      logger.info('Generating AI response for analysis');
+
+      const response = await this.openAIClient.chat.completions.create({
+        model: config.openAI.deploymentName || 'gpt-4',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are an expert Application Insights data analyst. Provide concise, actionable insights based on the query results. Always focus on practical recommendations for application monitoring and performance optimization.' 
+          },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 1500,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No response generated from OpenAI');
+      }
+
+      logger.info('AI response generated successfully');
+      return content;
+      
+    } catch (error) {
+      logger.error('AI response generation failed:', error);
+      throw error;
     }
   }
 }

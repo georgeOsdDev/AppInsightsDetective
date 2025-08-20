@@ -20,15 +20,17 @@ jest.mock('chalk', () => {
       bold: createMockFn('blue.bold')
     }),
     cyan: createMockFn('cyan'),
-    magenta: createMockFn('magenta'),
+    magenta: Object.assign(createMockFn('magenta'), {
+      bold: createMockFn('magenta.bold')
+    }),
     white: createMockFn('white'),
     gray: createMockFn('gray'),
     dim: createMockFn('dim'),
-    bold: {
+    bold: Object.assign(createMockFn('bold'), {
       cyan: createMockFn('bold.cyan'),
       blue: createMockFn('bold.blue'),
       magenta: createMockFn('bold.magenta'),
-    },
+    }),
   };
 });
 
@@ -841,6 +843,179 @@ describe('Visualizer', () => {
       expect(output).toContain('value2');
       expect(output).not.toContain('empty1');
       expect(output).not.toContain('empty2');
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe('displayAnalysisResult', () => {
+    const sampleAnalysisResult = {
+      statistical: {
+        summary: {
+          totalRows: 100,
+          uniqueValues: { 'column1': 50, 'column2': 25 },
+          nullPercentage: { 'column1': 10.5, 'column2': 0 }
+        },
+        numerical: {
+          mean: 125.5,
+          median: 120,
+          stdDev: 15.2,
+          outliers: [200, 250],
+          distribution: 'normal' as const
+        },
+        temporal: {
+          timeRange: { start: new Date('2023-01-01'), end: new Date('2023-01-02') },
+          trends: 'increasing' as const,
+          gaps: []
+        }
+      },
+      patterns: {
+        trends: [{
+          description: 'Response times increasing',
+          confidence: 0.85,
+          visualization: 'upward trend'
+        }],
+        anomalies: [{
+          type: 'spike' as const,
+          description: 'High response time detected',
+          severity: 'medium' as const,
+          affectedRows: [10, 11, 12]
+        }],
+        correlations: [{
+          columns: ['requests', 'errors'] as [string, string],
+          coefficient: 0.75,
+          significance: 'strong' as const
+        }]
+      },
+      insights: {
+        dataQuality: {
+          completeness: 95.5,
+          consistency: ['Some missing timestamps'],
+          recommendations: ['Filter out incomplete records']
+        },
+        businessInsights: {
+          keyFindings: ['Peak usage at 2 PM'],
+          potentialIssues: ['High error rate during peak'],
+          opportunities: ['Optimize for peak hours']
+        },
+        followUpQueries: []
+      },
+      aiInsights: 'Your application shows increasing response times during peak hours.',
+      recommendations: ['Consider scaling up during peak hours', 'Investigate slow queries'],
+      followUpQueries: [{
+        query: 'requests | where duration > 1000',
+        purpose: 'Investigate slow requests',
+        priority: 'high' as const
+      }]
+    };
+
+    it('should display complete analysis result', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayAnalysisResult(sampleAnalysisResult, 'full');
+
+      const output = consoleSpy.mock.calls.map(call => call[0]).join('\n');
+      
+      // Check that all sections are displayed
+      expect(output).toContain('Analysis Results');
+      expect(output).toContain('Statistical Summary');
+      expect(output).toContain('Pattern Analysis');
+      expect(output).toContain('Contextual Insights');
+      expect(output).toContain('AI-Powered Insights');
+      expect(output).toContain('Recommendations');
+      expect(output).toContain('Follow-up Queries');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should display statistical analysis only', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      const statsOnly = { statistical: sampleAnalysisResult.statistical };
+      Visualizer.displayAnalysisResult(statsOnly, 'statistical');
+
+      const output = consoleSpy.mock.calls.map(call => call[0]).join('\n');
+      
+      expect(output).toContain('Statistical Summary');
+      expect(output).toContain('Total Rows: 100');
+      expect(output).toContain('Mean: 125.5');
+      expect(output).toContain('Distribution: normal');
+      expect(output).not.toContain('Pattern Analysis');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should display pattern analysis with anomalies', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      const patternsOnly = { patterns: sampleAnalysisResult.patterns };
+      Visualizer.displayAnalysisResult(patternsOnly, 'patterns');
+
+      const output = consoleSpy.mock.calls.map(call => call[0]).join('\n');
+      
+      expect(output).toContain('Pattern Analysis');
+      expect(output).toContain('Response times increasing');
+      expect(output).toContain('High response time detected');
+      expect(output).toContain('MEDIUM severity');
+      expect(output).toContain('Affected Rows: [10, 11, 12]');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should display insights and recommendations', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      const insightsWithRecommendations = {
+        insights: sampleAnalysisResult.insights,
+        aiInsights: sampleAnalysisResult.aiInsights,
+        recommendations: sampleAnalysisResult.recommendations,
+        followUpQueries: sampleAnalysisResult.followUpQueries
+      };
+      
+      Visualizer.displayAnalysisResult(insightsWithRecommendations, 'insights');
+
+      const output = consoleSpy.mock.calls.map(call => call[0]).join('\n');
+      
+      expect(output).toContain('Contextual Insights');
+      expect(output).toContain('Completeness: 95.5%');
+      expect(output).toContain('Peak usage at 2 PM');
+      expect(output).toContain('AI-Powered Insights');
+      expect(output).toContain('increasing response times');
+      expect(output).toContain('Recommendations');
+      expect(output).toContain('scaling up');
+      expect(output).toContain('Follow-up Queries');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle empty analysis results gracefully', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayAnalysisResult({}, 'statistical');
+
+      const output = consoleSpy.mock.calls.map(call => call[0]).join('\n');
+      expect(output).toContain('Analysis Results');
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should format trends with appropriate icons', () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      const statsWithDifferentTrends = {
+        statistical: {
+          ...sampleAnalysisResult.statistical,
+          temporal: {
+            ...sampleAnalysisResult.statistical!.temporal!,
+            trends: 'decreasing' as const
+          }
+        }
+      };
+
+      Visualizer.displayAnalysisResult(statsWithDifferentTrends, 'statistical');
+
+      const output = consoleSpy.mock.calls.map(call => call[0]).join('\n');
+      expect(output).toContain('📉'); // Decreasing trend icon
 
       consoleSpy.mockRestore();
     });
