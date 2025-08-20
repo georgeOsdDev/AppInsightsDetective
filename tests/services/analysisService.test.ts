@@ -19,6 +19,12 @@ describe('AnalysisService', () => {
     // Mock the generateResponse method
     mockAiService.generateResponse = jest.fn().mockResolvedValue('AI analysis response');
     
+    // Mock the getConfig method
+    mockConfigManager.getConfig = jest.fn().mockReturnValue({
+      language: 'en',
+      // Other config properties can be added as needed
+    });
+    
     analysisService = new AnalysisService(mockAiService, mockConfigManager);
   });
 
