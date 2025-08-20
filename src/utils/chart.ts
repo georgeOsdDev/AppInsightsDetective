@@ -9,10 +9,15 @@ import chalk from 'chalk';
 
 /**
  * Detect if chart data represents time-series data
- * @param data Array of chart data with label and value properties
- * @returns true if more than 50% of labels appear to be timestamps
+ * @param data Array of chart data with label and value properties, optionally with timestamp
+ * @returns true if more than 50% of labels appear to be timestamps or timestamp property exists
  */
-export function detectTimeSeriesData(data: Array<{ label: string; value: number }>): boolean {
+export function detectTimeSeriesData(data: Array<{ label: string; value: number; timestamp?: Date }>): boolean {
+  // Check if we have timestamp information first
+  if (data.some(d => d.timestamp)) {
+    return true;
+  }
+
   // Simple heuristic: check if labels look like timestamps or dates
   const timePatterns = [
     /^\d{4}-\d{2}-\d{2}/, // YYYY-MM-DD
@@ -77,7 +82,7 @@ export class ChartRenderer {
     }
 
     // Detect if this is time-series data
-    const isTimeSeries = this.isTimeSeriesData(normalizedData);
+    const isTimeSeries = detectTimeSeriesData(normalizedData);
     
     if (normalizedData.length <= 20) {
       // For smaller datasets, show detailed ASCII line chart
@@ -147,31 +152,6 @@ export class ChartRenderer {
         };
       }
     });
-  }
-
-  /**
-   * Detect if data represents time-series
-   */
-  private static isTimeSeriesData(data: Array<{ label: string; value: number; timestamp?: Date }>): boolean {
-    // Check if we have timestamp information
-    if (data.some(d => d.timestamp)) {
-      return true;
-    }
-
-    // Check if labels look like timestamps or dates
-    const timePatterns = [
-      /^\d{4}-\d{2}-\d{2}/, // YYYY-MM-DD
-      /^\d{2}:\d{2}/, // HH:MM
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, // ISO datetime
-      /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/, // Month names
-      /^\d{1,2}\/\d{1,2}\/\d{4}/, // MM/DD/YYYY
-    ];
-
-    const timePatternMatches = data.filter(d =>
-      timePatterns.some(pattern => pattern.test(d.label))
-    );
-
-    return timePatternMatches.length / data.length > 0.5; // More than 50% look like timestamps
   }
 
   /**
