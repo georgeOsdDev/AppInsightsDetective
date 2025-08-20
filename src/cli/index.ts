@@ -16,26 +16,7 @@ import { Visualizer } from '../utils/visualizer';
 import { OutputFormatter } from '../utils/outputFormatter';
 import { FileOutputManager } from '../utils/fileOutput';
 import { OutputFormat } from '../types';
-
-/**
- * Detect if chart data represents time-series data
- */
-function detectTimeSeriesData(data: Array<{ label: string; value: number }>): boolean {
-  // Simple heuristic: check if labels look like timestamps or dates
-  const timePatterns = [
-    /^\d{4}-\d{2}-\d{2}/, // YYYY-MM-DD
-    /^\d{2}:\d{2}/, // HH:MM
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, // ISO datetime
-    /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/, // Month names
-    /^\d{1,2}\/\d{1,2}\/\d{4}/, // MM/DD/YYYY
-  ];
-
-  const timePatternMatches = data.filter(d =>
-    timePatterns.some(pattern => pattern.test(d.label))
-  );
-
-  return timePatternMatches.length / data.length > 0.5; // More than 50% look like timestamps
-}
+import { detectTimeSeriesData } from '../utils/chart';
 
 /**
  * Handle output formatting and file writing

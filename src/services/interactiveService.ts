@@ -11,6 +11,7 @@ import { OutputFormatter } from '../utils/outputFormatter';
 import { FileOutputManager } from '../utils/fileOutput';
 import { logger } from '../utils/logger';
 import { QueryResult, SupportedLanguage, OutputFormat, AnalysisType } from '../types';
+import { detectTimeSeriesData } from '../utils/chart';
 
 export interface InteractiveSessionOptions {
   language?: SupportedLanguage;
@@ -449,7 +450,7 @@ export class InteractiveService {
             }));
             
             // Auto-detect best chart type, but allow user to choose
-            const isTimeSeries = this.detectTimeSeriesData(chartData);
+            const isTimeSeries = detectTimeSeriesData(chartData);
             const defaultChartType = isTimeSeries ? 'line' : 'bar';
             
             const { chartType } = await inquirer.prompt([
@@ -663,25 +664,5 @@ export class InteractiveService {
     config.language = language;
 
     Visualizer.displaySuccess('Session settings updated!');
-  }
-
-  /**
-   * Detect if chart data represents time-series data
-   */
-  private detectTimeSeriesData(data: Array<{ label: string; value: number }>): boolean {
-    // Simple heuristic: check if labels look like timestamps or dates
-    const timePatterns = [
-      /^\d{4}-\d{2}-\d{2}/, // YYYY-MM-DD
-      /^\d{2}:\d{2}/, // HH:MM
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, // ISO datetime
-      /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/, // Month names
-      /^\d{1,2}\/\d{1,2}\/\d{4}/, // MM/DD/YYYY
-    ];
-
-    const timePatternMatches = data.filter(d =>
-      timePatterns.some(pattern => pattern.test(d.label))
-    );
-
-    return timePatternMatches.length / data.length > 0.5; // More than 50% look like timestamps
   }
 }

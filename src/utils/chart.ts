@@ -6,6 +6,28 @@ import chalk from 'chalk';
  * ⚠️ EXPERIMENTAL FEATURE: Chart visualization in CLI is experimental
  * and may not provide optimal readability for all data types.
  */
+
+/**
+ * Detect if chart data represents time-series data
+ * @param data Array of chart data with label and value properties
+ * @returns true if more than 50% of labels appear to be timestamps
+ */
+export function detectTimeSeriesData(data: Array<{ label: string; value: number }>): boolean {
+  // Simple heuristic: check if labels look like timestamps or dates
+  const timePatterns = [
+    /^\d{4}-\d{2}-\d{2}/, // YYYY-MM-DD
+    /^\d{2}:\d{2}/, // HH:MM
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, // ISO datetime
+    /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/, // Month names
+    /^\d{1,2}\/\d{1,2}\/\d{4}/, // MM/DD/YYYY
+  ];
+
+  const timePatternMatches = data.filter(d =>
+    timePatterns.some(pattern => pattern.test(d.label))
+  );
+
+  return timePatternMatches.length / data.length > 0.5; // More than 50% look like timestamps
+}
 export class ChartRenderer {
   /**
    * Display chart with experimental warning
