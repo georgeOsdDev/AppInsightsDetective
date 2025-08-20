@@ -18,6 +18,26 @@ import { FileOutputManager } from '../utils/fileOutput';
 import { OutputFormat } from '../types';
 
 /**
+ * Detect if chart data represents time-series data
+ */
+function detectTimeSeriesData(data: Array<{ label: string; value: number }>): boolean {
+  // Simple heuristic: check if labels look like timestamps or dates
+  const timePatterns = [
+    /^\d{4}-\d{2}-\d{2}/, // YYYY-MM-DD
+    /^\d{2}:\d{2}/, // HH:MM
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, // ISO datetime
+    /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/, // Month names
+    /^\d{1,2}\/\d{1,2}\/\d{4}/, // MM/DD/YYYY
+  ];
+
+  const timePatternMatches = data.filter(d =>
+    timePatterns.some(pattern => pattern.test(d.label))
+  );
+
+  return timePatternMatches.length / data.length > 0.5; // More than 50% look like timestamps
+}
+
+/**
  * Handle output formatting and file writing
  */
 async function handleOutput(result: any, options: any, executionTime: number): Promise<void> {
@@ -52,10 +72,15 @@ async function handleOutput(result: any, options: any, executionTime: number): P
 
           if (hasNumericData) {
             const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
-              label: row[0],
+              label: String(row[0] || ''),
               value: Number(row[1]) || 0,
             }));
-            Visualizer.displayChart(chartData, 'bar');
+            
+            // Auto-detect best chart type for CLI mode
+            const isTimeSeries = detectTimeSeriesData(chartData);
+            const chartType = isTimeSeries ? 'line' : 'bar';
+            
+            Visualizer.displayChart(chartData, chartType);
           }
         }
       }
@@ -90,10 +115,15 @@ async function handleOutput(result: any, options: any, executionTime: number): P
 
           if (hasNumericData) {
             const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
-              label: row[0],
+              label: String(row[0] || ''),
               value: Number(row[1]) || 0,
             }));
-            Visualizer.displayChart(chartData, 'bar');
+            
+            // Auto-detect best chart type for CLI mode
+            const isTimeSeries = detectTimeSeriesData(chartData);
+            const chartType = isTimeSeries ? 'line' : 'bar';
+            
+            Visualizer.displayChart(chartData, chartType);
           }
         }
       }
