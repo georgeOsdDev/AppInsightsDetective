@@ -11,6 +11,7 @@ import { OutputFormatter } from '../utils/outputFormatter';
 import { FileOutputManager } from '../utils/fileOutput';
 import { logger } from '../utils/logger';
 import { QueryResult, SupportedLanguage, OutputFormat, AnalysisType } from '../types';
+import { detectTimeSeriesData } from '../utils/chart';
 
 export interface InteractiveSessionOptions {
   language?: SupportedLanguage;
@@ -444,10 +445,28 @@ export class InteractiveService {
 
           if (showChart) {
             const chartData = firstTable.rows.slice(0, 10).map(row => ({
-              label: row[0],
+              label: String(row[0] || ''),
               value: Number(row[1]) || 0,
             }));
-            Visualizer.displayChart(chartData, 'bar');
+            
+            // Auto-detect best chart type, but allow user to choose
+            const isTimeSeries = detectTimeSeriesData(chartData);
+            const defaultChartType = isTimeSeries ? 'line' : 'bar';
+            
+            const { chartType } = await inquirer.prompt([
+              {
+                type: 'list',
+                name: 'chartType',
+                message: 'Which chart type would you prefer?',
+                choices: [
+                  { name: `📈 Line Chart${isTimeSeries ? ' (recommended for time-series)' : ''}`, value: 'line' },
+                  { name: '📊 Bar Chart', value: 'bar' }
+                ],
+                default: defaultChartType
+              }
+            ]);
+            
+            Visualizer.displayChart(chartData, chartType);
           }
         }
       }

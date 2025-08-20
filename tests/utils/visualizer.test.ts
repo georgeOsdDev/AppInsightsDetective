@@ -191,6 +191,162 @@ describe('Visualizer', () => {
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No data available'));
       consoleSpy.mockRestore();
     });
+
+    // New line chart tests
+    it('should display sparkline for large datasets', () => {
+      const largeData = Array.from({ length: 25 }, (_, i) => ({
+        label: `Item ${i + 1}`,
+        value: Math.sin(i * 0.5) * 100 + 100 // Generate wave pattern
+      }));
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayChart(largeData, 'line');
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      expect(output).toContain('Trend:');
+      expect(output).toContain('25 points');
+      expect(output).toContain('Range:');
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should display ASCII line chart for small datasets', () => {
+      const smallData = [
+        { label: '10:00', value: 50 },
+        { label: '11:00', value: 75 },
+        { label: '12:00', value: 40 },
+        { label: '13:00', value: 90 }
+      ];
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayChart(smallData, 'line');
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      expect(output).toContain('Chart Visualization');
+      // Should contain chart elements
+      expect(output).toMatch(/[●─╮╰╭╯│]/); // Chart characters
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should detect time-series data correctly', () => {
+      const timeSeriesData = [
+        { time: '2024-01-01T10:00:00Z', value: 100 },
+        { time: '2024-01-01T11:00:00Z', value: 120 },
+        { time: '2024-01-01T12:00:00Z', value: 90 },
+        { time: '2024-01-01T13:00:00Z', value: 150 },
+      ];
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayChart(timeSeriesData, 'line');
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      expect(output).toContain('Chart Visualization');
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle constant values gracefully', () => {
+      const constantData = [
+        { label: 'A', value: 100 },
+        { label: 'B', value: 100 },
+        { label: 'C', value: 100 },
+      ];
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayChart(constantData, 'line');
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      // For small constant datasets, it should show a flat ASCII line
+      expect(output).toContain('100');
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle large constant datasets with sparkline', () => {
+      const largeConstantData = Array.from({ length: 25 }, (_, i) => ({
+        label: `Item ${i + 1}`,
+        value: 100
+      }));
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayChart(largeConstantData, 'line');
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      expect(output).toContain('constant value: 100');
+      expect(output).toContain('25 points');
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle mixed data formats', () => {
+      const mixedData = [
+        { category: 'A', count: 10 }, // Object with different keys
+        { label: 'B', value: 20 },    // Standard format
+        50,                           // Primitive number
+      ];
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayChart(mixedData, 'line');
+
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should normalize data correctly', () => {
+      const dateData = [
+        ['2024-01-01', 10],
+        ['2024-01-02', 15],
+        ['2024-01-03', 12],
+      ];
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayChart(dateData.map(([date, value]) => ({ date, value })), 'line');
+
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle single data point', () => {
+      const singleData = [{ label: 'Only', value: 42 }];
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayChart(singleData, 'line');
+
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('should preserve bar chart functionality', () => {
+      const mockData = [
+        { category: 'A', count: 10 },
+        { category: 'B', count: 20 },
+        { category: 'C', count: 15 },
+      ];
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayChart(mockData, 'bar');
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      // Should still contain bar chart elements
+      expect(output).toContain('A');
+      expect(output).toContain('B');
+      expect(output).toContain('C');
+      expect(output).toContain('10');
+      expect(output).toContain('20');
+      expect(output).toContain('15');
+      
+      consoleSpy.mockRestore();
+    });
   });
 
   describe('displaySummary', () => {

@@ -16,6 +16,7 @@ import { Visualizer } from '../utils/visualizer';
 import { OutputFormatter } from '../utils/outputFormatter';
 import { FileOutputManager } from '../utils/fileOutput';
 import { OutputFormat } from '../types';
+import { detectTimeSeriesData } from '../utils/chart';
 
 /**
  * Handle output formatting and file writing
@@ -52,10 +53,15 @@ async function handleOutput(result: any, options: any, executionTime: number): P
 
           if (hasNumericData) {
             const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
-              label: row[0],
+              label: String(row[0] || ''),
               value: Number(row[1]) || 0,
             }));
-            Visualizer.displayChart(chartData, 'bar');
+            
+            // Auto-detect best chart type for CLI mode
+            const isTimeSeries = detectTimeSeriesData(chartData);
+            const chartType = isTimeSeries ? 'line' : 'bar';
+            
+            Visualizer.displayChart(chartData, chartType);
           }
         }
       }
@@ -90,10 +96,15 @@ async function handleOutput(result: any, options: any, executionTime: number): P
 
           if (hasNumericData) {
             const chartData = firstTable.rows.slice(0, 10).map((row: any) => ({
-              label: row[0],
+              label: String(row[0] || ''),
               value: Number(row[1]) || 0,
             }));
-            Visualizer.displayChart(chartData, 'bar');
+            
+            // Auto-detect best chart type for CLI mode
+            const isTimeSeries = detectTimeSeriesData(chartData);
+            const chartType = isTimeSeries ? 'line' : 'bar';
+            
+            Visualizer.displayChart(chartData, chartType);
           }
         }
       }

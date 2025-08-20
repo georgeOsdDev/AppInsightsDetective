@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { QueryResult, QueryTable, QueryColumn, AnalysisResult, StatisticalAnalysis, PatternAnalysis, ContextualInsights } from '../types';
+import { ChartRenderer } from './chart';
 
 export class Visualizer {
   public static displayResult(result: QueryResult, options?: { hideEmptyColumns?: boolean }): void {
@@ -335,25 +336,7 @@ export class Visualizer {
   }
 
   public static displayChart(data: any[], chartType: 'line' | 'bar' = 'line'): void {
-    // Simple ASCII chart display (implementation simplified)
-    if (!data || data.length === 0) {
-      console.log(chalk.yellow('No data available for chart'));
-      return;
-    }
-
-    console.log(chalk.bold.magenta('\n📈 Chart Visualization'));
-    console.log(chalk.dim('(ASCII chart - simplified)'));
-
-    // Simple bar chart
-    if (chartType === 'bar') {
-      data.slice(0, 10).forEach((item, index) => {
-        const value = typeof item === 'object' ? Object.values(item)[1] : item;
-        const label = typeof item === 'object' ? Object.values(item)[0] : `Item ${index + 1}`;
-        const barLength = Math.min(Math.floor(Number(value) / 100), 50);
-        const bar = '█'.repeat(barLength);
-        console.log(`${String(label).padEnd(15)} ${chalk.blue(bar)} ${value}`);
-      });
-    }
+    ChartRenderer.displayChart(data, chartType);
   }
 
   public static displayKQLQuery(query: string, confidence: number): void {
