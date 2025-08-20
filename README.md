@@ -14,7 +14,7 @@ AppInsights Detective is an intelligent CLI tool that allows you to query your A
 
 - 🗣️ **Natural Language Queries**: Ask questions in plain English/Japanese
 - 🤖 **AI-Powered KQL Generation**: Automatic conversion to KQL using Azure OpenAI
-- 📊 **Rich Visualization**: Console-based charts and formatted tables
+- 📊 **Rich Visualization**: Console-based charts and formatted tables ⚠️ **(Chart features are experimental)**
 - 📁 **Multiple Output Formats**: JSON, CSV, TSV, Raw, and Table formats
 - 💾 **File Export**: Save results to files with configurable encoding
 - 🔐 **Secure Authentication**: Uses Azure Managed Identity
@@ -121,7 +121,7 @@ The `aidx query` command supports various options for customizing output and beh
 AppInsights Detective supports multiple output formats for both console display and file export:
 
 ### Output Formats
-- **table** (default) - Colored console display with ASCII charts for numeric data
+- **table** (default) - Colored console display with ASCII charts for numeric data ⚠️ **(Chart visualization is experimental)**
 - **json** - Structured JSON format with optional pretty printing
 - **csv** - Comma-separated values for spreadsheet import  
 - **tsv** - Tab-separated values for data processing tools
@@ -255,6 +255,11 @@ AppInsights Detective uses Azure Managed Identity for secure authentication. Ens
 
 - **Application Insights**: Reader role
 - **OpenAI**: Cognitive Services OpenAI User role
+
+## ⚠️ Experimental Features
+
+### Chart Visualization
+The ASCII chart visualization feature is currently **experimental**. While it provides visual insights into your Application Insights data, CLI-based charts may not always be the most intuitive way to understand complex data patterns. Consider using additional visualization tools for detailed analysis.
 
 ## 💡 Example Queries
 
