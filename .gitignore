@@ -10,3 +10,11 @@ coverage/
 .DS_Store
 docs/issues/
 docs/design/
+
+# Build artifacts
+*.js
+*.d.ts
+*.js.map
+*.d.ts.map
+!jest.config.js
+!eslint.config.js
