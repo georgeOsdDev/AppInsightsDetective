@@ -418,7 +418,8 @@ Respond in clear, business-friendly language.`;
 
   private parsePatternAnalysisResponse(response: string): PatternAnalysis {
     try {
-      const parsed = JSON.parse(response);
+      const jsonContent = this.extractJSONFromResponse(response);
+      const parsed = JSON.parse(jsonContent);
       return {
         trends: parsed.trends || [],
         anomalies: parsed.anomalies || [],
@@ -432,5 +433,21 @@ Respond in clear, business-friendly language.`;
         correlations: []
       };
     }
+  }
+
+  /**
+   * Extract JSON content from markdown code blocks or raw response
+   */
+  private extractJSONFromResponse(response: string): string {
+    // Extract JSON from code blocks (```json ... ```)
+    const codeBlockMatch = response.match(/```(?:json)?\n?(.*?)\n?```/s);
+    if (codeBlockMatch) {
+      return codeBlockMatch[1].trim();
+    }
+
+    // If no code blocks, return the raw response cleaned up
+    return response
+      .replace(/^(Here's the JSON:|JSON:|Response:)/i, '')
+      .trim();
   }
 }

@@ -84,6 +84,36 @@ describe('AnalysisService', () => {
       );
     });
 
+    it('should handle pattern analysis with markdown code blocks', async () => {
+      const mockPatternResponseWithCodeBlocks = `Here's the analysis:
+
+\`\`\`json
+{
+  "trends": [{ "description": "Response time spike detected", "confidence": 0.9, "visualization": "spike pattern" }],
+  "anomalies": [{ "type": "performance", "description": "Unusual latency increase", "severity": "high", "affectedRows": [3] }],
+  "correlations": [{ "columns": ["duration", "timestamp"], "coefficient": 0.6, "significance": "moderate" }]
+}
+\`\`\`
+
+This analysis shows significant performance issues.`;
+      
+      mockAiService.generateResponse.mockResolvedValueOnce(mockPatternResponseWithCodeBlocks);
+
+      const result = await analysisService.analyzeQueryResult(
+        sampleQueryResult, 
+        'requests | summarize avg(duration)', 
+        'patterns',
+        { language: 'en' }
+      );
+
+      expect(result.patterns).toBeDefined();
+      expect(result.patterns?.trends).toHaveLength(1);
+      expect(result.patterns?.trends?.[0].description).toBe('Response time spike detected');
+      expect(result.patterns?.anomalies).toHaveLength(1);
+      expect(result.patterns?.anomalies?.[0].severity).toBe('high');
+      expect(result.patterns?.correlations).toHaveLength(1);
+    });
+
     it('should perform insights analysis', async () => {
       const result = await analysisService.analyzeQueryResult(
         sampleQueryResult, 
