@@ -472,7 +472,7 @@ export class InteractiveService {
     }
 
     // Show analysis options
-    const { analysisType } = await inquirer.prompt([
+    const { analysisType, language } = await inquirer.prompt([
       {
         type: 'list',
         name: 'analysisType',
@@ -505,6 +505,28 @@ export class InteractiveService {
           }
         ],
         pageSize: 8
+      },
+      {
+        type: 'list',
+        name: 'language',
+        message: 'Select analysis language:',
+        choices: [
+          { name: '🌐 Auto - Detect best language', value: 'auto' },
+          { name: '🇺🇸 English', value: 'en' },
+          { name: '🇯🇵 Japanese (日本語)', value: 'ja' },
+          { name: '🇰🇷 Korean (한국어)', value: 'ko' },
+          { name: '🇨🇳 Chinese Simplified (简体中文)', value: 'zh' },
+          { name: '🇹🇼 Chinese Traditional (繁體中文)', value: 'zh-TW' },
+          { name: '🇪🇸 Spanish (Español)', value: 'es' },
+          { name: '🇫🇷 French (Français)', value: 'fr' },
+          { name: '🇩🇪 German (Deutsch)', value: 'de' },
+          { name: '🇮🇹 Italian (Italiano)', value: 'it' },
+          { name: '🇵🇹 Portuguese (Português)', value: 'pt' },
+          { name: '🇷🇺 Russian (Русский)', value: 'ru' },
+          { name: '🇸🇦 Arabic (العربية)', value: 'ar' }
+        ],
+        default: this.options.language || 'auto',
+        when: (answers) => answers.analysisType !== 'statistical' // Statistical analysis doesn't need AI, so no language selection needed
       }
     ]);
 
@@ -515,7 +537,8 @@ export class InteractiveService {
       const analysis = await this.analysisService.analyzeQueryResult(
         result, 
         originalQuery, 
-        analysisType as AnalysisType
+        analysisType as AnalysisType,
+        { language: language as SupportedLanguage }
       );
       
       // Display the analysis results

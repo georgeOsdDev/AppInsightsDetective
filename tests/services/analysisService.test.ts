@@ -66,7 +66,8 @@ describe('AnalysisService', () => {
       const result = await analysisService.analyzeQueryResult(
         sampleQueryResult, 
         'requests | summarize avg(duration)', 
-        'patterns'
+        'patterns',
+        { language: 'en' }
       );
 
       expect(result.patterns).toBeDefined();
@@ -81,7 +82,8 @@ describe('AnalysisService', () => {
       const result = await analysisService.analyzeQueryResult(
         sampleQueryResult, 
         'requests | summarize avg(duration)', 
-        'insights'
+        'insights',
+        { language: 'en' }
       );
 
       expect(result.insights).toBeDefined();
@@ -103,7 +105,8 @@ describe('AnalysisService', () => {
       const result = await analysisService.analyzeQueryResult(
         sampleQueryResult, 
         'requests | summarize avg(duration)', 
-        'full'
+        'full',
+        { language: 'en' }
       );
 
       expect(result.statistical).toBeDefined();
@@ -132,7 +135,8 @@ describe('AnalysisService', () => {
       const result = await analysisService.analyzeQueryResult(
         sampleQueryResult, 
         'requests | summarize avg(duration)', 
-        'insights'
+        'insights',
+        { language: 'en' }
       );
 
       expect(result.aiInsights).toContain('temporarily unavailable');
@@ -159,7 +163,8 @@ describe('AnalysisService', () => {
       const result = await analysisService.analyzeQueryResult(
         sampleQueryResult, 
         'requests | summarize avg(duration)', 
-        'insights'
+        'insights',
+        { language: 'en' }
       );
 
       expect(result.followUpQueries).toBeDefined();

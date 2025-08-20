@@ -7,7 +7,8 @@ import {
   AnalysisResult, 
   StatisticalAnalysis, 
   PatternAnalysis, 
-  ContextualInsights 
+  ContextualInsights,
+  SupportedLanguage
 } from '../types';
 import { logger } from '../utils/logger';
 
@@ -23,7 +24,8 @@ export class AnalysisService {
   async analyzeQueryResult(
     result: QueryResult, 
     originalQuery: string,
-    analysisType: AnalysisType
+    analysisType: AnalysisType,
+    options: { language?: SupportedLanguage } = {}
   ): Promise<AnalysisResult> {
     try {
       logger.info(`Starting ${analysisType} analysis of query result`);
@@ -36,11 +38,11 @@ export class AnalysisService {
           break;
           
         case 'patterns':
-          analysis.patterns = await this.performPatternAnalysis(result, originalQuery);
+          analysis.patterns = await this.performPatternAnalysis(result, originalQuery, options.language);
           break;
           
         case 'anomalies':
-          analysis.patterns = await this.performPatternAnalysis(result, originalQuery);
+          analysis.patterns = await this.performPatternAnalysis(result, originalQuery, options.language);
           // Filter to focus on anomalies
           if (analysis.patterns) {
             analysis.patterns.trends = [];
@@ -49,22 +51,22 @@ export class AnalysisService {
           break;
           
         case 'insights':
-          analysis.insights = await this.generateContextualInsights(result, originalQuery);
-          analysis.aiInsights = await this.generateAIInsights(result, originalQuery);
+          analysis.insights = await this.generateContextualInsights(result, originalQuery, options.language);
+          analysis.aiInsights = await this.generateAIInsights(result, originalQuery, options.language);
           break;
           
         case 'full':
           analysis.statistical = this.performStatisticalAnalysis(result);
-          analysis.patterns = await this.performPatternAnalysis(result, originalQuery);
-          analysis.insights = await this.generateContextualInsights(result, originalQuery);
-          analysis.aiInsights = await this.generateAIInsights(result, originalQuery);
+          analysis.patterns = await this.performPatternAnalysis(result, originalQuery, options.language);
+          analysis.insights = await this.generateContextualInsights(result, originalQuery, options.language);
+          analysis.aiInsights = await this.generateAIInsights(result, originalQuery, options.language);
           break;
       }
 
       // Always generate recommendations and follow-up queries for non-statistical analysis
       if (analysisType !== 'statistical') {
-        analysis.recommendations = await this.generateRecommendations(result, originalQuery);
-        analysis.followUpQueries = await this.generateFollowUpQueries(result, originalQuery);
+        analysis.recommendations = await this.generateRecommendations(result, originalQuery, options.language);
+        analysis.followUpQueries = await this.generateFollowUpQueries(result, originalQuery, options.language);
       }
 
       logger.info(`${analysisType} analysis completed successfully`);
@@ -195,7 +197,7 @@ export class AnalysisService {
   /**
    * Perform pattern analysis using AI
    */
-  private async performPatternAnalysis(result: QueryResult, originalQuery: string): Promise<PatternAnalysis> {
+  private async performPatternAnalysis(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<PatternAnalysis> {
     try {
       const prompt = this.buildPatternAnalysisPrompt(result, originalQuery);
       const response = await this.aiService.generateResponse(prompt);
@@ -215,7 +217,7 @@ export class AnalysisService {
   /**
    * Generate contextual insights
    */
-  private async generateContextualInsights(result: QueryResult, originalQuery: string): Promise<ContextualInsights> {
+  private async generateContextualInsights(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<ContextualInsights> {
     const statistical = this.performStatisticalAnalysis(result);
     
     // Data quality assessment
@@ -255,9 +257,9 @@ export class AnalysisService {
   /**
    * Generate AI-powered insights
    */
-  private async generateAIInsights(result: QueryResult, originalQuery: string): Promise<string> {
+  private async generateAIInsights(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<string> {
     try {
-      const prompt = this.buildInsightsPrompt(result, originalQuery);
+      const prompt = this.buildInsightsPrompt(result, originalQuery, language);
       return await this.aiService.generateResponse(prompt);
     } catch (error) {
       logger.warn('AI insights generation failed:', error);
@@ -268,7 +270,7 @@ export class AnalysisService {
   /**
    * Generate recommendations based on analysis
    */
-  private async generateRecommendations(result: QueryResult, originalQuery: string): Promise<string[]> {
+  private async generateRecommendations(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<string[]> {
     const recommendations: string[] = [];
     const statistical = this.performStatisticalAnalysis(result);
     
@@ -288,7 +290,7 @@ export class AnalysisService {
   /**
    * Generate follow-up queries
    */
-  private async generateFollowUpQueries(result: QueryResult, originalQuery: string): Promise<{
+  private async generateFollowUpQueries(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<{
     query: string;
     purpose: string;
     priority: 'high' | 'medium' | 'low';
@@ -376,13 +378,17 @@ Respond in JSON format:
 }`;
   }
 
-  private buildInsightsPrompt(result: QueryResult, originalQuery: string): string {
+  private buildInsightsPrompt(result: QueryResult, originalQuery: string, language?: SupportedLanguage): string {
     const dataSummary = this.prepareDataSummary(result);
+    const languageInstructions = this.getLanguageInstructions(language);
+    
     return `
 Analyze this Application Insights query result and provide business insights:
 
 Query: "${originalQuery}"
 Data Summary: ${JSON.stringify(dataSummary, null, 2)}
+
+${languageInstructions}
 
 Please provide:
 1. Key patterns and trends in the data
@@ -392,6 +398,44 @@ Please provide:
 
 Focus on practical, actionable insights for application monitoring and performance analysis.
 Respond in clear, business-friendly language.`;
+  }
+
+  /**
+   * Get language-specific instructions for AI prompts
+   */
+  private getLanguageInstructions(language?: SupportedLanguage): string {
+    const config = this.configManager.getConfig();
+    const effectiveLanguage = language || (config.language as SupportedLanguage) || 'auto';
+    
+    switch (effectiveLanguage) {
+      case 'ja':
+        return 'Respond in Japanese (日本語). Use technical terms in Japanese where appropriate, but include English terms in parentheses for clarity.';
+      case 'ko':
+        return 'Respond in Korean (한국어). Use technical terms in Korean where appropriate, but include English terms in parentheses for clarity.';
+      case 'zh':
+        return 'Respond in Simplified Chinese (简体中文). Use technical terms in Chinese where appropriate, but include English terms in parentheses for clarity.';
+      case 'zh-TW':
+        return 'Respond in Traditional Chinese (繁體中文). Use technical terms in Chinese where appropriate, but include English terms in parentheses for clarity.';
+      case 'es':
+        return 'Respond in Spanish (Español). Use technical terms in Spanish where appropriate, but include English terms in parentheses for clarity.';
+      case 'fr':
+        return 'Respond in French (Français). Use technical terms in French where appropriate, but include English terms in parentheses for clarity.';
+      case 'de':
+        return 'Respond in German (Deutsch). Use technical terms in German where appropriate, but include English terms in parentheses for clarity.';
+      case 'it':
+        return 'Respond in Italian (Italiano). Use technical terms in Italian where appropriate, but include English terms in parentheses for clarity.';
+      case 'pt':
+        return 'Respond in Portuguese (Português). Use technical terms in Portuguese where appropriate, but include English terms in parentheses for clarity.';
+      case 'ru':
+        return 'Respond in Russian (Русский). Use technical terms in Russian where appropriate, but include English terms in parentheses for clarity.';
+      case 'ar':
+        return 'Respond in Arabic (العربية). Use technical terms in Arabic where appropriate, but include English terms in parentheses for clarity.';
+      case 'en':
+        return 'Respond in English. Use clear and precise technical terminology.';
+      case 'auto':
+      default:
+        return 'Respond in the most appropriate language based on the context. If unclear, use English as the default language.';
+    }
   }
 
   private prepareDataSummary(result: QueryResult) {

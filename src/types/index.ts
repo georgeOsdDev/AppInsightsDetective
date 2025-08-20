@@ -199,4 +199,5 @@ export interface AnalysisOptions {
   includeFollowUpQueries: boolean;
   showStatisticalDetails: boolean;
   anomalyDetectionSensitivity: 'low' | 'medium' | 'high';
+  language?: SupportedLanguage;
 }
