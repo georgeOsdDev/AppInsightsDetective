@@ -126,7 +126,7 @@ async function runAnalysisDemo() {
 
   // Initialize services (using mock implementations for demo)
   const configManager = new ConfigManager();
-  const authService = new AuthService(configManager);
+  const authService = new AuthService();
   const aiService = new AIService(authService, configManager);
   const analysisService = new AnalysisService(aiService, configManager);
 
@@ -138,7 +138,7 @@ async function runAnalysisDemo() {
     console.log(`\n📋 Query: ${scenario.originalQuery}\n`);
 
     // Display sample data
-    Visualizer.displayQueryResult(scenario.data);
+    Visualizer.displayResult(scenario.data);
 
     console.log('\n🧠 Analysis Results:\n');
 

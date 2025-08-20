@@ -33,6 +33,8 @@ jest.mock('chalk', () => ({
   dim: jest.fn((text) => text),
   white: jest.fn((text) => text),
   gray: jest.fn((text) => text),
-}));beforeEach(() => {
+}));
+
+beforeEach(() => {
   jest.clearAllMocks();
 });
