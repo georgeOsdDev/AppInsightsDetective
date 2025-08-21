@@ -14,7 +14,7 @@ AppInsights Detective is an intelligent CLI tool that allows you to query your A
 
 - 🗣️ **Natural Language Queries**: Ask questions in plain English/Japanese
 - 🤖 **AI-Powered KQL Generation**: Automatic conversion to KQL using Azure OpenAI
-- 🌐 **External Query Execution**: Open queries directly in Azure Portal or Data Explorer
+- 🌐 **Azure Portal Integration**: Open queries directly in Azure Portal with full visualization capabilities
 - 📊 **Rich Visualization**: Console-based charts and formatted tables ⚠️ **(Chart features are experimental)**
 - 📁 **Multiple Output Formats**: JSON, CSV, TSV, Raw, and Table formats
 - 💾 **File Export**: Save results to files with configurable encoding
@@ -101,16 +101,6 @@ aidx query --raw "requests | take 10"
 | `aidx -i` or `aidx --interactive` | Interactive query mode |
 | `aidx query --raw [kql]` | Execute raw KQL query |
 
-### External Execution Commands
-
-AppInsights Detective can open generated queries directly in Azure Portal and Data Explorer:
-
-| Command | Description |
-|---------|-------------|
-| `aidx --external [question]` | Interactive external tool selection |
-| `aidx --open-portal [question]` | Open query directly in Azure Portal |
-| `aidx --open-dataexplorer [question]` | Open query in Azure Data Explorer |
-
 ### Query Command Options
 
 The `aidx query` command supports various options for customizing output and behavior:
@@ -126,9 +116,6 @@ The `aidx query` command supports various options for customizing output and beh
 | `--raw` | Execute raw KQL query instead of natural language | false |
 | `--direct` | Execute query directly without confirmation | false |
 | `--language <lang>` | Language for explanations (en, ja, ko, etc.) | en |
-| `--external` | Show external execution options interactively | false |
-| `--open-portal` | Open generated query directly in Azure Portal | false |
-| `--open-dataexplorer` | Open query in Azure Data Explorer | false |
 
 ## 📁 Output Formats & Display Options
 
@@ -162,20 +149,29 @@ By default, AppInsights Detective automatically hides empty columns in table out
 
 ## ⚙️ Configuration
 
-### Option 1: Interactive Setup
+AppInsights Detective uses **simplified configuration** - you only need to provide your Application Insights Application ID. All other Azure resource information (subscription, resource group, tenant) is automatically discovered using Azure Resource Graph API.
+
+### Option 1: Interactive Setup (Recommended)
 
 ```bash
 aidx setup
 ```
 
+The setup wizard will ask for:
+- Azure Application Insights Application ID
+- Azure OpenAI endpoint and deployment name  
+
+All other Azure resource details are automatically discovered.
+
 ### Option 2: Environment Variables
 
 ```bash
-export AZURE_APPLICATION_INSIGHTS_ID="your-app-insights-id"
-export AZURE_TENANT_ID="your-tenant-id"
+export AZURE_APPLICATION_INSIGHTS_ID="your-app-insights-application-id"
 export AZURE_OPENAI_ENDPOINT="https://your-openai.openai.azure.com/"
 export AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4"
 ```
+
+**Note**: Tenant ID, Subscription ID, Resource Group, and Resource Name are automatically discovered from the Application ID.
 
 ### Option 3: Configuration File
 
@@ -184,8 +180,7 @@ Create `~/.aidx/config.json`:
 ```json
 {
   "appInsights": {
-    "applicationId": "your-application-insights-id",
-    "tenantId": "your-azure-tenant-id"
+    "applicationId": "your-application-insights-application-id"
   },
   "openAI": {
     "endpoint": "https://your-openai.openai.azure.com/",
@@ -194,6 +189,8 @@ Create `~/.aidx/config.json`:
   "logLevel": "info"
 }
 ```
+
+**Note**: The system automatically enriches this configuration with discovered Azure resource information (tenantId, subscriptionId, resourceGroup, resourceName) when you first run a query.
 
 ## 🔄 Output Format Examples
 
@@ -275,62 +272,64 @@ AppInsights Detective uses Azure Managed Identity for secure authentication. Ens
 ### Chart Visualization
 The ASCII chart visualization feature is currently **experimental**. While it provides visual insights into your Application Insights data, CLI-based charts may not always be the most intuitive way to understand complex data patterns. Consider using additional visualization tools for detailed analysis.
 
-## 🌐 External Query Execution
+## 🌐 Azure Portal Integration
 
-AppInsights Detective can open generated KQL queries directly in Azure Portal and Azure Data Explorer, allowing you to leverage advanced visualization capabilities and share queries with your team.
+AppInsights Detective provides seamless integration with Azure Portal, allowing you to open generated KQL queries directly in Application Insights Logs blade with full visualization capabilities.
 
 ### Auto-Discovery of Azure Resources
 
 AppInsights Detective automatically discovers your Azure resource information using **Azure Resource Graph API**. Simply configure your Application ID during setup, and the system will:
 
-- ✅ Automatically find your Application Insights resource details
-- ✅ Discover associated Data Explorer clusters (if available)
-- ✅ Enable external execution without manual resource configuration
+- ✅ Automatically find your Application Insights resource details (subscription, resource group, resource name)
+- ✅ Enable Azure Portal execution without manual resource configuration
+- ✅ Generate properly encoded URLs for direct query execution
 
-### Prerequisites for External Execution
+### Prerequisites
 
-- Azure Application Insights Application ID (configured during setup)
+- Azure Application Insights Application ID (configured during setup)  
 - Appropriate Azure Resource Graph permissions to query resources
-- Optional: Azure Data Explorer cluster (manually configurable if auto-discovery doesn't find one)
-- (Optional) Azure Data Explorer Cluster ID and Database Name
+- Azure Reader permissions on Application Insights resource
 
-### Usage Examples
+### Interactive Usage
 
-```bash
-# Interactive external execution - shows available options
-aidx --external "show me errors from last hour"
-
-# Open directly in Azure Portal Application Insights
-aidx --open-portal "performance issues in last 24 hours"
-
-# Open in Azure Data Explorer (if configured)
-aidx --open-dataexplorer "detailed request analysis"
-
-# Combined with other options
-aidx --open-portal --raw "requests | where resultCode >= 400 | count"
-```
-
-### Features
-- **URL Generation**: Creates pre-populated query URLs for external tools
-- **Browser Integration**: Automatic browser launching with authentication context
-- **URL Display**: Shows generated URLs for manual copying/sharing
-- **Configuration Validation**: Checks Azure resource information before execution
-- **Cross-Platform**: Works on Windows, macOS, and Linux
-
-### Interactive Flow Enhancement
-
-When using step-by-step query review mode, you'll see a new option:
+When using the interactive query review mode, Azure Portal execution is seamlessly integrated into the workflow:
 
 ```
 🔍 Generated KQL Query Review
 ==========================================
 requests | where timestamp > ago(1h) | count
 
-✅ Execute Query - Run this KQL query against Application Insights
-📖 Explain Query - Get detailed explanation of what this query does
-🌐 Open in External Tools - Execute query in Azure Portal or Data Explorer
+🚀 Execute Query - Run this KQL query against Application Insights
+📖 Explain Query - Get detailed explanation of what this query does  
+🌐 Open in Azure Portal - Execute query with full visualization capabilities
 🔄 Regenerate Query - Ask AI to create a different query approach
+✏️ Edit Query - Manually modify the KQL query
 ```
+
+### Features
+- **Automatic URL Generation**: Creates pre-populated query URLs using proper gzip compression and base64 encoding
+- **Browser Integration**: Automatic browser launching with authentication context
+- **URL Display**: Shows generated URLs for manual copying/sharing
+- **Configuration Validation**: Checks Azure resource information before execution  
+- **Cross-Platform**: Works on Windows, macOS, and Linux
+
+### Direct Execution Mode
+
+For high-confidence queries, use `--direct` flag to execute immediately without confirmation:
+
+```bash
+# Direct execution bypasses interactive review
+aidx --direct "requests | where resultCode >= 400"
+```
+
+### URL Format
+
+Generated Azure Portal URLs follow this format:
+```
+https://portal.azure.com/#@{tenantId}/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F{subscriptionId}%2FresourceGroups%2F{resourceGroup}%2Fproviders%2FMicrosoft.Insights%2Fcomponents%2F{resourceName}/source/LogsBlade.AnalyticsShareLinkToQuery/q/{encodedQuery}
+```
+
+The `{encodedQuery}` is the KQL query compressed with gzip and encoded as base64, then URL-encoded for safe transmission.
 
 ## 💡 Example Queries
 
@@ -351,11 +350,10 @@ aidx "What browsers are users using?"
 aidx "Show me custom events by type"
 aidx "What's the trend for failed logins?"
 
-# External Execution Examples
-aidx --external "show me errors from last hour"              # Interactive selection
-aidx --open-portal "performance issues in APIs"              # Direct Azure Portal
-aidx --open-dataexplorer "detailed request analysis"         # Azure Data Explorer
-aidx --open-portal --raw "requests | where resultCode >= 400" # Portal with raw KQL
+# Azure Portal Integration Examples  
+aidx "show me errors from last hour"              # Interactive menu includes Portal option
+aidx --direct "performance issues in APIs"        # Direct execution, then Portal via menu
+aidx --raw "requests | where resultCode >= 400"   # Raw KQL with Portal option available
 
 # Smart Column Display (Default - Empty columns hidden)
 aidx "Show me request data"  # Hides columns with all null/empty values
@@ -420,7 +418,9 @@ AppInsightsDetective/
 │   │   ├── appInsightsService.ts   # Application Insights API
 │   │   ├── aiService.ts            # OpenAI integration
 │   │   ├── stepExecutionService.ts # Interactive query execution
-│   │   └── interactiveService.ts   # Interactive CLI service
+│   │   ├── interactiveService.ts   # Interactive CLI service
+│   │   ├── externalExecutionService.ts # Azure Portal integration
+│   │   └── resourceGraphService.ts # Azure Resource Graph API
 │   ├── utils/              # Utilities
 │   │   ├── config.ts       # Configuration management
 │   │   ├── logger.ts       # Logging
