@@ -107,7 +107,7 @@ describe('AI Service with Loading Indicators', () => {
     const result = await aiService.explainKQLQuery('requests | count');
     
     expect(withLoadingIndicator).toHaveBeenCalledWith(
-      'Generating KQL query explanation...',
+      'Generating KQL query explanation in language: en...',
       expect.any(Function),
       {
         successMessage: 'Query explanation generated successfully',
