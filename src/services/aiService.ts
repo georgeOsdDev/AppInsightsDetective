@@ -114,6 +114,7 @@ export class AIService {
   private buildSystemPrompt(schema?: any): string {
     let prompt = `You are an expert in Azure Application Insights KQL (Kusto Query Language).
 Your task is to convert natural language queries into valid KQL queries for Application Insights.
+Follow Azure Monitor Community best practices and proven patterns.
 
 Key guidelines:
 - Generate only valid KQL syntax
@@ -131,7 +132,41 @@ Common Application Insights tables:
 - customEvents: Custom events you track
 - traces: Trace/log messages
 - performanceCounters: Performance counter data
-- availabilityResults: Availability test results`;
+- availabilityResults: Availability test results
+
+Azure Monitor Community Best Practices:
+- Use time-based filtering early in queries for performance (e.g., | where timestamp > ago(1h))
+- Prefer bin() for time-series aggregation (e.g., bin(timestamp, 5m))
+- Use summarize with proper grouping for aggregated data
+- Include percentile() functions for performance analysis (percentile_95, percentile_99)
+- Use join only when necessary and prefer left outer joins
+- Apply limit early to reduce data processing overhead
+- Use project to reduce column overhead when working with large datasets
+
+Common Performance Monitoring Patterns:
+- Response time analysis: requests | summarize avg(duration), percentiles(duration, 50, 95, 99) by bin(timestamp, 5m)
+- Request volume: requests | summarize count() by bin(timestamp, 1h), resultCode
+- Error rate: requests | summarize ErrorRate = 100.0 * sum(toint(success == false)) / count() by bin(timestamp, 5m)
+- Top slow requests: requests | where duration > 1000 | top 10 by duration desc
+- Dependency performance: dependencies | summarize avg(duration) by target, type | sort by avg_duration desc
+
+Common Error Tracking Patterns:
+- Exception trends: exceptions | summarize count() by bin(timestamp, 1h), type
+- Error distribution: requests | where success == false | summarize count() by resultCode, operation_Name
+- Failed dependency calls: dependencies | where success == false | summarize count() by target, type
+
+User Experience Patterns:
+- Page load times: pageViews | summarize avg(duration), percentiles(duration, 50, 95) by name
+- User session analysis: pageViews | summarize Pages=dcount(name), Duration=sum(duration) by session_Id | summarize avg(Pages), avg(Duration)
+
+Operational Patterns:
+- Availability monitoring: availabilityResults | summarize avg(success) by bin(timestamp, 15m), location
+- Resource usage: performanceCounters | where counter startswith "% Processor Time" | summarize avg(value) by bin(timestamp, 5m)
+
+Related Resources:
+- Azure Monitor Community: https://github.com/microsoft/AzureMonitorCommunity
+- KQL Best Practices: https://docs.microsoft.com/azure/data-explorer/kusto/query/best-practices
+- Application Insights Query Examples: https://docs.microsoft.com/azure/azure-monitor/logs/examples`;
 
     if (schema) {
       prompt += `\n\nAvailable schema information:\n${JSON.stringify(schema, null, 2)}`;
@@ -141,9 +176,112 @@ Common Application Insights tables:
   }
 
   private buildUserPrompt(naturalLanguageQuery: string): string {
-    return `Convert this natural language query to KQL: "${naturalLanguageQuery}"
+    const queryType = this.detectQueryType(naturalLanguageQuery);
+    const patternGuidance = this.getPatternGuidance(queryType);
+    
+    let prompt = `Convert this natural language query to KQL: "${naturalLanguageQuery}"
+
+Query Type Detected: ${queryType}
+${patternGuidance}
 
 Respond with only the KQL query, no explanations or additional text.`;
+
+    return prompt;
+  }
+
+  /**
+   * Detect the type of query based on natural language patterns
+   */
+  private detectQueryType(query: string): string {
+    const lowerQuery = query.toLowerCase();
+    
+    // Performance-related queries
+    if (lowerQuery.includes('performance') || lowerQuery.includes('slow') || 
+        lowerQuery.includes('response time') || lowerQuery.includes('latency') ||
+        lowerQuery.includes('duration') || lowerQuery.includes('speed')) {
+      return 'performance';
+    }
+    
+    // Error-related queries  
+    if (lowerQuery.includes('error') || lowerQuery.includes('exception') ||
+        lowerQuery.includes('fail') || lowerQuery.includes('problem') ||
+        lowerQuery.includes('issue') || lowerQuery.includes('bug')) {
+      return 'errors';
+    }
+    
+    // Dependency-related queries
+    if (lowerQuery.includes('dependency') || lowerQuery.includes('external') ||
+        lowerQuery.includes('api') || lowerQuery.includes('service') ||
+        lowerQuery.includes('call')) {
+      return 'dependencies';
+    }
+    
+    // User experience queries
+    if (lowerQuery.includes('user') || lowerQuery.includes('page') ||
+        lowerQuery.includes('session') || lowerQuery.includes('view') ||
+        lowerQuery.includes('browser') || lowerQuery.includes('client')) {
+      return 'user_experience';
+    }
+    
+    // Availability queries
+    if (lowerQuery.includes('availability') || lowerQuery.includes('uptime') ||
+        lowerQuery.includes('downtime') || lowerQuery.includes('health')) {
+      return 'availability';
+    }
+    
+    // Volume/traffic queries
+    if (lowerQuery.includes('count') || lowerQuery.includes('number') ||
+        lowerQuery.includes('volume') || lowerQuery.includes('traffic') ||
+        lowerQuery.includes('requests') || lowerQuery.includes('how many')) {
+      return 'volume';
+    }
+    
+    // Trend analysis
+    if (lowerQuery.includes('trend') || lowerQuery.includes('over time') ||
+        lowerQuery.includes('timeline') || lowerQuery.includes('history') ||
+        lowerQuery.includes('graph') || lowerQuery.includes('chart')) {
+      return 'trends';
+    }
+    
+    return 'general';
+  }
+
+  /**
+   * Get pattern guidance based on detected query type
+   */
+  private getPatternGuidance(queryType: string): string {
+    switch (queryType) {
+      case 'performance':
+        return `Pattern Guidance: Use percentile functions (percentile_95, percentile_99), include duration fields, consider time-series binning.
+Example structure: | summarize avg(duration), percentiles(duration, 50, 95, 99) by bin(timestamp, 5m)`;
+        
+      case 'errors':
+        return `Pattern Guidance: Focus on success==false conditions, group by error types/codes, calculate error rates.
+Example structure: | where success == false | summarize count() by resultCode, operation_Name`;
+        
+      case 'dependencies':
+        return `Pattern Guidance: Use dependencies table, group by target/type, analyze success rates and performance.
+Example structure: dependencies | summarize avg(duration), success_rate=avg(todouble(success)) by target, type`;
+        
+      case 'user_experience':
+        return `Pattern Guidance: Use pageViews table, analyze session patterns, focus on client-side metrics.
+Example structure: pageViews | summarize avg(duration), dcount(session_Id) by name`;
+        
+      case 'availability':
+        return `Pattern Guidance: Use availabilityResults table, calculate success percentages, group by location/test.
+Example structure: availabilityResults | summarize availability=avg(todouble(success))*100 by location`;
+        
+      case 'volume':
+        return `Pattern Guidance: Use count() aggregation, consider time binning for trends, group by relevant dimensions.
+Example structure: | summarize count() by bin(timestamp, 1h), resultCode`;
+        
+      case 'trends':
+        return `Pattern Guidance: Always include time binning with bin(timestamp, interval), use render timechart for visualization.
+Example structure: | summarize count() by bin(timestamp, 1h) | render timechart`;
+        
+      default:
+        return `Pattern Guidance: Apply general best practices - include time filters, use appropriate aggregations, optimize for performance.`;
+    }
   }
 
   private extractKQLFromResponse(response: string): string {

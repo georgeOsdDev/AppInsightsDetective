@@ -371,4 +371,188 @@ describe('AIService', () => {
       expect(result.confidence).toBe(0.5);
     });
   });
+
+  describe('enhanced system prompt with community patterns', () => {
+    it('should include Azure Monitor Community best practices in system prompt', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'requests | count' },
+            finish_reason: 'stop',
+          },
+        ],
+      };
+
+      mockChatCompletionsCreate.mockResolvedValue(mockResponse);
+
+      await aiService.generateKQLQuery('test query');
+
+      const systemPrompt = mockChatCompletionsCreate.mock.calls[0][0].messages[0].content;
+      expect(systemPrompt).toContain('Azure Monitor Community Best Practices');
+      expect(systemPrompt).toContain('bin(timestamp');
+      expect(systemPrompt).toContain('percentile');
+      expect(systemPrompt).toContain('Performance Monitoring Patterns');
+    });
+
+    it('should include performance patterns in system prompt', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'requests | summarize avg(duration)' },
+            finish_reason: 'stop',
+          },
+        ],
+      };
+
+      mockChatCompletionsCreate.mockResolvedValue(mockResponse);
+
+      await aiService.generateKQLQuery('performance test');
+
+      const systemPrompt = mockChatCompletionsCreate.mock.calls[0][0].messages[0].content;
+      expect(systemPrompt).toContain('Response time analysis');
+      expect(systemPrompt).toContain('percentiles(duration');
+      expect(systemPrompt).toContain('Top slow requests');
+    });
+  });
+
+  describe('context-aware prompting with query type detection', () => {
+    it('should detect performance query type and include relevant guidance', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'requests | summarize avg(duration), percentiles(duration, 95, 99)' },
+            finish_reason: 'stop',
+          },
+        ],
+      };
+
+      mockChatCompletionsCreate.mockResolvedValue(mockResponse);
+
+      await aiService.generateKQLQuery('show me slow response times');
+
+      const userPrompt = mockChatCompletionsCreate.mock.calls[0][0].messages[1].content;
+      expect(userPrompt).toContain('Query Type Detected: performance');
+      expect(userPrompt).toContain('percentile functions');
+      expect(userPrompt).toContain('duration fields');
+    });
+
+    it('should detect error query type and include error tracking guidance', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'requests | where success == false | count' },
+            finish_reason: 'stop',
+          },
+        ],
+      };
+
+      mockChatCompletionsCreate.mockResolvedValue(mockResponse);
+
+      await aiService.generateKQLQuery('show me application errors');
+
+      const userPrompt = mockChatCompletionsCreate.mock.calls[0][0].messages[1].content;
+      expect(userPrompt).toContain('Query Type Detected: errors');
+      expect(userPrompt).toContain('success==false conditions');
+      expect(userPrompt).toContain('error rates');
+    });
+
+    it('should detect dependency query type and include dependency patterns', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'dependencies | summarize avg(duration) by target' },
+            finish_reason: 'stop',
+          },
+        ],
+      };
+
+      mockChatCompletionsCreate.mockResolvedValue(mockResponse);
+
+      await aiService.generateKQLQuery('show me external API calls');
+
+      const userPrompt = mockChatCompletionsCreate.mock.calls[0][0].messages[1].content;
+      expect(userPrompt).toContain('Query Type Detected: dependencies');
+      expect(userPrompt).toContain('dependencies table');
+      expect(userPrompt).toContain('target/type');
+    });
+
+    it('should detect user experience query type and include UX patterns', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'pageViews | summarize count() by name' },
+            finish_reason: 'stop',
+          },
+        ],
+      };
+
+      mockChatCompletionsCreate.mockResolvedValue(mockResponse);
+
+      await aiService.generateKQLQuery('show me page views by users');
+
+      const userPrompt = mockChatCompletionsCreate.mock.calls[0][0].messages[1].content;
+      expect(userPrompt).toContain('Query Type Detected: user_experience');
+      expect(userPrompt).toContain('pageViews table');
+      expect(userPrompt).toContain('session patterns');
+    });
+
+    it('should detect volume query type and include volume patterns', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'requests | summarize count() by bin(timestamp, 1h)' },
+            finish_reason: 'stop',
+          },
+        ],
+      };
+
+      mockChatCompletionsCreate.mockResolvedValue(mockResponse);
+
+      await aiService.generateKQLQuery('how many requests per hour');
+
+      const userPrompt = mockChatCompletionsCreate.mock.calls[0][0].messages[1].content;
+      expect(userPrompt).toContain('Query Type Detected: volume');
+      expect(userPrompt).toContain('count() aggregation');
+      expect(userPrompt).toContain('time binning');
+    });
+
+    it('should detect trends query type and include trend patterns', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'requests | summarize count() by bin(timestamp, 1h) | render timechart' },
+            finish_reason: 'stop',
+          },
+        ],
+      };
+
+      mockChatCompletionsCreate.mockResolvedValue(mockResponse);
+
+      await aiService.generateKQLQuery('show me request trends over time');
+
+      const userPrompt = mockChatCompletionsCreate.mock.calls[0][0].messages[1].content;
+      expect(userPrompt).toContain('Query Type Detected: trends');
+      expect(userPrompt).toContain('time binning');
+      expect(userPrompt).toContain('render timechart');
+    });
+
+    it('should fallback to general query type for unrecognized patterns', async () => {
+      const mockResponse = {
+        choices: [
+          {
+            message: { content: 'requests | limit 10' },
+            finish_reason: 'stop',
+          },
+        ],
+      };
+
+      mockChatCompletionsCreate.mockResolvedValue(mockResponse);
+
+      await aiService.generateKQLQuery('show me some data');
+
+      const userPrompt = mockChatCompletionsCreate.mock.calls[0][0].messages[1].content;
+      expect(userPrompt).toContain('Query Type Detected: general');
+      expect(userPrompt).toContain('general best practices');
+    });
+  });
 });
