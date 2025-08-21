@@ -2,8 +2,10 @@ import { Command } from 'commander';
 import { ConfigManager } from '../../utils/config';
 import { AuthService } from '../../services/authService';
 import { AppInsightsService } from '../../services/appInsightsService';
+import { ExternalExecutionService } from '../../services/externalExecutionService';
 import { Visualizer } from '../../utils/visualizer';
 import { logger } from '../../utils/logger';
+import { AzureResourceInfo } from '../../types';
 
 export function createStatusCommand(): Command {
   const statusCommand = new Command('status');
@@ -24,8 +26,44 @@ export function createStatusCommand(): Command {
         console.log(`  OpenAI Endpoint: ${config.openAI.endpoint ? '✅ Set' : '❌ Not set'}`);
         console.log(`  Deployment Name: ${config.openAI.deploymentName || 'gpt-4'}`);
         console.log(`  Log Level: ${config.logLevel}`);
+        
+        // External execution configuration status
+        console.log('\n🌐 External Execution Configuration:');
+        console.log(`  Subscription ID: ${config.appInsights.subscriptionId ? '✅ Set' : '❌ Not set'}`);
+        console.log(`  Resource Group: ${config.appInsights.resourceGroup ? '✅ Set' : '❌ Not set'}`);
+        console.log(`  Resource Name: ${config.appInsights.resourceName ? '✅ Set' : '❌ Not set'}`);
+        console.log(`  Data Explorer Cluster ID: ${config.appInsights.clusterId ? '✅ Set' : '❌ Not set'}`);
+        console.log(`  Data Explorer Database: ${config.appInsights.databaseName || 'ApplicationInsights'}`);
 
         const isConfigValid = configManager.validateConfig();
+        console.log(`\n  Overall Basic Config: ${isConfigValid ? '✅ Valid' : '❌ Invalid'}`);
+        
+        // Check external execution availability
+        if (config.appInsights.tenantId && config.appInsights.subscriptionId && 
+            config.appInsights.resourceGroup && config.appInsights.resourceName) {
+          
+          const azureResourceInfo: AzureResourceInfo = {
+            tenantId: config.appInsights.tenantId,
+            subscriptionId: config.appInsights.subscriptionId,
+            resourceGroup: config.appInsights.resourceGroup,
+            resourceName: config.appInsights.resourceName,
+            clusterId: config.appInsights.clusterId,
+            databaseName: config.appInsights.databaseName
+          };
+
+          const externalExecutionService = new ExternalExecutionService(azureResourceInfo);
+          const validation = externalExecutionService.validateConfiguration();
+          
+          console.log(`  Azure Portal Integration: ${validation.isValid ? '✅ Available' : '❌ Not available'}`);
+          console.log(`  Data Explorer Integration: ${externalExecutionService.isDataExplorerAvailable() ? '✅ Available' : '❌ Not available'}`);
+          
+          if (validation.isValid) {
+            const availableOptions = externalExecutionService.getAvailableOptions();
+            console.log(`  External Execution Options: ${availableOptions.length} available`);
+          }
+        } else {
+          console.log(`  External Execution: ❌ Not configured (run "aidx setup" to configure)`);
+        }
         console.log(`  Overall: ${isConfigValid ? '✅ Valid' : '❌ Invalid'}`);
 
         if (!isConfigValid) {

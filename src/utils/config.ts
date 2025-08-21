@@ -46,6 +46,11 @@ export class ConfigManager {
         applicationId: process.env.AZURE_APPLICATION_INSIGHTS_ID || '',
         tenantId: process.env.AZURE_TENANT_ID || '',
         endpoint: process.env.AZURE_APPLICATION_INSIGHTS_ENDPOINT,
+        subscriptionId: process.env.AZURE_SUBSCRIPTION_ID,
+        resourceGroup: process.env.AZURE_RESOURCE_GROUP,
+        resourceName: process.env.AZURE_RESOURCE_NAME,
+        clusterId: process.env.AZURE_DATA_EXPLORER_CLUSTER_ID,
+        databaseName: process.env.AZURE_DATA_EXPLORER_DATABASE_NAME || 'ApplicationInsights',
       },
       openAI: {
         endpoint: process.env.AZURE_OPENAI_ENDPOINT || '',
