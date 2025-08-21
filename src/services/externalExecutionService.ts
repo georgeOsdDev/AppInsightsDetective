@@ -45,7 +45,8 @@ export class ExternalExecutionService {
     const encodedQuery = encodeURIComponent(gzippedQuery.toString('base64'));
 
     // Generate Azure Portal Application Insights URL
-    const portalUrl = `https://portal.azure.com/#@${tenantId}/resource/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Insights/components/${resourceName}/logs?query=${encodedQuery}`;
+    // See also https://stuartleeks.com/posts/deep-linking-to-queries-in-application-insights-with-python/
+    const portalUrl = `https://portal.azure.com/#@${tenantId}/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F${subscriptionId}%2FresourceGroups%2F${resourceGroup}%2Fproviders%2FMicrosoft.Insights%2Fcomponents%2F${resourceName}/source/LogsBlade.AnalyticsShareLinkToQuery/q/${encodedQuery}`;
 
     logger.debug(`Generated Azure Portal URL: ${portalUrl}`);
     return portalUrl;
@@ -79,12 +80,12 @@ export class ExternalExecutionService {
 
       // Launch browser
       Visualizer.displayInfo(`🚀 Opening query in ${targetName}...`);
-      
+
       // Open URL in default browser
       await this.launchBrowser(url);
 
       logger.info(`Successfully opened query in ${targetName}`);
-      
+
       return {
         url,
         target,
@@ -94,7 +95,7 @@ export class ExternalExecutionService {
     } catch (error) {
       const errorMessage = `Failed to open query in ${target}: ${error}`;
       logger.error(errorMessage, error);
-      
+
       return {
         url: '',
         target,
