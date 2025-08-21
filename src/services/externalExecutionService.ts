@@ -84,8 +84,6 @@ export class ExternalExecutionService {
         // Open URL in default browser
         await this.launchBrowser(url);
 
-        logger.info(`Successfully opened query in ${targetName}`);
-
         return {
           url,
           target,

@@ -73,14 +73,14 @@ export class AIService implements IAIProvider {
       throw new Error('OpenAI client not initialized');
     }
 
+    logger.info(`Generating KQL query for: "${naturalLanguageQuery}"`);
+
     return withLoadingIndicator(
       'Generating KQL query with AI...',
       async () => {
         const config = this.configManager.getConfig();
         const systemPrompt = this.buildSystemPrompt(schema);
         const userPrompt = this.buildUserPrompt(naturalLanguageQuery);
-
-        logger.info(`Generating KQL query for: "${naturalLanguageQuery}"`);
 
         const response = await this.openAIClient!.chat.completions.create({
           model: config.openAI.deploymentName || 'gpt-4',
@@ -107,7 +107,6 @@ export class AIService implements IAIProvider {
           reasoning,
         };
 
-        logger.info(`KQL query generated successfully: ${kqlQuery}`);
         return result;
       },
       {
@@ -338,18 +337,18 @@ Example structure: | summarize count() by bin(timestamp, 1h) | render timechart`
       throw new Error('OpenAI client not initialized');
     }
 
+    const config = this.configManager.getConfig();
+    const language = (options.language || config.language || 'auto') as SupportedLanguage;
+    const technicalLevel = options.technicalLevel || 'intermediate';
+    const includeExamples = options.includeExamples !== false;
+
+    logger.info(`Generating KQL explanation in language: ${language}`);
+
     return withLoadingIndicator(
       'Generating KQL query explanation...',
       async () => {
-        const config = this.configManager.getConfig();
-        const language = (options.language || config.language || 'auto') as SupportedLanguage;
-        const technicalLevel = options.technicalLevel || 'intermediate';
-        const includeExamples = options.includeExamples !== false;
-
         const systemPrompt = this.buildExplanationSystemPrompt(language, technicalLevel, includeExamples);
         const userPrompt = `Please explain this KQL query in detail:\n\n${kqlQuery}`;
-
-        logger.info(`Generating KQL explanation in language: ${language}`);
 
         const response = await this.openAIClient!.chat.completions.create({
           model: config.openAI.deploymentName || 'gpt-4',
@@ -366,7 +365,6 @@ Example structure: | summarize count() by bin(timestamp, 1h) | render timechart`
           throw new Error('No explanation generated from OpenAI');
         }
 
-        logger.info('KQL explanation generated successfully');
         return explanation;
       },
       {
@@ -435,6 +433,8 @@ ${exampleInstructions}`;
       throw new Error('OpenAI client not initialized');
     }
 
+    logger.info(`Regenerating KQL query (attempt ${context.attemptNumber})`);
+
     return withLoadingIndicator(
       `Regenerating KQL query (attempt ${context.attemptNumber})...`,
       async () => {
@@ -453,8 +453,6 @@ Please provide a DIFFERENT approach or query structure. Consider:
 - Alternative filtering strategies
 
 Respond with only the new KQL query, no explanations.`;
-
-        logger.info(`Regenerating KQL query (attempt ${context.attemptNumber})`);
 
         const response = await this.openAIClient!.chat.completions.create({
           model: config.openAI.deploymentName || 'gpt-4',
@@ -488,7 +486,6 @@ Respond with only the new KQL query, no explanations.`;
           reasoning,
         };
 
-        logger.info(`KQL query regenerated successfully: ${kqlQuery}`);
         return result;
       },
       {
@@ -541,8 +538,6 @@ Respond with only the new KQL query, no explanations.`;
       async () => {
         const config = this.configManager.getConfig();
         
-        logger.info('Generating AI response for analysis');
-
         const response = await this.openAIClient!.chat.completions.create({
           model: config.openAI.deploymentName || 'gpt-4',
           messages: [
@@ -561,7 +556,6 @@ Respond with only the new KQL query, no explanations.`;
           throw new Error('No response generated from OpenAI');
         }
 
-        logger.info('AI response generated successfully');
         return content;
       },
       {
