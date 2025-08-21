@@ -23,8 +23,7 @@ describe('ExternalExecutionService', () => {
       // Expected encoding: gzip + base64
       const gzippedQuery = gzipSync(Buffer.from(testKQLQuery, 'utf8'));
       const encodedQuery = encodeURIComponent(gzippedQuery.toString('base64'));
-      const expectedUrl = `https://portal.azure.com/#@${mockAzureResourceInfo.tenantId}/resource/subscriptions/${mockAzureResourceInfo.subscriptionId}/resourceGroups/${mockAzureResourceInfo.resourceGroup}/providers/Microsoft.Insights/components/${mockAzureResourceInfo.resourceName}/logs?query=${encodedQuery}`;
-
+      const expectedUrl = `https://portal.azure.com/#@${mockAzureResourceInfo.tenantId}/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F${mockAzureResourceInfo.subscriptionId}%2FresourceGroups%2F${mockAzureResourceInfo.resourceGroup}%2Fproviders%2FMicrosoft.Insights%2Fcomponents%2F${mockAzureResourceInfo.resourceName}/source/LogsBlade.AnalyticsShareLinkToQuery/q/${encodedQuery}`;
       const actualUrl = service.generatePortalUrl(testKQLQuery);
 
       expect(actualUrl).toBe(expectedUrl);
@@ -32,7 +31,7 @@ describe('ExternalExecutionService', () => {
 
     test('should generate URL for portal target', () => {
       const portalUrl = service.generateUrl('portal', testKQLQuery);
-      
+
       expect(portalUrl).toContain('portal.azure.com');
       expect(portalUrl).toContain(mockAzureResourceInfo.tenantId);
       expect(portalUrl).toContain(mockAzureResourceInfo.subscriptionId);
