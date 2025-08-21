@@ -45,7 +45,7 @@ export class ExternalExecutionService {
     const encodedQuery = encodeURIComponent(gzippedQuery.toString('base64'));
 
     // Generate Azure Portal Application Insights URL
-    const portalUrl = `https://portal.azure.com#@${tenantId}/resource/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Insights/components/${resourceName}/logs?query=${encodedQuery}`;
+    const portalUrl = `https://portal.azure.com/#@${tenantId}/resource/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/providers/Microsoft.Insights/components/${resourceName}/logs?query=${encodedQuery}`;
 
     logger.debug(`Generated Azure Portal URL: ${portalUrl}`);
     return portalUrl;

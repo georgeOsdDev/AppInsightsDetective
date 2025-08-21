@@ -23,7 +23,7 @@ describe('ExternalExecutionService', () => {
       // Expected encoding: gzip + base64
       const gzippedQuery = gzipSync(Buffer.from(testKQLQuery, 'utf8'));
       const encodedQuery = encodeURIComponent(gzippedQuery.toString('base64'));
-      const expectedUrl = `https://portal.azure.com#@${mockAzureResourceInfo.tenantId}/resource/subscriptions/${mockAzureResourceInfo.subscriptionId}/resourceGroups/${mockAzureResourceInfo.resourceGroup}/providers/Microsoft.Insights/components/${mockAzureResourceInfo.resourceName}/logs?query=${encodedQuery}`;
+      const expectedUrl = `https://portal.azure.com/#@${mockAzureResourceInfo.tenantId}/resource/subscriptions/${mockAzureResourceInfo.subscriptionId}/resourceGroups/${mockAzureResourceInfo.resourceGroup}/providers/Microsoft.Insights/components/${mockAzureResourceInfo.resourceName}/logs?query=${encodedQuery}`;
 
       const actualUrl = service.generatePortalUrl(testKQLQuery);
 

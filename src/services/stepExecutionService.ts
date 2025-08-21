@@ -218,6 +218,15 @@ export class StepExecutionService {
       }
     ];
 
+    // Ensure external execution service is initialized before checking availability
+    if (!this.externalExecutionService) {
+      try {
+        await this.initializeExternalExecutionService();
+      } catch (error) {
+        logger.debug('Failed to initialize external execution service in getUserAction:', error);
+      }
+    }
+
     // Add Azure Portal option if service is available
     if (this.externalExecutionService) {
       const validation = this.externalExecutionService.validateConfiguration();

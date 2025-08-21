@@ -110,9 +110,7 @@ describe('ResourceGraphService', () => {
         subscriptionId: 'test-sub',
         resourceGroup: 'test-rg',
         resourceName: 'test-appinsights',
-        tenantId: 'test-tenant',
-        clusterId: 'test-cluster',
-        databaseName: 'ApplicationInsights'
+        tenantId: 'test-tenant'
       });
     });
 
