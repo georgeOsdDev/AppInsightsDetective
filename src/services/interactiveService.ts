@@ -40,7 +40,7 @@ export class InteractiveService {
    * Start interactive session
    */
   async startSession(): Promise<void> {
-    console.log(chalk.blue.bold('\n🔍 AppInsights Detective - Interactive Mode'));
+    console.log(chalk.blue.bold('\n🔍 AppInsights Detective - Interactive Mode 🕵'));
     console.log(chalk.dim('Ask questions about your application in natural language'));
     console.log(chalk.dim('Type "exit" or "quit" to end the session'));
 
@@ -280,7 +280,7 @@ export class InteractiveService {
 
     // Ask about output format and file saving
     const outputChoice = await this.promptForOutputOptions(totalRows);
-    
+
     if (outputChoice.saveToFile && outputChoice.format) {
       try {
         await this.saveResultToFile(result, {
@@ -400,7 +400,7 @@ export class InteractiveService {
 
     // Resolve and check path
     const resolvedPath = FileOutputManager.resolveOutputPath(outputPath, options.format);
-    
+
     if (!FileOutputManager.checkWritePermission(resolvedPath)) {
       throw new Error(`Cannot write to file: ${resolvedPath}`);
     }
@@ -448,11 +448,11 @@ export class InteractiveService {
               label: String(row[0] || ''),
               value: Number(row[1]) || 0,
             }));
-            
+
             // Auto-detect best chart type, but allow user to choose
             const isTimeSeries = detectTimeSeriesData(chartData);
             const defaultChartType = isTimeSeries ? 'line' : 'bar';
-            
+
             const { chartType } = await inquirer.prompt([
               {
                 type: 'list',
@@ -465,7 +465,7 @@ export class InteractiveService {
                 default: defaultChartType
               }
             ]);
-            
+
             Visualizer.displayChart(chartData, chartType);
           }
         }
@@ -552,22 +552,22 @@ export class InteractiveService {
     // Perform analysis
     try {
       console.log(chalk.dim('\n🔍 Analyzing data... This may take a few seconds.'));
-      
+
       const analysis = await this.analysisService.analyzeQueryResult(
-        result, 
-        originalQuery, 
+        result,
+        originalQuery,
         analysisType as AnalysisType,
         { language: language as SupportedLanguage }
       );
-      
+
       // Display the analysis results
       Visualizer.displayAnalysisResult(analysis, analysisType);
-      
+
       // Offer to execute follow-up queries if available
       if (analysis.followUpQueries && analysis.followUpQueries.length > 0) {
         await this.promptForFollowUpQuery(analysis.followUpQueries);
       }
-      
+
     } catch (error) {
       logger.error('Analysis failed:', error);
       Visualizer.displayError(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`);

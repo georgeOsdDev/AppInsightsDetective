@@ -12,19 +12,17 @@ AppInsights Detective is an intelligent CLI tool that allows you to query your A
 
 ## ✨ Features
 
-- 🗣️ **Natural Language Queries**: Ask questions in plain English/Japanese
-- 🤖 **AI-Powered KQL Generation**: Automatic conversion to KQL using Azure OpenAI
-- 🌐 **Azure Portal Integration**: Open queries directly in Azure Portal with full visualization capabilities
-- 📊 **Rich Visualization**: Console-based charts and formatted tables ⚠️ **(Chart features are experimental)**
-- 📁 **Multiple Output Formats**: JSON, CSV, TSV, Raw, and Table formats
-- 💾 **File Export**: Save results to files with configurable encoding
-- 🔐 **Secure Authentication**: Uses Azure Managed Identity
-- ⚡ **Interactive Mode**: Step-by-step query building and validation
-- 📈 **Query Validation**: Ensures safe and valid KQL execution
-- 🎯 **Smart Schema Integration**: Leverages your Application Insights schema
-- 🧹 **Smart Column Hiding**: Automatically hides empty columns for cleaner output
-- 🧪 **Comprehensive Testing**: Full test coverage with automated CI/CD
-- 🚀 **Production Ready**: Built with TypeScript, proper error handling
+- 🗣️ **Natural Language Queries**: Ask questions in plain natural language
+- 🤖 **AI-Powered KQL Generation**: Advanced conversion to KQL using Azure OpenAI with confidence scoring
+- 🔐 **Secure Authentication**: Uses Azure Managed Identity with multi-tenant support
+- 📈 **Rich Visualization**: Console-based charts and formatted tables with smart column management
+- 📁 **Multiple Output Formats**: JSON, CSV, TSV, Raw, and Table formats with customizable encoding
+- 💾 **Smart File Export**: Save results with automatic format detection and encoding options
+- 🕵 **Interactive Mode**: Comprehensive step-by-step query experience with guided assistance
+  - 📖 **Query Analysis & Validation**: AI-powered query explanation, regeneration, and confidence assessment
+  - 🔄 **Query History & Management**: Track, edit, and regenerate queries with confidence-based recommendations
+  - 🧠 **Advanced Result Analysis**: AI-powered pattern detection, anomaly identification, and insights
+  - 🌐 **Azure Portal Integration**: One-click query execution in Azure Portal with full visualization capabilities
 
 ## 🚀 Quick Start
 
@@ -51,7 +49,81 @@ git clone https://github.com/georgeOsdDev/AppInsightsDetective.git
 cd AppInsightsDetective
 npm install
 npm run build
+npm install -g .
+# aidx will be available
 ```
+
+## 🔐 Authentication & Permissions
+
+AppInsights Detective uses Azure Managed Identity for secure authentication. Ensure you have the following permissions:
+
+### Required Permissions
+- **Application Insights**: Reader role on your Application Insights resource
+- **Azure Resource Graph**: Reader role for resource discovery across subscriptions
+- **OpenAI**: Cognitive Services OpenAI User role on your Azure OpenAI resource
+- **Subscription**: Reader role for cross-subscription resource discovery
+
+
+## ⚙️ Configuration
+
+AppInsights Detective features **intelligent auto-discovery** - provide just your Application Insights Application ID, and the system automatically discovers all other Azure resource information using Azure Resource Graph API.
+
+### Option 1: Interactive Setup (Recommended)
+
+```bash
+aidx setup
+```
+
+The setup wizard will guide you through:
+- **Azure Application Insights Application ID** (required)
+- **Azure Tenant ID** (required for resource discovery)
+- **Azure OpenAI endpoint** and deployment name
+- **Language preferences** for explanations
+
+All other Azure resource details (subscription, resource group, resource name) are automatically discovered during first query execution.
+
+### Option 2: Environment Variables
+
+```bash
+export AZURE_APPLICATION_INSIGHTS_ID="your-app-insights-application-id"
+export AZURE_TENANT_ID="your-azure-tenant-id"
+export AZURE_OPENAI_ENDPOINT="https://your-openai.openai.azure.com/"
+export AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4"
+```
+
+**Auto-Discovery**: Subscription ID, Resource Group, and Resource Name are automatically discovered from the Application ID.
+
+### Option 3: Configuration File
+
+Create `~/.aidx/config.json`:
+
+```json
+{
+  "appInsights": {
+    "applicationId": "your-application-insights-application-id",
+    "tenantId": "your-azure-tenant-id"
+  },
+  "openAI": {
+    "endpoint": "https://your-openai.openai.azure.com/",
+    "deploymentName": "gpt-4"
+  },
+  "logLevel": "info",
+  "language": "en"
+}
+```
+
+**Auto-Enhancement**: The system automatically enriches this configuration with discovered Azure resource information (subscriptionId, resourceGroup, resourceName) when you first run a query.
+
+### Resource Discovery Process
+
+1. **Initial Configuration**: Provide Application ID and Tenant ID
+2. **Automatic Discovery**: System queries Azure Resource Graph to find:
+   - Subscription ID where the Application Insights resource exists
+   - Resource Group containing the resource
+   - Full resource name and metadata
+3. **External Integration**: Discovered information enables Azure Portal integration
+4. **Configuration Update**: System automatically saves discovered information for future use
+
 
 ### Setup
 
@@ -124,7 +196,7 @@ AppInsights Detective supports multiple output formats for both console display 
 ### Output Formats
 - **table** (default) - Colored console display with ASCII charts for numeric data ⚠️ **(Chart visualization is experimental)**
 - **json** - Structured JSON format with optional pretty printing
-- **csv** - Comma-separated values for spreadsheet import  
+- **csv** - Comma-separated values for spreadsheet import
 - **tsv** - Tab-separated values for data processing tools
 - **raw** - Human-readable debug format showing table structure
 
@@ -147,52 +219,7 @@ By default, AppInsights Detective automatically hides empty columns in table out
 - **--encoding** - File encoding (utf8, utf16le, ascii, latin1, base64)
 - **--show-empty-columns** - Show all columns including empty ones
 
-## ⚙️ Configuration
-
-AppInsights Detective uses **simplified configuration** - you only need to provide your Application Insights Application ID. All other Azure resource information (subscription, resource group, tenant) is automatically discovered using Azure Resource Graph API.
-
-### Option 1: Interactive Setup (Recommended)
-
-```bash
-aidx setup
-```
-
-The setup wizard will ask for:
-- Azure Application Insights Application ID
-- Azure OpenAI endpoint and deployment name  
-
-All other Azure resource details are automatically discovered.
-
-### Option 2: Environment Variables
-
-```bash
-export AZURE_APPLICATION_INSIGHTS_ID="your-app-insights-application-id"
-export AZURE_OPENAI_ENDPOINT="https://your-openai.openai.azure.com/"
-export AZURE_OPENAI_DEPLOYMENT_NAME="gpt-4"
-```
-
-**Note**: Tenant ID, Subscription ID, Resource Group, and Resource Name are automatically discovered from the Application ID.
-
-### Option 3: Configuration File
-
-Create `~/.aidx/config.json`:
-
-```json
-{
-  "appInsights": {
-    "applicationId": "your-application-insights-application-id"
-  },
-  "openAI": {
-    "endpoint": "https://your-openai.openai.azure.com/",
-    "deploymentName": "gpt-4"
-  },
-  "logLevel": "info"
-}
-```
-
-**Note**: The system automatically enriches this configuration with discovered Azure resource information (tenantId, subscriptionId, resourceGroup, resourceName) when you first run a query.
-
-## 🔄 Output Format Examples
+## 📄 Output Format Examples
 
 ### Console Output
 ```bash
@@ -205,7 +232,7 @@ aidx "Show me top 10 requests" --show-empty-columns
 # JSON format to console
 aidx "Show me errors" --format json
 
-# CSV format to console  
+# CSV format to console
 aidx "Show request counts" --format csv
 
 # Pretty-printed JSON to console
@@ -221,7 +248,7 @@ aidx "Show request performance data"
 # -----------------------------------------
 # GET /api/health    | 1250  | 45.2
 # POST /api/login    | 890   | 156.8
-# 
+#
 # Displayed 2 of 3 rows (3 columns displayed, 2 empty columns hidden)
 
 # Show all columns including empty ones
@@ -238,7 +265,7 @@ aidx "Show request performance data" --show-empty-columns
 # Pretty-printed JSON
 aidx "Show me errors" --output errors.json --format json --pretty
 
-# Compact JSON  
+# Compact JSON
 aidx "Show me errors" --output errors.json --format json
 ```
 
@@ -260,125 +287,347 @@ aidx "Performance data" --output perf.tsv --format tsv
 aidx "User data" --output users.tsv --format tsv --encoding utf16le
 ```
 
-## 🔐 Authentication
-
-AppInsights Detective uses Azure Managed Identity for secure authentication. Ensure you have the following permissions:
-
-- **Application Insights**: Reader role
-- **OpenAI**: Cognitive Services OpenAI User role
-
 ## ⚠️ Experimental Features
 
 ### Chart Visualization
-The ASCII chart visualization feature is currently **experimental**. While it provides visual insights into your Application Insights data, CLI-based charts may not always be the most intuitive way to understand complex data patterns. Consider using additional visualization tools for detailed analysis.
+The ASCII chart visualization feature is currently **experimental** and automatically detects the best chart type for your data:
+- **Time Series Detection**: Automatically identifies time-based data and displays line charts
+- **Categorical Data**: Shows bar charts for categorical data with numeric values
+- **Data Limits**: Charts are limited to top 10 data points for readability
+- **Fallback**: Falls back to table-only display for complex or non-chartable data
 
-## 🌐 Azure Portal Integration
+While these charts provide quick visual insights, consider using Azure Portal integration for detailed analysis and advanced visualizations.
 
-AppInsights Detective provides seamless integration with Azure Portal, allowing you to open generated KQL queries directly in Application Insights Logs blade with full visualization capabilities.
 
-### Auto-Discovery of Azure Resources
+## 🕵 Interactive Mode - Advanced Query Experience
 
-AppInsights Detective automatically discovers your Azure resource information using **Azure Resource Graph API**. Simply configure your Application ID during setup, and the system will:
+AppInsights Detective's Interactive Mode provides a **comprehensive, step-by-step query experience** with guided assistance, real-time validation, and integrated analysis capabilities.
 
-- ✅ Automatically find your Application Insights resource details (subscription, resource group, resource name)
-- ✅ Enable Azure Portal execution without manual resource configuration
-- ✅ Generate properly encoded URLs for direct query execution
+### Starting Interactive Mode
 
-### Prerequisites
+```bash
+# Start interactive session
+aidx -i
+# or
+aidx --interactive
+```
 
-- Azure Application Insights Application ID (configured during setup)  
-- Appropriate Azure Resource Graph permissions to query resources
-- Azure Reader permissions on Application Insights resource
+### Interactive Mode Features
 
-### Interactive Usage
+#### **1. Guided Query Building** 🛠️
+- **Natural Language Input**: Type questions in conversational language
+- **Real-time Validation**: Immediate feedback on query feasibility
+- **Context Preservation**: Session remembers previous queries and results
 
-When using the interactive query review mode, Azure Portal execution is seamlessly integrated into the workflow:
+#### **2. Execution Mode Selection** ⚡
+Interactive Mode offers three execution approaches:
+
+- **🚀 Smart Mode**: AI generates and executes KQL automatically
+- **👁️ Review Mode**: Step-by-step query review and execution
+- **⚡ Raw KQL**: Execute as raw KQL query (for experts)
+
+#### **3. Smart Result Presentation** 📊
+- **Auto-format Detection**: Optimal display format based on data type
+- **Smart Column Management**: Automatic hiding of empty columns for cleaner output
+- **ASCII Chart Generation**: Automatic visualization for numeric data
+  - Time-series data → Line charts
+  - Categorical data → Bar charts
+  - Top 10 limiting for readability
+
+#### **4. Azure Portal Integration** 🌐
+- **One-click Portal Launch**: Open queries directly in Azure Portal
+- **Pre-populated Queries**: Queries automatically loaded in Portal interface
+- **Full Visualization**: Access to Portal's advanced charting and dashboards
+
+#### **5. Query Explanation & Understanding** 📖
+- **Intelligent Query Analysis**: AI-powered explanation of generated KQL queries
+- **Step-by-step Breakdown**: Detailed explanation of each query component
+- **Learning Support**: Educational insights to help understand KQL patterns
+- **Best Practice Insights**: Recommendations for query optimization and improvements
+
+### Interactive Session Flow
 
 ```
+🔍 AppInsights Detective - Interactive Mode 🕵
+Ask questions about your application in natural language
+Type "exit" or "quit" to end the session
+
+🤖 Initializing AI services...
+✅ AI services ready
+
+❓ What would you like to know about your application?
+> Show me errors from the last hour
+
 🔍 Generated KQL Query Review
 ==========================================
-requests | where timestamp > ago(1h) | count
+exceptions
+| where timestamp > ago(1h)
+| project timestamp, message, type, outerMessage
+| order by timestamp desc
 
 🚀 Execute Query - Run this KQL query against Application Insights
-📖 Explain Query - Get detailed explanation of what this query does  
+📖 Explain Query - Get detailed explanation of what this query does
 🌐 Open in Azure Portal - Execute query with full visualization capabilities
 🔄 Regenerate Query - Ask AI to create a different query approach
 ✏️ Edit Query - Manually modify the KQL query
+
+Choice: Execute Query
+
+✅ Query executed successfully (234ms)
+📊 Found 23 exceptions in the last hour
+
+[Results displayed with smart formatting]
+
+🧠 Would you like to analyze these results for patterns and insights? (y/N)
 ```
 
-### Features
-- **Automatic URL Generation**: Creates pre-populated query URLs using proper gzip compression and base64 encoding
-- **Browser Integration**: Automatic browser launching with authentication context
-- **URL Display**: Shows generated URLs for manual copying/sharing
-- **Configuration Validation**: Checks Azure resource information before execution  
-- **Cross-Platform**: Works on Windows, macOS, and Linux
+### Explain Query Feature
 
-### Direct Execution Mode
+The **Explain Query** feature provides AI-powered explanations of generated KQL queries to help users understand and learn from the queries.
 
-For high-confidence queries, use `--direct` flag to execute immediately without confirmation:
+#### Example: Query Explanation Session
+
+```
+❓ What would you like to know about your application?
+> Show me errors from the last hour
+
+🔍 Generated KQL Query Review
+==========================================
+exceptions
+| where timestamp > ago(1h)
+| project timestamp, message, type, outerMessage
+| order by timestamp desc
+
+🚀 Execute Query - Run this KQL query against Application Insights
+📖 Explain Query - Get detailed explanation of what this query does
+🌐 Open in Azure Portal - Execute query with full visualization capabilities
+🔄 Regenerate Query - Ask AI to create a different query approach
+✏️ Edit Query - Manually modify the KQL query
+
+Choice: Explain Query
+
+📖 Query Explanation
+==========================================
+This KQL query analyzes exception data from your Application Insights:
+
+🔍 Query Breakdown:
+1. **exceptions** - Starts with the exceptions table containing error events
+2. **where timestamp > ago(1h)** - Filters to only show exceptions from the last 1 hour
+3. **project timestamp, message, type, outerMessage** - Selects specific columns:
+   • timestamp: When the exception occurred
+   • message: The exception message
+   • type: The type/class of the exception
+   • outerMessage: Additional context about the exception
+4. **order by timestamp desc** - Sorts results by time, newest first
+
+💡 Query Insights:
+• This query is optimized for recent error investigation
+• Time filtering (ago(1h)) improves performance by limiting data scan
+• Selected columns provide essential debugging information
+• Descending order helps identify the most recent issues first
+
+🎯 Use Cases:
+• Real-time error monitoring and alerting
+• Quick troubleshooting of recent application issues
+• Identifying patterns in recent exception occurrences
+
+⚡ Performance Notes:
+• Estimated execution time: < 1 second for typical workloads
+• Data volume: Processes exceptions from last hour only
+• Resource usage: Minimal - well-optimized time filter
+
+🔄 Possible Improvements:
+• Add "| take 50" to limit results for large datasets
+• Include "severityLevel" for error prioritization
+• Add "operation_Name" to see which operations caused errors
+
+❓ Would you like to:
+  🚀 Execute this query now
+  🔄 Generate a different query approach
+  ✏️ Edit the query manually
+  🌐 Open in Azure Portal
+```
+
+#### Multi-Language Query Explanations
+
+Query explanations are available in multiple languages with culturally appropriate technical terminology:
 
 ```bash
-# Direct execution bypasses interactive review
-aidx --direct "requests | where resultCode >= 400"
+✔ What would you like to do with this query? Explain
+? Select explanation language:
+❯ 🌐 Auto - Detect best language
+  🇺🇸 English
+  🇯🇵 Japanese (日本語)
+  🇰🇷 Korean (한국어)
+  🇨🇳 Chinese Simplified (简体中文)
+  🇹🇼 Chinese Traditional (繁體中文)
+  🇪🇸 Spanish (Español)
+  ..and more
 ```
 
-### URL Format
+#### Learning-Focused Features
 
-Generated Azure Portal URLs follow this format:
+- **KQL Pattern Recognition**: Identifies common KQL patterns and explains their purpose
+- **Best Practice Highlighting**: Points out query optimization techniques
+- **Performance Insights**: Explains why certain query structures are efficient
+- **Educational Context**: Provides learning opportunities for KQL skill development
+
+
+## 🧠 Advanced Result Analysis
+
+After executing queries, AppInsights Detective offers **AI-powered analysis capabilities** to extract deeper insights from your data.
+
+### Analysis Types
+
+#### **📈 Statistical Summary**
+- **Basic Statistics**: Count, average, median, min/max values
+- **Data Distribution**: Percentiles and quartile analysis
+- **Column Profiling**: Data types and null value analysis
+- **Trend Indicators**: Growth rates and change patterns
+
+#### **🔍 Pattern Detection**
+- **Temporal Patterns**: Time-based trends and seasonality
+- **Correlation Analysis**: Relationships between different metrics
+- **Frequency Analysis**: Most common values and patterns
+- **Threshold Detection**: Automatic identification of normal vs. abnormal ranges
+
+#### **🚨 Anomaly Detection**
+- **Outlier Identification**: Statistical outliers in numeric data
+- **Unusual Patterns**: Deviations from normal behavior
+- **Spike Detection**: Sudden increases or decreases
+- **Missing Data Patterns**: Gaps and data quality issues
+
+#### **💡 Smart Insights**
+- **Business Impact Analysis**: What the data means for your application
+- **Root Cause Suggestions**: Potential causes for observed patterns
+- **Actionable Recommendations**: Specific steps to address issues
+- **Follow-up Queries**: Suggested next questions to explore
+
+#### **📋 Full Analysis Report**
+- **Comprehensive Review**: All analysis types combined
+- **Executive Summary**: High-level findings and recommendations
+- **Detailed Findings**: In-depth analysis with supporting data
+- **Visualization Suggestions**: Recommended charts and dashboards
+
+### Multi-Language Analysis Language Support
+
+Analysis results are available in **12+ languages** with culturally appropriate explanations as same as Query explanations:
+
+### Analysis Output Example
+
 ```
-https://portal.azure.com/#@{tenantId}/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F{subscriptionId}%2FresourceGroups%2F{resourceGroup}%2Fproviders%2FMicrosoft.Insights%2Fcomponents%2F{resourceName}/source/LogsBlade.AnalyticsShareLinkToQuery/q/{encodedQuery}
+🧠 Analysis Results - Pattern Detection
+========================================
+
+📊 Key Findings:
+• Exception rate increased 340% compared to previous hour
+• Top error type: "NullReferenceException" (61% of total)
+• Peak error time: 14:23 UTC (12 exceptions in 1 minute)
+• Affected endpoints: /api/users (73%), /api/orders (27%)
+
+🔍 Detected Patterns:
+• Strong correlation between user authentication and exceptions
+• Error clustering suggests systematic issue, not random failures
+• Weekend error pattern differs significantly from weekday baseline
+
+💡 Recommendations:
+1. Investigate null handling in user authentication flow
+2. Review recent deployments around 14:20 UTC
+3. Implement additional error monitoring on /api/users endpoint
+4. Consider adding circuit breaker patterns for resilience
+
+🔄 Suggested Follow-up Queries:
+• "Show me user authentication errors in the last 2 hours"
+• "Compare error rates between this week and last week"
+• "What users were affected by these exceptions?"
 ```
 
-The `{encodedQuery}` is the KQL query compressed with gzip and encoded as base64, then URL-encoded for safe transmission.
+### Interactive Analysis Session
+
+```bash
+❓ What would you like to know about your application?
+> Show me slow requests from today
+
+✅ Query executed successfully
+📊 Found 156 slow requests (>2s duration) today
+
+🧠 Would you like to analyze these results for patterns and insights? (y/N) y
+
+📋 What type of analysis would you like to perform?
+  📈 Statistical Summary - Basic statistics and data distributions
+  🔍 Pattern Detection - Identify trends and correlations
+  🚨 Anomaly Detection - Find outliers and unusual data points
+  💡 Smart Insights - AI-powered recommendations and insights
+▶ 📋 Full Analysis Report - Comprehensive analysis of all aspects
+
+🌐 Select analysis language:
+▶ 🌐 Auto - Detect best language
+  🇺🇸 English
+  🇯🇵 Japanese (日本語)
+
+🤖 Analyzing query results... This may take a moment.
+
+[Detailed analysis output displayed]
+
+❓ What would you like to explore next?
+```
+
+This comprehensive Interactive Mode and Analysis system provides both novice and expert users with powerful tools for exploring Application Insights data, understanding patterns, and making data-driven decisions about application performance and reliability.
 
 ## 💡 Example Queries
 
 ```bash
-# Performance Analysis
+# Performance Analysis with Portal Integration
 aidx "What are the slowest API endpoints?"
 aidx "Show me response times over the last hour"
+aidx "Which requests have the highest duration today?"
 
-# Error Investigation
+# Error Investigation and Analysis
 aidx "List all exceptions from today"
 aidx "Which pages have the most errors?"
+aidx "Show me 4xx and 5xx errors from the last 24 hours"
 
-# User Analytics
+# User Analytics and Behavior
 aidx "How many unique users today?"
 aidx "What browsers are users using?"
+aidx "Show me user sessions by geographic location"
 
-# Custom Metrics
+# Custom Metrics and Events
 aidx "Show me custom events by type"
 aidx "What's the trend for failed logins?"
+aidx "Display custom metrics over time"
 
-# Azure Portal Integration Examples  
-aidx "show me errors from last hour"              # Interactive menu includes Portal option
-aidx --direct "performance issues in APIs"        # Direct execution, then Portal via menu
-aidx --raw "requests | where resultCode >= 400"   # Raw KQL with Portal option available
+# Interactive Mode Examples with Analysis
+aidx -i  # Start interactive session with guided query building
+aidx --interactive  # Full interactive mode with step-by-step assistance and Portal integration
 
-# Smart Column Display (Default - Empty columns hidden)
-aidx "Show me request data"  # Hides columns with all null/empty values
+# Query Learning Examples (with Explain Query feature)
+aidx -i  # Choose "Explain Query" option to understand generated KQL
+# Perfect for learning KQL patterns and best practices
+# Available in 12+ languages for educational context
 
-# Show All Columns Including Empty Ones
-aidx "Show me request data" --show-empty-columns  # Shows all columns
+# Raw KQL with Full Integration
+aidx --raw "requests | where resultCode >= 400"           # Raw KQL with Portal integration available
 
-# Output to JSON file with pretty printing
-aidx "Show me errors from last hour" --output errors.json --format json --pretty
+# Analysis-focused Examples
+aidx "Show me slow requests from today"    # Query + Analysis prompt available
+aidx "Exception patterns last 24 hours"    # Ideal for pattern detection analysis
+aidx "User activity by region"             # Great for statistical summary
+aidx "API performance trends"              # Perfect for anomaly detection
 
-# Export to CSV for spreadsheet analysis
+# Output Format Examples
+aidx "Show me request data" --output results.json --format json --pretty
 aidx "Show request counts by operation" --output requests.csv --format csv
-
-# Save to TSV without headers for data processing
 aidx "Performance metrics" --output metrics.tsv --format tsv --no-headers
-
-# Custom encoding for international data
 aidx "User data" --output users.csv --format csv --encoding utf16le
 
-# Console output with visualization (default behavior)
-aidx "Show top 10 requests"  # displays table + ASCII chart for numeric data
+# Smart Column Management Examples
+aidx "Show me request data"                               # Default: hides empty columns
+aidx "Show me request data" --show-empty-columns         # Shows all columns including empty ones
 
-# Interactive Mode Examples
-aidx -i  # Start interactive session with guided queries
-aidx --interactive  # Full interactive mode with step-by-step assistance
+# Console Visualization Examples
+aidx "Show top 10 requests"                              # Auto-detects time series, displays chart
+aidx "Request counts by hour"                            # Displays bar chart for categorical data
 ```
 
 ## 🏗️ Development
@@ -405,36 +654,6 @@ npm run test:coverage # Run tests with coverage
 npm run clean        # Clean build directory
 ```
 
-### Project Structure
-
-```
-AppInsightsDetective/
-├── src/
-│   ├── cli/                # CLI command definitions
-│   │   ├── commands/       # Individual commands (setup, query, status)
-│   │   └── index.ts        # CLI entry point
-│   ├── services/           # Business logic
-│   │   ├── authService.ts          # Azure authentication
-│   │   ├── appInsightsService.ts   # Application Insights API
-│   │   ├── aiService.ts            # OpenAI integration
-│   │   ├── stepExecutionService.ts # Interactive query execution
-│   │   ├── interactiveService.ts   # Interactive CLI service
-│   │   ├── externalExecutionService.ts # Azure Portal integration
-│   │   └── resourceGraphService.ts # Azure Resource Graph API
-│   ├── utils/              # Utilities
-│   │   ├── config.ts       # Configuration management
-│   │   ├── logger.ts       # Logging
-│   │   └── visualizer.ts   # Console visualization
-│   └── types/              # TypeScript definitions
-├── tests/                  # Unit and integration tests
-│   ├── services/           # Service tests
-│   ├── utils/              # Utility tests
-│   └── integration/        # Integration tests
-├── .github/workflows/      # GitHub Actions CI/CD
-├── config/                 # Configuration files
-└── templates/              # Query templates
-```
-
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -455,17 +674,20 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ### Common Issues
 
-**Authentication Failed**
+#### Authentication Failed
+
 - Ensure you're logged into Azure CLI: `az login`
 - Check your Azure permissions
 - Verify Managed Identity configuration
 
-**OpenAI Connection Failed**
+#### OpenAI Connection Failed
+
 - Confirm your OpenAI endpoint URL
 - Check deployment name matches your Azure OpenAI resource
 - Verify network connectivity
 
-**Application Insights Access Denied**
+#### Application Insights Access Denied
+
 - Ensure correct Application Insights ID
 - Check Reader permissions on the resource
 - Verify tenant ID is correct
@@ -482,10 +704,11 @@ aidx status
 ## 📞 Support
 
 For issues and questions:
-- Check the [troubleshooting guide](#troubleshooting)
+
+- Check the troubleshooting guide above
 - Review [Azure documentation](https://docs.microsoft.com/azure/azure-monitor/app/app-insights-overview)
 - Create an issue in this repository
 
 ---
 
-**Built with ❤️ for Azure developers**
+### Built with ❤️ for Azure developers
