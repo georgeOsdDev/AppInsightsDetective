@@ -51,9 +51,7 @@ export class ConfigManager {
         endpoint: process.env.AZURE_APPLICATION_INSIGHTS_ENDPOINT,
         subscriptionId: process.env.AZURE_SUBSCRIPTION_ID,
         resourceGroup: process.env.AZURE_RESOURCE_GROUP,
-        resourceName: process.env.AZURE_RESOURCE_NAME,
-        clusterId: process.env.AZURE_DATA_EXPLORER_CLUSTER_ID,
-        databaseName: process.env.AZURE_DATA_EXPLORER_DATABASE_NAME || 'ApplicationInsights',
+        resourceName: process.env.AZURE_RESOURCE_NAME
       },
       openAI: {
         endpoint: process.env.AZURE_OPENAI_ENDPOINT || '',
@@ -149,9 +147,7 @@ export class ConfigManager {
         subscriptionId: resourceInfo.subscriptionId,
         resourceGroup: resourceInfo.resourceGroup,
         resourceName: resourceInfo.resourceName,
-        tenantId: resourceInfo.tenantId || this.config.appInsights.tenantId,
-        clusterId: resourceInfo.clusterId,
-        databaseName: resourceInfo.databaseName || this.config.appInsights.databaseName,
+        tenantId: resourceInfo.tenantId || this.config.appInsights.tenantId
       };
 
       // Save the enhanced configuration
@@ -159,10 +155,6 @@ export class ConfigManager {
 
       logger.info('Configuration auto-enhanced with resource information');
       logger.info(`Resource: ${resourceInfo.resourceName} in ${resourceInfo.resourceGroup} (${resourceInfo.subscriptionId})`);
-      
-      if (resourceInfo.clusterId) {
-        logger.info(`Data Explorer cluster: ${resourceInfo.clusterId}`);
-      }
 
       return true;
 

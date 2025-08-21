@@ -25,9 +25,7 @@ async function getEnhancedAzureResourceInfo(): Promise<AzureResourceInfo | null>
       tenantId: appInsights.tenantId,
       subscriptionId: appInsights.subscriptionId,
       resourceGroup: appInsights.resourceGroup,
-      resourceName: appInsights.resourceName,
-      clusterId: appInsights.clusterId,
-      databaseName: appInsights.databaseName
+      resourceName: appInsights.resourceName
     };
   } catch (error) {
     logger.error('Failed to get enhanced Azure resource information:', error);
@@ -60,8 +58,6 @@ export function createStatusCommand(): Command {
         console.log(`  Subscription ID: ${config.appInsights.subscriptionId ? '✅ Set' : '❌ Not set'}`);
         console.log(`  Resource Group: ${config.appInsights.resourceGroup ? '✅ Set' : '❌ Not set'}`);
         console.log(`  Resource Name: ${config.appInsights.resourceName ? '✅ Set' : '❌ Not set'}`);
-        console.log(`  Data Explorer Cluster ID: ${config.appInsights.clusterId ? '✅ Set' : '❌ Not set'}`);
-        console.log(`  Data Explorer Database: ${config.appInsights.databaseName || 'ApplicationInsights'}`);
         
         if (config.appInsights.applicationId && 
             (!config.appInsights.subscriptionId || !config.appInsights.resourceGroup || !config.appInsights.resourceName)) {
@@ -79,7 +75,6 @@ export function createStatusCommand(): Command {
           const validation = externalExecutionService.validateConfiguration();
           
           console.log(`  Azure Portal Integration: ${validation.isValid ? '✅ Available' : '❌ Not available'}`);
-          console.log(`  Data Explorer Integration: ${externalExecutionService.isDataExplorerAvailable() ? '✅ Available' : '❌ Not available'}`);
           
           if (validation.isValid) {
             const availableOptions = externalExecutionService.getAvailableOptions();

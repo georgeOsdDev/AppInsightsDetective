@@ -92,44 +92,6 @@ describe('ResourceGraphService', () => {
     });
   });
 
-  describe('findDataExplorerCluster', () => {
-    test('should find Data Explorer cluster in same resource group', async () => {
-      mockClient.resources.mockResolvedValue({
-        data: [{ name: 'test-cluster', properties: {} }]
-      });
-
-      const result = await service.findDataExplorerCluster('test-sub', 'test-rg');
-
-      expect(result).toEqual({
-        clusterId: 'test-cluster',
-        databaseName: 'ApplicationInsights'
-      });
-
-      expect(mockClient.resources).toHaveBeenCalledWith({
-        query: expect.stringContaining("where subscriptionId == 'test-sub'"),
-        subscriptions: ['test-sub']
-      });
-    });
-
-    test('should return empty object when no cluster found', async () => {
-      mockClient.resources.mockResolvedValue({
-        data: []
-      });
-
-      const result = await service.findDataExplorerCluster('test-sub', 'test-rg');
-
-      expect(result).toEqual({});
-    });
-
-    test('should handle API errors gracefully', async () => {
-      mockClient.resources.mockRejectedValue(new Error('API Error'));
-
-      const result = await service.findDataExplorerCluster('test-sub', 'test-rg');
-
-      expect(result).toEqual({});
-    });
-  });
-
   describe('getResourceInfo', () => {
     test('should get complete resource information', async () => {
       // Mock the first call (find App Insights)
@@ -165,15 +127,10 @@ describe('ResourceGraphService', () => {
     });
 
     test('should work without Data Explorer cluster', async () => {
-      // Mock the first call (find App Insights)
-      mockClient.resources
-        .mockResolvedValueOnce({
-          data: [mockApplicationInsightsResource]
-        })
-        // Mock the second call (no Data Explorer found)
-        .mockResolvedValueOnce({
-          data: []
-        });
+      // Mock the Application Insights resource lookup
+      mockClient.resources.mockResolvedValue({
+        data: [mockApplicationInsightsResource]
+      });
 
       const result = await service.getResourceInfo('test-app-id');
 

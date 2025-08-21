@@ -78,49 +78,6 @@ export class ResourceGraphService {
   }
 
   /**
-   * Find Data Explorer cluster that might be associated with the Application Insights resource
-   * This is a best-effort attempt to find a Data Explorer cluster in the same resource group
-   */
-  async findDataExplorerCluster(subscriptionId: string, resourceGroup: string): Promise<{
-    clusterId?: string;
-    databaseName?: string;
-  }> {
-    try {
-      const query = `Resources 
-        | where type == 'microsoft.kusto/clusters' 
-        | where subscriptionId == '${subscriptionId}' 
-        | where resourceGroup == '${resourceGroup}'
-        | project name, properties`;
-
-      logger.debug(`Searching for Data Explorer cluster in ${resourceGroup} (${subscriptionId})`);
-      
-      const response = await this.client.resources({
-        query,
-        subscriptions: [subscriptionId],
-      });
-
-      if (!response.data || response.data.length === 0) {
-        logger.debug(`No Data Explorer cluster found in resource group: ${resourceGroup}`);
-        return {};
-      }
-
-      const cluster = response.data[0] as any;
-      const clusterId = cluster.name;
-      const databaseName = 'ApplicationInsights'; // Default database name
-
-      logger.info(`Found Data Explorer cluster: ${clusterId} in ${resourceGroup}`);
-      return {
-        clusterId,
-        databaseName,
-      };
-
-    } catch (error) {
-      logger.warn(`Failed to find Data Explorer cluster in ${resourceGroup}:`, error);
-      return {}; // Return empty object instead of throwing, as this is optional
-    }
-  }
-
-  /**
    * Get complete resource information for an Application ID
    */
   async getResourceInfo(applicationId: string): Promise<{
@@ -128,8 +85,6 @@ export class ResourceGraphService {
     resourceGroup: string;
     resourceName: string;
     tenantId: string;
-    clusterId?: string;
-    databaseName?: string;
   } | null> {
     try {
       // Find the Application Insights resource
@@ -139,18 +94,11 @@ export class ResourceGraphService {
         return null;
       }
 
-      // Try to find associated Data Explorer cluster
-      const dataExplorerInfo = await this.findDataExplorerCluster(
-        appInsightsResource.subscriptionId,
-        appInsightsResource.resourceGroup
-      );
-
       return {
         subscriptionId: appInsightsResource.subscriptionId,
         resourceGroup: appInsightsResource.resourceGroup,
         resourceName: appInsightsResource.name,
         tenantId: appInsightsResource.tenantId || '', // May need to be obtained from auth context if not available
-        ...dataExplorerInfo,
       };
 
     } catch (error) {

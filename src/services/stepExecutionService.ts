@@ -19,7 +19,7 @@ export interface StepExecutionOptions {
 }
 
 export interface QueryAction {
-  action: 'execute' | 'explain' | 'regenerate' | 'edit' | 'history' | 'external' | 'cancel';
+  action: 'execute' | 'explain' | 'regenerate' | 'edit' | 'history' | 'external' | 'portal' | 'cancel';
   modifiedQuery?: string;
   originalQuestion?: string;
 }
@@ -71,9 +71,7 @@ export class StepExecutionService {
           tenantId: appInsights.tenantId,
           subscriptionId: appInsights.subscriptionId,
           resourceGroup: appInsights.resourceGroup,
-          resourceName: appInsights.resourceName,
-          clusterId: appInsights.clusterId,
-          databaseName: appInsights.databaseName
+          resourceName: appInsights.resourceName
         };
 
         this.externalExecutionService = new ExternalExecutionService(azureResourceInfo);
@@ -115,6 +113,10 @@ export class StepExecutionService {
 
         case 'explain':
           await this.explainQuery(nlQuery);
+          continue;
+
+        case 'portal':
+          await this.handlePortalExecution(nlQuery);
           continue;
 
         case 'external':
@@ -216,14 +218,14 @@ export class StepExecutionService {
       }
     ];
 
-    // Add external execution option if service is available
+    // Add Azure Portal option if service is available
     if (this.externalExecutionService) {
       const validation = this.externalExecutionService.validateConfiguration();
       if (validation.isValid) {
         choices.push({
-          name: '🌐 Open in External Tools - Execute query in Azure Portal or Data Explorer',
-          value: 'external',
-          short: 'External'
+          name: '🌐 Open in Azure Portal - Execute query in Azure Portal with full visualization capabilities',
+          value: 'portal',
+          short: 'Portal'
         });
       }
     }
@@ -727,6 +729,54 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
     } catch (error) {
       logger.error('External execution failed:', error);
       Visualizer.displayError(`External execution failed: ${error}`);
+    }
+  }
+
+  /**
+   * Handle direct portal execution workflow
+   */
+  private async handlePortalExecution(nlQuery: NLQuery): Promise<void> {
+    if (!this.externalExecutionService) {
+      Visualizer.displayError('Azure Portal execution is not available. Please configure Azure resource information.');
+      return;
+    }
+
+    const validation = this.externalExecutionService.validateConfiguration();
+    if (!validation.isValid) {
+      Visualizer.displayError(`Azure Portal execution configuration is incomplete. Missing: ${validation.missingFields.join(', ')}`);
+      return;
+    }
+
+    try {
+      console.log(chalk.blue.bold('\n🌐 Opening Query in Azure Portal'));
+      console.log(chalk.dim('='.repeat(50)));
+
+      // Execute directly in Azure Portal
+      const result = await this.externalExecutionService.executeExternal('portal', nlQuery.generatedKQL, true);
+
+      if (result.launched) {
+        console.log(chalk.green('\n✅ Successfully opened query in Azure Portal'));
+        console.log(chalk.dim('The query has been opened in your default browser.'));
+        console.log(chalk.dim('You can now explore the results using the full capabilities of Azure Portal.'));
+      } else {
+        Visualizer.displayError(`Failed to open Azure Portal: ${result.error}`);
+        console.log(chalk.cyan('\n💡 You can manually copy and paste the URL above to access the query.'));
+      }
+
+      // Add a pause before continuing
+      const inquirer = await import('inquirer');
+      await inquirer.default.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+          default: ''
+        }
+      ]);
+
+    } catch (error) {
+      logger.error('Portal execution failed:', error);
+      Visualizer.displayError(`Portal execution failed: ${error}`);
     }
   }
 }

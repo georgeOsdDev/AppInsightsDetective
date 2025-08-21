@@ -37,9 +37,7 @@ async function getEnhancedAzureResourceInfo(): Promise<AzureResourceInfo | null>
       tenantId: appInsights.tenantId,
       subscriptionId: appInsights.subscriptionId,
       resourceGroup: appInsights.resourceGroup,
-      resourceName: appInsights.resourceName,
-      clusterId: appInsights.clusterId,
-      databaseName: appInsights.databaseName
+      resourceName: appInsights.resourceName
     };
   } catch (error) {
     logger.error('Failed to get enhanced Azure resource information:', error);
@@ -211,8 +209,6 @@ program
   .option('-r, --raw', 'Execute raw KQL query')
   .option('--direct', 'Execute query directly without confirmation')
   .option('--external', 'Show external execution options interactively')
-  .option('--open-portal', 'Open generated query directly in Azure Portal')
-  .option('--open-dataexplorer', 'Open generated query directly in Azure Data Explorer')
   .option('-f, --format <format>', 'Output format (table, json, csv, tsv, raw)', 'table')
   .option('-o, --output <file>', 'Output file path')
   .option('--pretty', 'Pretty print JSON output')
@@ -331,11 +327,7 @@ async function handleDirectExternalExecutionMain(
       const isTargetAvailable = availableOptions.some(option => option.target === target);
 
       if (!isTargetAvailable) {
-        if (target === 'dataexplorer') {
-          Visualizer.displayError('Azure Data Explorer execution is not available. Please configure cluster information.');
-        } else {
-          Visualizer.displayError(`External execution target '${target}' is not available.`);
-        }
+        Visualizer.displayError(`External execution target '${target}' is not available.`);
         return;
       }
 
@@ -343,7 +335,7 @@ async function handleDirectExternalExecutionMain(
       const result = await externalExecutionService.executeExternal(target, kqlQuery, true);
 
       if (result.launched) {
-        const targetName = target === 'portal' ? 'Azure Portal' : 'Azure Data Explorer';
+        const targetName = 'Azure Portal';
         console.log(chalk.green(`\n✅ Successfully opened query in ${targetName}`));
         console.log(chalk.dim('The query has been opened in your default browser.'));
       } else {
@@ -392,10 +384,10 @@ async function handleDirectExternalExecutionMain(
       }
 
       // Execute in selected external tool
-      const result = await externalExecutionService.executeExternal(selectedTarget as any, kqlQuery, true);
+      const result = await externalExecutionService.executeExternal(selectedTarget as ExternalExecutionTarget, kqlQuery, true);
 
       if (result.launched) {
-        const targetName = selectedTarget === 'portal' ? 'Azure Portal' : 'Azure Data Explorer';
+        const targetName = 'Azure Portal';
         console.log(chalk.green(`\n✅ Successfully opened query in ${targetName}`));
         console.log(chalk.dim('The query has been opened in your default browser.'));
       } else {
@@ -425,9 +417,9 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
     const aiService = new AIService(authService, configManager);
 
     // Handle external execution options
-    if (options.openPortal || options.openDataexplorer || options.external) {
+    if (options.external) {
       await handleDirectExternalExecutionMain(
-        options.openPortal ? 'portal' : options.openDataexplorer ? 'dataexplorer' : undefined,
+        undefined, // No specific target, show interactive selection
         question,
         options,
         authService,
@@ -526,8 +518,7 @@ function showWelcomeMessage(): void {
   console.log('');
   console.log('External execution:');
   console.log(chalk.cyan('  aidx --external "show me errors"') + chalk.dim('        # Interactive external tool selection'));
-  console.log(chalk.cyan('  aidx --open-portal "show me errors"') + chalk.dim('     # Open directly in Azure Portal'));
-  console.log(chalk.cyan('  aidx --open-dataexplorer "errors"') + chalk.dim('      # Open in Azure Data Explorer'));
+  console.log(chalk.dim('    Note: Azure Portal option is also available in interactive step-by-step mode'));
   console.log('');
   console.log('Output formats:');
   console.log(chalk.cyan('  aidx "errors" --format json') + chalk.dim('                          # Display JSON to console'));

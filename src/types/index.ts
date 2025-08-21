@@ -6,9 +6,6 @@ export interface AppInsightsConfig {
   subscriptionId?: string;
   resourceGroup?: string;
   resourceName?: string;
-  // Optional: Kusto cluster details for Data Explorer integration
-  clusterId?: string;
-  databaseName?: string;
 }
 
 export interface OpenAIConfig {
@@ -210,7 +207,7 @@ export interface AnalysisOptions {
 }
 
 // External execution types
-export type ExternalExecutionTarget = 'portal' | 'dataexplorer';
+export type ExternalExecutionTarget = 'portal';
 
 export interface ExternalExecutionOption {
   target: ExternalExecutionTarget;
@@ -223,8 +220,6 @@ export interface AzureResourceInfo {
   resourceGroup: string;
   resourceName: string;
   tenantId: string;
-  clusterId?: string;
-  databaseName?: string;
 }
 
 export interface ExternalExecutionResult {

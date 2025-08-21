@@ -32,9 +32,7 @@ async function getEnhancedAzureResourceInfo(): Promise<AzureResourceInfo | null>
       tenantId: appInsights.tenantId,
       subscriptionId: appInsights.subscriptionId,
       resourceGroup: appInsights.resourceGroup,
-      resourceName: appInsights.resourceName,
-      clusterId: appInsights.clusterId,
-      databaseName: appInsights.databaseName
+      resourceName: appInsights.resourceName
     };
   } catch (error) {
     logger.error('Failed to get enhanced Azure resource information:', error);
@@ -204,11 +202,7 @@ async function handleDirectExternalExecution(
     const isTargetAvailable = availableOptions.some(option => option.target === target);
 
     if (!isTargetAvailable) {
-      if (target === 'dataexplorer') {
-        Visualizer.displayError('Azure Data Explorer execution is not available. Please configure cluster information.');
-      } else {
-        Visualizer.displayError(`External execution target '${target}' is not available.`);
-      }
+      Visualizer.displayError(`External execution target '${target}' is not available.`);
       return;
     }
 
@@ -363,8 +357,6 @@ export function createQueryCommand(): Command {
     .option('--direct', 'Execute query directly without confirmation (bypass step mode)')
     .option('--no-cache', 'Disable query caching')
     .option('--external', 'Show external execution options interactively')
-    .option('--open-portal', 'Open generated query directly in Azure Portal')
-    .option('--open-dataexplorer', 'Open generated query directly in Azure Data Explorer')
     .option('-f, --format <format>', 'Output format (table, json, csv, tsv, raw)', 'table')
     .option('-o, --output <file>', 'Output file path')
     .option('--pretty', 'Pretty print JSON output')
@@ -397,17 +389,6 @@ export function createQueryCommand(): Command {
             },
           ]);
           queryText = response.question;
-        }
-
-        // Handle direct external execution options
-        if (options.openPortal) {
-          await handleDirectExternalExecution('portal', queryText, options);
-          return;
-        }
-
-        if (options.openDataexplorer) {
-          await handleDirectExternalExecution('dataexplorer', queryText, options);
-          return;
         }
 
         if (options.external) {

@@ -68,8 +68,6 @@ export function createSetupCommand(): Command {
         let subscriptionId = '';
         let resourceGroup = '';
         let resourceName = '';
-        let clusterId = '';
-        let databaseName = '';
 
         if (externalAnswers.configureExternal) {
           const resourceAnswers = await inquirer.prompt([
@@ -96,38 +94,12 @@ export function createSetupCommand(): Command {
               name: 'resourceName',
               message: 'Enter your Application Insights Resource name:',
               validate: (input: string) => input.length > 0 || 'Resource name is required for external execution',
-            },
-            {
-              type: 'confirm',
-              name: 'configureDataExplorer',
-              message: 'Would you like to configure Azure Data Explorer integration? (Optional)',
-              default: false,
-            },
+            }
           ]);
 
           subscriptionId = resourceAnswers.subscriptionId;
           resourceGroup = resourceAnswers.resourceGroup;
           resourceName = resourceAnswers.resourceName;
-
-          if (resourceAnswers.configureDataExplorer) {
-            const dataExplorerAnswers = await inquirer.prompt([
-              {
-                type: 'input',
-                name: 'clusterId',
-                message: 'Enter your Azure Data Explorer Cluster ID:',
-                validate: (input: string) => input.length > 0 || 'Cluster ID is required for Data Explorer integration',
-              },
-              {
-                type: 'input',
-                name: 'databaseName',
-                message: 'Enter your Database name:',
-                default: 'ApplicationInsights',
-              },
-            ]);
-
-            clusterId = dataExplorerAnswers.clusterId;
-            databaseName = dataExplorerAnswers.databaseName;
-          }
         }
 
         const configManager = new ConfigManager();
@@ -138,8 +110,6 @@ export function createSetupCommand(): Command {
             subscriptionId: subscriptionId || undefined,
             resourceGroup: resourceGroup || undefined,
             resourceName: resourceName || undefined,
-            clusterId: clusterId || undefined,
-            databaseName: databaseName || undefined,
           },
           openAI: {
             endpoint: answers.openaiEndpoint,
@@ -155,10 +125,7 @@ export function createSetupCommand(): Command {
           console.log(chalk.green('\n✅ External execution configured successfully!'));
           console.log(chalk.dim('You can now use these commands:'));
           console.log(chalk.cyan('  aidx --external "query"') + chalk.dim('              # Interactive external tool selection'));
-          console.log(chalk.cyan('  aidx --open-portal "query"') + chalk.dim('         # Open directly in Azure Portal'));
-          if (clusterId && databaseName) {
-            console.log(chalk.cyan('  aidx --open-dataexplorer "query"') + chalk.dim('    # Open in Azure Data Explorer'));
-          }
+          console.log(chalk.dim('  Azure Portal option is also available in interactive step-by-step mode'));
         }
 
       } catch (error) {
