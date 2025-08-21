@@ -2,12 +2,7 @@
   "appInsights": {
     "applicationId": "",
     "tenantId": "",
-    "endpoint": "https://api.applicationinsights.io/v1/apps",
-    "subscriptionId": "",
-    "resourceGroup": "",
-    "resourceName": "",
-    "clusterId": "",
-    "databaseName": "ApplicationInsights"
+    "endpoint": "https://api.applicationinsights.io/v1/apps"
   },
   "openAI": {
     "endpoint": "",
