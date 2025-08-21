@@ -14,6 +14,7 @@ AppInsights Detective is an intelligent CLI tool that allows you to query your A
 
 - 🗣️ **Natural Language Queries**: Ask questions in plain English/Japanese
 - 🤖 **AI-Powered KQL Generation**: Automatic conversion to KQL using Azure OpenAI
+- 🌐 **External Query Execution**: Open queries directly in Azure Portal or Data Explorer
 - 📊 **Rich Visualization**: Console-based charts and formatted tables ⚠️ **(Chart features are experimental)**
 - 📁 **Multiple Output Formats**: JSON, CSV, TSV, Raw, and Table formats
 - 💾 **File Export**: Save results to files with configurable encoding
@@ -100,6 +101,16 @@ aidx query --raw "requests | take 10"
 | `aidx -i` or `aidx --interactive` | Interactive query mode |
 | `aidx query --raw [kql]` | Execute raw KQL query |
 
+### External Execution Commands
+
+AppInsights Detective can open generated queries directly in Azure Portal and Data Explorer:
+
+| Command | Description |
+|---------|-------------|
+| `aidx --external [question]` | Interactive external tool selection |
+| `aidx --open-portal [question]` | Open query directly in Azure Portal |
+| `aidx --open-dataexplorer [question]` | Open query in Azure Data Explorer |
+
 ### Query Command Options
 
 The `aidx query` command supports various options for customizing output and behavior:
@@ -115,6 +126,9 @@ The `aidx query` command supports various options for customizing output and beh
 | `--raw` | Execute raw KQL query instead of natural language | false |
 | `--direct` | Execute query directly without confirmation | false |
 | `--language <lang>` | Language for explanations (en, ja, ko, etc.) | en |
+| `--external` | Show external execution options interactively | false |
+| `--open-portal` | Open generated query directly in Azure Portal | false |
+| `--open-dataexplorer` | Open query in Azure Data Explorer | false |
 
 ## 📁 Output Formats & Display Options
 
@@ -261,6 +275,56 @@ AppInsights Detective uses Azure Managed Identity for secure authentication. Ens
 ### Chart Visualization
 The ASCII chart visualization feature is currently **experimental**. While it provides visual insights into your Application Insights data, CLI-based charts may not always be the most intuitive way to understand complex data patterns. Consider using additional visualization tools for detailed analysis.
 
+## 🌐 External Query Execution
+
+AppInsights Detective can open generated KQL queries directly in Azure Portal and Azure Data Explorer, allowing you to leverage advanced visualization capabilities and share queries with your team.
+
+### Prerequisites for External Execution
+
+To use external execution features, configure the following during setup:
+- Azure Subscription ID
+- Resource Group Name
+- Application Insights Resource Name
+- (Optional) Azure Data Explorer Cluster ID and Database Name
+
+### Usage Examples
+
+```bash
+# Interactive external execution - shows available options
+aidx --external "show me errors from last hour"
+
+# Open directly in Azure Portal Application Insights
+aidx --open-portal "performance issues in last 24 hours"
+
+# Open in Azure Data Explorer (if configured)
+aidx --open-dataexplorer "detailed request analysis"
+
+# Combined with other options
+aidx --open-portal --raw "requests | where resultCode >= 400 | count"
+```
+
+### Features
+- **URL Generation**: Creates pre-populated query URLs for external tools
+- **Browser Integration**: Automatic browser launching with authentication context
+- **URL Display**: Shows generated URLs for manual copying/sharing
+- **Configuration Validation**: Checks Azure resource information before execution
+- **Cross-Platform**: Works on Windows, macOS, and Linux
+
+### Interactive Flow Enhancement
+
+When using step-by-step query review mode, you'll see a new option:
+
+```
+🔍 Generated KQL Query Review
+==========================================
+requests | where timestamp > ago(1h) | count
+
+✅ Execute Query - Run this KQL query against Application Insights
+📖 Explain Query - Get detailed explanation of what this query does
+🌐 Open in External Tools - Execute query in Azure Portal or Data Explorer
+🔄 Regenerate Query - Ask AI to create a different query approach
+```
+
 ## 💡 Example Queries
 
 ```bash
@@ -279,6 +343,12 @@ aidx "What browsers are users using?"
 # Custom Metrics
 aidx "Show me custom events by type"
 aidx "What's the trend for failed logins?"
+
+# External Execution Examples
+aidx --external "show me errors from last hour"              # Interactive selection
+aidx --open-portal "performance issues in APIs"              # Direct Azure Portal
+aidx --open-dataexplorer "detailed request analysis"         # Azure Data Explorer
+aidx --open-portal --raw "requests | where resultCode >= 400" # Portal with raw KQL
 
 # Smart Column Display (Default - Empty columns hidden)
 aidx "Show me request data"  # Hides columns with all null/empty values
