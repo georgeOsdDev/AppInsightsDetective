@@ -342,10 +342,8 @@ Example structure: | summarize count() by bin(timestamp, 1h) | render timechart`
     const technicalLevel = options.technicalLevel || 'intermediate';
     const includeExamples = options.includeExamples !== false;
 
-    logger.info(`Generating KQL explanation in language: ${language}`);
-
     return withLoadingIndicator(
-      'Generating KQL query explanation...',
+      `Generating KQL query explanation in language: ${language}...`,
       async () => {
         const systemPrompt = this.buildExplanationSystemPrompt(language, technicalLevel, includeExamples);
         const userPrompt = `Please explain this KQL query in detail:\n\n${kqlQuery}`;
