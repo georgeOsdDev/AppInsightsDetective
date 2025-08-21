@@ -48,17 +48,19 @@ export class StepExecutionService {
       ...options
     };
 
-    // Initialize external execution service if configuration is available
-    this.initializeExternalExecutionService();
+    // Initialize external execution service asynchronously
+    this.initializeExternalExecutionService().catch(error => {
+      logger.warn('Failed to initialize external execution service during construction:', error);
+    });
   }
 
   /**
    * Initialize external execution service with Azure resource configuration
    */
-  private initializeExternalExecutionService(): void {
+  private async initializeExternalExecutionService(): Promise<void> {
     try {
       const configManager = new ConfigManager();
-      const config = configManager.getConfig();
+      const config = await configManager.getEnhancedConfig(); // Use enhanced config
       const appInsights = config.appInsights;
 
       // Check if required Azure resource information is available
@@ -75,7 +77,7 @@ export class StepExecutionService {
         };
 
         this.externalExecutionService = new ExternalExecutionService(azureResourceInfo);
-        logger.debug('External execution service initialized');
+        logger.debug('External execution service initialized with auto-discovered resource information');
       } else {
         logger.debug('External execution service not initialized - missing Azure resource configuration');
       }

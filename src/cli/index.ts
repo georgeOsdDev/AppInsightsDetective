@@ -20,6 +20,34 @@ import { OutputFormat, AzureResourceInfo, ExternalExecutionTarget } from '../typ
 import { detectTimeSeriesData } from '../utils/chart';
 
 /**
+ * Get enhanced Azure resource information with auto-discovery
+ */
+async function getEnhancedAzureResourceInfo(): Promise<AzureResourceInfo | null> {
+  try {
+    const configManager = new ConfigManager();
+    const config = await configManager.getEnhancedConfig();
+    const appInsights = config.appInsights;
+
+    if (!appInsights.tenantId || !appInsights.subscriptionId || 
+        !appInsights.resourceGroup || !appInsights.resourceName) {
+      return null;
+    }
+
+    return {
+      tenantId: appInsights.tenantId,
+      subscriptionId: appInsights.subscriptionId,
+      resourceGroup: appInsights.resourceGroup,
+      resourceName: appInsights.resourceName,
+      clusterId: appInsights.clusterId,
+      databaseName: appInsights.databaseName
+    };
+  } catch (error) {
+    logger.error('Failed to get enhanced Azure resource information:', error);
+    return null;
+  }
+}
+
+/**
  * Handle output formatting and file writing
  */
 async function handleOutput(result: any, options: any, executionTime: number): Promise<void> {
@@ -280,24 +308,13 @@ async function handleDirectExternalExecutionMain(
       }
     }
 
-    // Set up external execution service
-    const config = configManager.getConfig();
-    const appInsights = config.appInsights;
-
-    if (!appInsights.tenantId || !appInsights.subscriptionId || 
-        !appInsights.resourceGroup || !appInsights.resourceName) {
-      Visualizer.displayError('External execution requires Azure resource configuration. Please run "aidx setup" first.');
+    // Set up external execution service with enhanced configuration
+    const azureResourceInfo = await getEnhancedAzureResourceInfo();
+    
+    if (!azureResourceInfo) {
+      Visualizer.displayError('External execution requires Azure resource configuration. Application ID must be configured and resource discoverable via Azure Resource Graph.');
       return;
     }
-
-    const azureResourceInfo: AzureResourceInfo = {
-      tenantId: appInsights.tenantId,
-      subscriptionId: appInsights.subscriptionId,
-      resourceGroup: appInsights.resourceGroup,
-      resourceName: appInsights.resourceName,
-      clusterId: appInsights.clusterId,
-      databaseName: appInsights.databaseName
-    };
 
     const externalExecutionService = new ExternalExecutionService(azureResourceInfo);
 

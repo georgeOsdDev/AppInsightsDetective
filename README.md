@@ -279,12 +279,19 @@ The ASCII chart visualization feature is currently **experimental**. While it pr
 
 AppInsights Detective can open generated KQL queries directly in Azure Portal and Azure Data Explorer, allowing you to leverage advanced visualization capabilities and share queries with your team.
 
+### Auto-Discovery of Azure Resources
+
+AppInsights Detective automatically discovers your Azure resource information using **Azure Resource Graph API**. Simply configure your Application ID during setup, and the system will:
+
+- ✅ Automatically find your Application Insights resource details
+- ✅ Discover associated Data Explorer clusters (if available)
+- ✅ Enable external execution without manual resource configuration
+
 ### Prerequisites for External Execution
 
-To use external execution features, configure the following during setup:
-- Azure Subscription ID
-- Resource Group Name
-- Application Insights Resource Name
+- Azure Application Insights Application ID (configured during setup)
+- Appropriate Azure Resource Graph permissions to query resources
+- Optional: Azure Data Explorer cluster (manually configurable if auto-discovery doesn't find one)
 - (Optional) Azure Data Explorer Cluster ID and Database Name
 
 ### Usage Examples

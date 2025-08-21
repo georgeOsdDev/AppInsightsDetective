@@ -50,6 +50,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@azure/arm-resourcegraph": "^4.2.1",
     "@azure/core-auth": "^1.10.0",
     "@azure/identity": "^4.11.1",
     "@azure/openai": "^2.0.0",

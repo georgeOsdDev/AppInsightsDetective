@@ -7,6 +7,34 @@ import { Visualizer } from '../../utils/visualizer';
 import { logger } from '../../utils/logger';
 import { AzureResourceInfo } from '../../types';
 
+/**
+ * Get enhanced Azure resource information with auto-discovery
+ */
+async function getEnhancedAzureResourceInfo(): Promise<AzureResourceInfo | null> {
+  try {
+    const configManager = new ConfigManager();
+    const config = await configManager.getEnhancedConfig();
+    const appInsights = config.appInsights;
+
+    if (!appInsights.tenantId || !appInsights.subscriptionId || 
+        !appInsights.resourceGroup || !appInsights.resourceName) {
+      return null;
+    }
+
+    return {
+      tenantId: appInsights.tenantId,
+      subscriptionId: appInsights.subscriptionId,
+      resourceGroup: appInsights.resourceGroup,
+      resourceName: appInsights.resourceName,
+      clusterId: appInsights.clusterId,
+      databaseName: appInsights.databaseName
+    };
+  } catch (error) {
+    logger.error('Failed to get enhanced Azure resource information:', error);
+    return null;
+  }
+}
+
 export function createStatusCommand(): Command {
   const statusCommand = new Command('status');
 
@@ -16,9 +44,9 @@ export function createStatusCommand(): Command {
       try {
         Visualizer.displayInfo('Checking AppInsights Detective status...');
 
-        // Check configuration
+        // Check configuration with auto-enhancement
         const configManager = new ConfigManager();
-        const config = configManager.getConfig();
+        const config = await configManager.getEnhancedConfig(); // Use enhanced config
 
         console.log('\n📋 Configuration Status:');
         console.log(`  Application Insights ID: ${config.appInsights.applicationId ? '✅ Set' : '❌ Not set'}`);
@@ -27,30 +55,26 @@ export function createStatusCommand(): Command {
         console.log(`  Deployment Name: ${config.openAI.deploymentName || 'gpt-4'}`);
         console.log(`  Log Level: ${config.logLevel}`);
         
-        // External execution configuration status
-        console.log('\n🌐 External Execution Configuration:');
+        // Enhanced external execution configuration status
+        console.log('\n🌐 External Execution Configuration (Auto-discovered):');
         console.log(`  Subscription ID: ${config.appInsights.subscriptionId ? '✅ Set' : '❌ Not set'}`);
         console.log(`  Resource Group: ${config.appInsights.resourceGroup ? '✅ Set' : '❌ Not set'}`);
         console.log(`  Resource Name: ${config.appInsights.resourceName ? '✅ Set' : '❌ Not set'}`);
         console.log(`  Data Explorer Cluster ID: ${config.appInsights.clusterId ? '✅ Set' : '❌ Not set'}`);
         console.log(`  Data Explorer Database: ${config.appInsights.databaseName || 'ApplicationInsights'}`);
+        
+        if (config.appInsights.applicationId && 
+            (!config.appInsights.subscriptionId || !config.appInsights.resourceGroup || !config.appInsights.resourceName)) {
+          console.log(`  🔍 Resource auto-discovery: Attempting to discover resource information from Application ID...`);
+        }
 
         const isConfigValid = configManager.validateConfig();
         console.log(`\n  Overall Basic Config: ${isConfigValid ? '✅ Valid' : '❌ Invalid'}`);
         
-        // Check external execution availability
-        if (config.appInsights.tenantId && config.appInsights.subscriptionId && 
-            config.appInsights.resourceGroup && config.appInsights.resourceName) {
-          
-          const azureResourceInfo: AzureResourceInfo = {
-            tenantId: config.appInsights.tenantId,
-            subscriptionId: config.appInsights.subscriptionId,
-            resourceGroup: config.appInsights.resourceGroup,
-            resourceName: config.appInsights.resourceName,
-            clusterId: config.appInsights.clusterId,
-            databaseName: config.appInsights.databaseName
-          };
-
+        // Check external execution availability with enhanced configuration
+        const azureResourceInfo = await getEnhancedAzureResourceInfo();
+        
+        if (azureResourceInfo) {
           const externalExecutionService = new ExternalExecutionService(azureResourceInfo);
           const validation = externalExecutionService.validateConfiguration();
           
@@ -62,7 +86,7 @@ export function createStatusCommand(): Command {
             console.log(`  External Execution Options: ${availableOptions.length} available`);
           }
         } else {
-          console.log(`  External Execution: ❌ Not configured (run "aidx setup" to configure)`);
+          console.log(`  External Execution: ❌ Not configured (Application ID not set or resource not discoverable)`);
         }
         console.log(`  Overall: ${isConfigValid ? '✅ Valid' : '❌ Invalid'}`);
 
