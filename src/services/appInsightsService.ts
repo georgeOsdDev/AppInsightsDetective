@@ -47,19 +47,18 @@ export class AppInsightsService {
   }
 
   public async executeQuery(kqlQuery: string): Promise<QueryResult> {
+    logger.info(`Executing KQL query:\n ${kqlQuery}`);
+    
     return withLoadingIndicator(
       'Executing query on Application Insights...',
       async () => {
         const config = this.configManager.getConfig();
         const url = `/${config.appInsights.applicationId}/query`;
 
-        logger.info(`Executing KQL query: ${kqlQuery}`);
-
         const response = await this.httpClient.post(url, {
           query: kqlQuery,
         });
 
-        logger.info('Query executed successfully');
         return response.data;
       },
       {
@@ -77,7 +76,6 @@ export class AppInsightsService {
         await this.httpClient.post(`/${this.configManager.getConfig().appInsights.applicationId}/query`, {
           query: 'requests | take 1',
         });
-        logger.info('Application Insights connection validated successfully');
         return true;
       },
       {
@@ -98,7 +96,6 @@ export class AppInsightsService {
         const url = `/${config.appInsights.applicationId}/metadata`;
 
         const response = await this.httpClient.get(url);
-        logger.info('Schema retrieved successfully');
         return response.data;
       },
       {
