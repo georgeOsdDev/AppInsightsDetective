@@ -1,4 +1,4 @@
-import { AIService } from './aiService';
+import { IAIProvider } from '../core/interfaces/IAIProvider';
 import { ConfigManager } from '../utils/config';
 import { 
   QueryResult, 
@@ -15,7 +15,7 @@ import { getLanguageInstructions, resolveEffectiveLanguage } from '../utils/lang
 
 export class AnalysisService {
   constructor(
-    private aiService: AIService,
+    private aiProvider: IAIProvider,
     private configManager: ConfigManager
   ) {}
 
@@ -201,7 +201,7 @@ export class AnalysisService {
   private async performPatternAnalysis(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<PatternAnalysis> {
     try {
       const prompt = this.buildPatternAnalysisPrompt(result, originalQuery);
-      const response = await this.aiService.generateResponse(prompt);
+      const response = await this.aiProvider.generateResponse(prompt);
       
       // Parse AI response into structured format
       return this.parsePatternAnalysisResponse(response);
@@ -261,7 +261,7 @@ export class AnalysisService {
   private async generateAIInsights(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<string> {
     try {
       const prompt = this.buildInsightsPrompt(result, originalQuery, language);
-      return await this.aiService.generateResponse(prompt);
+      return await this.aiProvider.generateResponse(prompt);
     } catch (error) {
       logger.warn('AI insights generation failed:', error);
       return 'AI insights temporarily unavailable. Please try again later.';

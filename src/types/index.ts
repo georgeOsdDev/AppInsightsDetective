@@ -71,7 +71,7 @@ export interface QueryHistory {
 // OpenAI response types for type safety
 export interface OpenAIChoice {
   message?: {
-    content?: string;
+    content?: string | null;
   };
   finish_reason?: string;
 }

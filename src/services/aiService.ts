@@ -2,11 +2,12 @@ import OpenAI from 'openai';
 import { DefaultAzureCredential } from '@azure/identity';
 import { AuthService } from './authService';
 import { ConfigManager } from '../utils/config';
+import { IAIProvider, QueryGenerationRequest, QueryExplanationRequest, RegenerationRequest } from '../core/interfaces/IAIProvider';
 import { NLQuery, RegenerationContext, SupportedLanguage, ExplanationOptions } from '../types';
 import { logger } from '../utils/logger';
 import { getLanguageInstructions } from '../utils/languageUtils';
 
-export class AIService {
+export class AIService implements IAIProvider {
   private openAIClient: OpenAI | null = null;
   private authService: AuthService;
   private configManager: ConfigManager;
@@ -552,5 +553,22 @@ Respond with only the new KQL query, no explanations.`;
       logger.error('AI response generation failed:', error);
       throw error;
     }
+  }
+
+  // IAIProvider interface implementation methods
+  async generateQuery(request: QueryGenerationRequest): Promise<NLQuery> {
+    return this.generateKQLQuery(request.userInput, request.schema);
+  }
+
+  async explainQuery(request: QueryExplanationRequest): Promise<string> {
+    return this.explainKQLQuery(request.query, request.options);
+  }
+
+  async regenerateQuery(request: RegenerationRequest): Promise<NLQuery> {
+    const result = await this.regenerateKQLQuery(request.userInput, request.context, request.schema);
+    if (!result) {
+      throw new Error('Failed to regenerate query');
+    }
+    return result;
   }
 }
