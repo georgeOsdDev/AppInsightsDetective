@@ -161,7 +161,12 @@ User Experience Patterns:
 
 Operational Patterns:
 - Availability monitoring: availabilityResults | summarize avg(success) by bin(timestamp, 15m), location
-- Resource usage: performanceCounters | where counter startswith "% Processor Time" | summarize avg(value) by bin(timestamp, 5m)`;
+- Resource usage: performanceCounters | where counter startswith "% Processor Time" | summarize avg(value) by bin(timestamp, 5m)
+
+Related Resources:
+- Azure Monitor Community: https://github.com/microsoft/AzureMonitorCommunity
+- KQL Best Practices: https://docs.microsoft.com/azure/data-explorer/kusto/query/best-practices
+- Application Insights Query Examples: https://docs.microsoft.com/azure/azure-monitor/logs/examples`;
 
     if (schema) {
       prompt += `\n\nAvailable schema information:\n${JSON.stringify(schema, null, 2)}`;
