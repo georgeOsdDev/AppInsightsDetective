@@ -5,6 +5,7 @@ import { ConfigManager } from '../utils/config';
 import { NLQuery, RegenerationContext, SupportedLanguage, ExplanationOptions } from '../types';
 import { logger } from '../utils/logger';
 import { getLanguageInstructions } from '../utils/languageUtils';
+import { withLoadingIndicator } from '../utils/loadingIndicator';
 
 export class AIService {
   private openAIClient: OpenAI | null = null;
@@ -71,44 +72,48 @@ export class AIService {
       throw new Error('OpenAI client not initialized');
     }
 
-    try {
-      const config = this.configManager.getConfig();
-      const systemPrompt = this.buildSystemPrompt(schema);
-      const userPrompt = this.buildUserPrompt(naturalLanguageQuery);
+    return withLoadingIndicator(
+      'Generating KQL query with AI...',
+      async () => {
+        const config = this.configManager.getConfig();
+        const systemPrompt = this.buildSystemPrompt(schema);
+        const userPrompt = this.buildUserPrompt(naturalLanguageQuery);
 
-      logger.info(`Generating KQL query for: "${naturalLanguageQuery}"`);
+        logger.info(`Generating KQL query for: "${naturalLanguageQuery}"`);
 
-      const response = await this.openAIClient.chat.completions.create({
-        model: config.openAI.deploymentName || 'gpt-4',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 1000,
-      });
+        const response = await this.openAIClient!.chat.completions.create({
+          model: config.openAI.deploymentName || 'gpt-4',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 1000,
+        });
 
-      const generatedContent = response.choices[0]?.message?.content;
-      if (!generatedContent) {
-        throw new Error('No response generated from OpenAI');
+        const generatedContent = response.choices[0]?.message?.content;
+        if (!generatedContent) {
+          throw new Error('No response generated from OpenAI');
+        }
+
+        const kqlQuery = this.extractKQLFromResponse(generatedContent);
+        const confidence = this.calculateConfidence(response.choices[0]);
+        const reasoning = this.extractReasoningFromResponse(generatedContent);
+
+        const result: NLQuery = {
+          generatedKQL: kqlQuery,
+          confidence,
+          reasoning,
+        };
+
+        logger.info(`KQL query generated successfully: ${kqlQuery}`);
+        return result;
+      },
+      {
+        successMessage: 'KQL query generated successfully',
+        errorMessage: 'Failed to generate KQL query'
       }
-
-      const kqlQuery = this.extractKQLFromResponse(generatedContent);
-      const confidence = this.calculateConfidence(response.choices[0]);
-      const reasoning = this.extractReasoningFromResponse(generatedContent);
-
-      const result: NLQuery = {
-        generatedKQL: kqlQuery,
-        confidence,
-        reasoning,
-      };
-
-      logger.info(`KQL query generated successfully: ${kqlQuery}`);
-      return result;
-    } catch (error) {
-      logger.error('Failed to generate KQL query:', error);
-      throw new Error(`KQL generation failed: ${error}`);
-    }
+    );
   }
 
   private buildSystemPrompt(schema?: any): string {
@@ -332,38 +337,42 @@ Example structure: | summarize count() by bin(timestamp, 1h) | render timechart`
       throw new Error('OpenAI client not initialized');
     }
 
-    try {
-      const config = this.configManager.getConfig();
-      const language = (options.language || config.language || 'auto') as SupportedLanguage;
-      const technicalLevel = options.technicalLevel || 'intermediate';
-      const includeExamples = options.includeExamples !== false;
+    return withLoadingIndicator(
+      'Generating KQL query explanation...',
+      async () => {
+        const config = this.configManager.getConfig();
+        const language = (options.language || config.language || 'auto') as SupportedLanguage;
+        const technicalLevel = options.technicalLevel || 'intermediate';
+        const includeExamples = options.includeExamples !== false;
 
-      const systemPrompt = this.buildExplanationSystemPrompt(language, technicalLevel, includeExamples);
-      const userPrompt = `Please explain this KQL query in detail:\n\n${kqlQuery}`;
+        const systemPrompt = this.buildExplanationSystemPrompt(language, technicalLevel, includeExamples);
+        const userPrompt = `Please explain this KQL query in detail:\n\n${kqlQuery}`;
 
-      logger.info(`Generating KQL explanation in language: ${language}`);
+        logger.info(`Generating KQL explanation in language: ${language}`);
 
-      const response = await this.openAIClient.chat.completions.create({
-        model: config.openAI.deploymentName || 'gpt-4',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 1500,
-      });
+        const response = await this.openAIClient!.chat.completions.create({
+          model: config.openAI.deploymentName || 'gpt-4',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 1500,
+        });
 
-      const explanation = response.choices[0]?.message?.content;
-      if (!explanation) {
-        throw new Error('No explanation generated from OpenAI');
+        const explanation = response.choices[0]?.message?.content;
+        if (!explanation) {
+          throw new Error('No explanation generated from OpenAI');
+        }
+
+        logger.info('KQL explanation generated successfully');
+        return explanation;
+      },
+      {
+        successMessage: 'Query explanation generated successfully',
+        errorMessage: 'Failed to generate query explanation'
       }
-
-      logger.info('KQL explanation generated successfully');
-      return explanation;
-    } catch (error) {
-      logger.error('Failed to generate KQL explanation:', error);
-      throw new Error(`KQL explanation failed: ${error}`);
-    }
+    );
   }
 
   /**
@@ -425,11 +434,13 @@ ${exampleInstructions}`;
       throw new Error('OpenAI client not initialized');
     }
 
-    try {
-      const config = this.configManager.getConfig();
-      const systemPrompt = this.buildSystemPrompt(schema);
+    return withLoadingIndicator(
+      `Regenerating KQL query (attempt ${context.attemptNumber})...`,
+      async () => {
+        const config = this.configManager.getConfig();
+        const systemPrompt = this.buildSystemPrompt(schema);
 
-      const userPrompt = `Convert this natural language query to KQL: "${originalQuestion}"
+        const userPrompt = `Convert this natural language query to KQL: "${originalQuestion}"
 
 Previous attempt (attempt ${context.attemptNumber}):
 ${context.previousQuery}
@@ -442,46 +453,48 @@ Please provide a DIFFERENT approach or query structure. Consider:
 
 Respond with only the new KQL query, no explanations.`;
 
-      logger.info(`Regenerating KQL query (attempt ${context.attemptNumber})`);
+        logger.info(`Regenerating KQL query (attempt ${context.attemptNumber})`);
 
-      const response = await this.openAIClient.chat.completions.create({
-        model: config.openAI.deploymentName || 'gpt-4',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.7, // 少し高い temperature で多様性を増やす
-        max_tokens: 1000,
-      });
+        const response = await this.openAIClient!.chat.completions.create({
+          model: config.openAI.deploymentName || 'gpt-4',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          temperature: 0.7, // 少し高い temperature で多様性を増やす
+          max_tokens: 1000,
+        });
 
-      const generatedContent = response.choices[0]?.message?.content;
-      if (!generatedContent) {
-        throw new Error('No response generated from OpenAI');
+        const generatedContent = response.choices[0]?.message?.content;
+        if (!generatedContent) {
+          throw new Error('No response generated from OpenAI');
+        }
+
+        const kqlQuery = this.extractKQLFromResponse(generatedContent);
+
+        // 前のクエリと同じでないかチェック
+        if (kqlQuery.trim() === context.previousQuery.trim()) {
+          logger.warn('Regenerated query is identical to previous query');
+          return null;
+        }
+
+        const confidence = this.calculateConfidence(response.choices[0]) * 0.8; // 再生成は少し信頼度を下げる
+        const reasoning = `Regenerated approach (attempt ${context.attemptNumber})`;
+
+        const result: NLQuery = {
+          generatedKQL: kqlQuery,
+          confidence,
+          reasoning,
+        };
+
+        logger.info(`KQL query regenerated successfully: ${kqlQuery}`);
+        return result;
+      },
+      {
+        successMessage: 'KQL query regenerated successfully',
+        errorMessage: 'Failed to regenerate KQL query'
       }
-
-      const kqlQuery = this.extractKQLFromResponse(generatedContent);
-
-      // 前のクエリと同じでないかチェック
-      if (kqlQuery.trim() === context.previousQuery.trim()) {
-        logger.warn('Regenerated query is identical to previous query');
-        return null;
-      }
-
-      const confidence = this.calculateConfidence(response.choices[0]) * 0.8; // 再生成は少し信頼度を下げる
-      const reasoning = `Regenerated approach (attempt ${context.attemptNumber})`;
-
-      const result: NLQuery = {
-        generatedKQL: kqlQuery,
-        confidence,
-        reasoning,
-      };
-
-      logger.info(`KQL query regenerated successfully: ${kqlQuery}`);
-      return result;
-    } catch (error) {
-      logger.error('Failed to regenerate KQL query:', error);
-      throw new Error(`KQL regeneration failed: ${error}`);
-    }
+    );
   }
 
   public async validateQuery(kqlQuery: string): Promise<{ isValid: boolean; error?: string }> {
@@ -522,35 +535,38 @@ Respond with only the new KQL query, no explanations.`;
       throw new Error('OpenAI client not initialized');
     }
 
-    try {
-      const config = this.configManager.getConfig();
-      
-      logger.info('Generating AI response for analysis');
+    return withLoadingIndicator(
+      'Generating AI analysis...',
+      async () => {
+        const config = this.configManager.getConfig();
+        
+        logger.info('Generating AI response for analysis');
 
-      const response = await this.openAIClient.chat.completions.create({
-        model: config.openAI.deploymentName || 'gpt-4',
-        messages: [
-          { 
-            role: 'system', 
-            content: 'You are an expert Application Insights data analyst. Provide concise, actionable insights based on the query results. Always focus on practical recommendations for application monitoring and performance optimization.' 
-          },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 1500,
-      });
+        const response = await this.openAIClient!.chat.completions.create({
+          model: config.openAI.deploymentName || 'gpt-4',
+          messages: [
+            { 
+              role: 'system', 
+              content: 'You are an expert Application Insights data analyst. Provide concise, actionable insights based on the query results. Always focus on practical recommendations for application monitoring and performance optimization.' 
+            },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.3,
+          max_tokens: 1500,
+        });
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error('No response generated from OpenAI');
+        const content = response.choices[0]?.message?.content;
+        if (!content) {
+          throw new Error('No response generated from OpenAI');
+        }
+
+        logger.info('AI response generated successfully');
+        return content;
+      },
+      {
+        successMessage: 'AI analysis generated successfully',
+        errorMessage: 'Failed to generate AI analysis'
       }
-
-      logger.info('AI response generated successfully');
-      return content;
-      
-    } catch (error) {
-      logger.error('AI response generation failed:', error);
-      throw error;
-    }
+    );
   }
 }

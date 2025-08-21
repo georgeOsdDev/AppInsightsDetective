@@ -1,6 +1,7 @@
 import { logger } from '../utils/logger';
 import { Visualizer } from '../utils/visualizer';
 import { gzipSync } from 'zlib';
+import { withLoadingIndicator } from '../utils/loadingIndicator';
 import {
   AzureResourceInfo,
   ExternalExecutionTarget,
@@ -67,32 +68,35 @@ export class ExternalExecutionService {
     kqlQuery: string,
     displayUrl: boolean = true
   ): Promise<ExternalExecutionResult> {
-    try {
-      const url = this.generateUrl(target, kqlQuery);
-      const targetName = 'Azure Portal';
+    const url = this.generateUrl(target, kqlQuery);
+    const targetName = 'Azure Portal';
 
-      // Display URL for sharing/manual access
-      if (displayUrl) {
-        Visualizer.displayInfo(`\n🔗 ${targetName} URL:`);
-        console.log(`   ${url}`);
-        console.log('');
+    // Display URL for sharing/manual access
+    if (displayUrl) {
+      Visualizer.displayInfo(`\n🔗 ${targetName} URL:`);
+      console.log(`   ${url}`);
+      console.log('');
+    }
+
+    return withLoadingIndicator(
+      `Opening query in ${targetName}...`,
+      async () => {
+        // Open URL in default browser
+        await this.launchBrowser(url);
+
+        logger.info(`Successfully opened query in ${targetName}`);
+
+        return {
+          url,
+          target,
+          launched: true
+        };
+      },
+      {
+        successMessage: `Successfully opened query in ${targetName}`,
+        errorMessage: `Failed to open query in ${targetName}`
       }
-
-      // Launch browser
-      Visualizer.displayInfo(`🚀 Opening query in ${targetName}...`);
-
-      // Open URL in default browser
-      await this.launchBrowser(url);
-
-      logger.info(`Successfully opened query in ${targetName}`);
-
-      return {
-        url,
-        target,
-        launched: true
-      };
-
-    } catch (error) {
+    ).catch((error) => {
       const errorMessage = `Failed to open query in ${target}: ${error}`;
       logger.error(errorMessage, error);
 
@@ -102,7 +106,7 @@ export class ExternalExecutionService {
         launched: false,
         error: errorMessage
       };
-    }
+    });
   }
 
   /**

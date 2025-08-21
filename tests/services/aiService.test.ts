@@ -121,7 +121,7 @@ describe('AIService', () => {
     it('should throw error if OpenAI API fails', async () => {
       mockChatCompletionsCreate.mockRejectedValue(new Error('API Error'));
 
-      await expect(aiService.generateKQLQuery('test query')).rejects.toThrow('KQL generation failed');
+      await expect(aiService.generateKQLQuery('test query')).rejects.toThrow('API Error');
     });
 
     it('should include schema in system prompt when provided', async () => {
@@ -205,7 +205,7 @@ describe('AIService', () => {
     it('should throw error if explanation generation fails', async () => {
       mockChatCompletionsCreate.mockRejectedValue(new Error('API Error'));
 
-      await expect(aiService.explainKQLQuery('test query')).rejects.toThrow('KQL explanation failed');
+      await expect(aiService.explainKQLQuery('test query')).rejects.toThrow('API Error');
     });
   });
 
@@ -278,7 +278,7 @@ describe('AIService', () => {
         attemptNumber: 2,
       };
 
-      await expect(aiService.regenerateKQLQuery('test query', context)).rejects.toThrow('KQL regeneration failed');
+      await expect(aiService.regenerateKQLQuery('test query', context)).rejects.toThrow('API Error');
     });
   });
 
