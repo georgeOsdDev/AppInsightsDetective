@@ -2,6 +2,10 @@ export interface AppInsightsConfig {
   applicationId: string;
   tenantId: string;
   endpoint?: string;
+  // External execution configuration
+  subscriptionId?: string;
+  resourceGroup?: string;
+  resourceName?: string;
 }
 
 export interface OpenAIConfig {
@@ -200,4 +204,27 @@ export interface AnalysisOptions {
   showStatisticalDetails: boolean;
   anomalyDetectionSensitivity: 'low' | 'medium' | 'high';
   language?: SupportedLanguage;
+}
+
+// External execution types
+export type ExternalExecutionTarget = 'portal';
+
+export interface ExternalExecutionOption {
+  target: ExternalExecutionTarget;
+  name: string;
+  description: string;
+}
+
+export interface AzureResourceInfo {
+  subscriptionId: string;
+  resourceGroup: string;
+  resourceName: string;
+  tenantId: string;
+}
+
+export interface ExternalExecutionResult {
+  url: string;
+  target: ExternalExecutionTarget;
+  launched: boolean;
+  error?: string;
 }

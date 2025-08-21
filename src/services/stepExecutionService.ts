@@ -6,9 +6,11 @@ import { tmpdir } from 'os';
 import { execSync } from 'child_process';
 import { logger } from '../utils/logger';
 import { Visualizer } from '../utils/visualizer';
+import { ConfigManager } from '../utils/config';
 import { AIService } from './aiService';
 import { AppInsightsService } from './appInsightsService';
-import { NLQuery, QueryResult, SupportedLanguage, ExplanationOptions } from '../types';
+import { ExternalExecutionService } from './externalExecutionService';
+import { NLQuery, QueryResult, SupportedLanguage, ExplanationOptions, AzureResourceInfo } from '../types';
 
 export interface StepExecutionOptions {
   showConfidenceThreshold?: number;
@@ -17,7 +19,7 @@ export interface StepExecutionOptions {
 }
 
 export interface QueryAction {
-  action: 'execute' | 'explain' | 'regenerate' | 'edit' | 'history' | 'cancel';
+  action: 'execute' | 'explain' | 'regenerate' | 'edit' | 'history' | 'external' | 'portal' | 'cancel';
   modifiedQuery?: string;
   originalQuestion?: string;
 }
@@ -32,6 +34,7 @@ export class StepExecutionService {
     reason?: string;
   }> = [];
   private currentAttempt: number = 0;
+  private externalExecutionService: ExternalExecutionService | null = null;
 
   constructor(
     private aiService: AIService,
@@ -44,6 +47,41 @@ export class StepExecutionService {
       maxRegenerationAttempts: 3,
       ...options
     };
+
+    // Initialize external execution service asynchronously
+    this.initializeExternalExecutionService().catch(error => {
+      logger.warn('Failed to initialize external execution service during construction:', error);
+    });
+  }
+
+  /**
+   * Initialize external execution service with Azure resource configuration
+   */
+  private async initializeExternalExecutionService(): Promise<void> {
+    try {
+      const configManager = new ConfigManager();
+      const config = await configManager.getEnhancedConfig(); // Use enhanced config
+      const appInsights = config.appInsights;
+
+      // Check if required Azure resource information is available
+      if (appInsights.tenantId && appInsights.subscriptionId && 
+          appInsights.resourceGroup && appInsights.resourceName) {
+        
+        const azureResourceInfo: AzureResourceInfo = {
+          tenantId: appInsights.tenantId,
+          subscriptionId: appInsights.subscriptionId,
+          resourceGroup: appInsights.resourceGroup,
+          resourceName: appInsights.resourceName
+        };
+
+        this.externalExecutionService = new ExternalExecutionService(azureResourceInfo);
+        logger.debug('External execution service initialized with auto-discovered resource information');
+      } else {
+        logger.debug('External execution service not initialized - missing Azure resource configuration');
+      }
+    } catch (error) {
+      logger.warn('Failed to initialize external execution service:', error);
+    }
   }
 
   /**
@@ -75,6 +113,14 @@ export class StepExecutionService {
 
         case 'explain':
           await this.explainQuery(nlQuery);
+          continue;
+
+        case 'portal':
+          await this.handlePortalExecution(nlQuery);
+          continue;
+
+        case 'external':
+          await this.handleExternalExecution(nlQuery);
           continue;
 
         case 'regenerate':
@@ -171,6 +217,27 @@ export class StepExecutionService {
         short: 'Explain'
       }
     ];
+
+    // Ensure external execution service is initialized before checking availability
+    if (!this.externalExecutionService) {
+      try {
+        await this.initializeExternalExecutionService();
+      } catch (error) {
+        logger.debug('Failed to initialize external execution service in getUserAction:', error);
+      }
+    }
+
+    // Add Azure Portal option if service is available
+    if (this.externalExecutionService) {
+      const validation = this.externalExecutionService.validateConfiguration();
+      if (validation.isValid) {
+        choices.push({
+          name: '🌐 Open in Azure Portal - Execute query in Azure Portal with full visualization capabilities',
+          value: 'portal',
+          short: 'Portal'
+        });
+      }
+    }
 
     // Check regeneration limit
     if (this.currentAttempt < (this.options.maxRegenerationAttempts || 3)) {
@@ -590,5 +657,135 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
     }
 
     return cleanQuery.substring(0, maxLength - 3) + '...';
+  }
+
+  /**
+   * Handle external execution workflow
+   */
+  private async handleExternalExecution(nlQuery: NLQuery): Promise<void> {
+    if (!this.externalExecutionService) {
+      Visualizer.displayError('External execution is not available. Please configure Azure resource information.');
+      return;
+    }
+
+    const validation = this.externalExecutionService.validateConfiguration();
+    if (!validation.isValid) {
+      Visualizer.displayError(`External execution configuration is incomplete. Missing: ${validation.missingFields.join(', ')}`);
+      return;
+    }
+
+    try {
+      console.log(chalk.blue.bold('\n🌐 External Query Execution'));
+      console.log(chalk.dim('='.repeat(50)));
+
+      const availableOptions = this.externalExecutionService.getAvailableOptions();
+      
+      if (availableOptions.length === 0) {
+        Visualizer.displayError('No external execution options are available.');
+        return;
+      }
+
+      // Create choices for external execution targets
+      const choices = availableOptions.map(option => ({
+        name: `${option.name} - ${option.description}`,
+        value: option.target,
+        short: option.target
+      }));
+
+      choices.push({
+        name: '❌ Cancel - Return to query review',
+        value: 'cancel' as any,
+        short: 'Cancel' as any
+      });
+
+      const { target } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'target',
+          message: 'Select external execution target:',
+          choices: choices,
+          pageSize: 8
+        }
+      ]) as { target: string };
+
+      if (target === 'cancel') {
+        return;
+      }
+
+      // Execute in selected external tool
+      console.log(chalk.cyan('\n🔗 Generated URLs:'));
+      const result = await this.externalExecutionService.executeExternal(target as any, nlQuery.generatedKQL, true);
+
+      if (result.launched) {
+        console.log(chalk.green(`\n✅ Successfully opened query in ${target === 'portal' ? 'Azure Portal' : 'Azure Data Explorer'}`));
+        console.log(chalk.dim('The query has been opened in your default browser.'));
+        console.log(chalk.dim('You can now explore the results using the full capabilities of the Azure tools.'));
+      } else {
+        Visualizer.displayError(`Failed to open external tool: ${result.error}`);
+        console.log(chalk.cyan('\n💡 You can manually copy and paste the URL above to access the query.'));
+      }
+
+      // Add a pause before continuing
+      await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+          default: ''
+        }
+      ]);
+
+    } catch (error) {
+      logger.error('External execution failed:', error);
+      Visualizer.displayError(`External execution failed: ${error}`);
+    }
+  }
+
+  /**
+   * Handle direct portal execution workflow
+   */
+  private async handlePortalExecution(nlQuery: NLQuery): Promise<void> {
+    if (!this.externalExecutionService) {
+      Visualizer.displayError('Azure Portal execution is not available. Please configure Azure resource information.');
+      return;
+    }
+
+    const validation = this.externalExecutionService.validateConfiguration();
+    if (!validation.isValid) {
+      Visualizer.displayError(`Azure Portal execution configuration is incomplete. Missing: ${validation.missingFields.join(', ')}`);
+      return;
+    }
+
+    try {
+      console.log(chalk.blue.bold('\n🌐 Opening Query in Azure Portal'));
+      console.log(chalk.dim('='.repeat(50)));
+
+      // Execute directly in Azure Portal
+      const result = await this.externalExecutionService.executeExternal('portal', nlQuery.generatedKQL, true);
+
+      if (result.launched) {
+        console.log(chalk.green('\n✅ Successfully opened query in Azure Portal'));
+        console.log(chalk.dim('The query has been opened in your default browser.'));
+        console.log(chalk.dim('You can now explore the results using the full capabilities of Azure Portal.'));
+      } else {
+        Visualizer.displayError(`Failed to open Azure Portal: ${result.error}`);
+        console.log(chalk.cyan('\n💡 You can manually copy and paste the URL above to access the query.'));
+      }
+
+      // Add a pause before continuing
+      const inquirer = await import('inquirer');
+      await inquirer.default.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+          default: ''
+        }
+      ]);
+
+    } catch (error) {
+      logger.error('Portal execution failed:', error);
+      Visualizer.displayError(`Portal execution failed: ${error}`);
+    }
   }
 }

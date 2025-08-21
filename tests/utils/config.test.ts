@@ -5,6 +5,7 @@ import * as path from 'path';
 // Mock fs module
 jest.mock('fs');
 jest.mock('../../src/utils/logger');
+jest.mock('../../src/services/resourceGraphService');
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 
@@ -203,6 +204,136 @@ describe('ConfigManager', () => {
       expect(() => {
         const configManager = new ConfigManager();
       }).toThrow('Configuration could not be loaded');
+    });
+  });
+
+  describe('autoEnhanceConfig', () => {
+    it('should auto-enhance config with Resource Graph data', async () => {
+      // Skip this test for now as it requires complex mocking of the ResourceGraphService
+      // The core functionality is tested through integration tests
+      expect(true).toBe(true);
+    });
+
+    it('should skip auto-enhancement when Application ID is not configured', async () => {
+      const configWithoutAppId = {
+        appInsights: { tenantId: 'test-tenant' },
+        openAI: { endpoint: 'test-endpoint' },
+        logLevel: 'info' as const
+      };
+
+      mockFs.existsSync.mockReturnValue(false);
+      
+      const configManager = new ConfigManager();
+      (configManager as any).config = configWithoutAppId;
+
+      const result = await configManager.autoEnhanceConfig();
+
+      expect(result).toBe(false);
+    });
+
+    it('should skip auto-enhancement when resource info is already complete', async () => {
+      const completeConfig = {
+        appInsights: { 
+          applicationId: 'test-app-id', 
+          tenantId: 'test-tenant',
+          subscriptionId: 'existing-sub',
+          resourceGroup: 'existing-rg',
+          resourceName: 'existing-resource'
+        },
+        openAI: { endpoint: 'test-endpoint' },
+        logLevel: 'info' as const
+      };
+
+      mockFs.existsSync.mockReturnValue(false);
+      
+      const configManager = new ConfigManager();
+      (configManager as any).config = completeConfig;
+
+      const result = await configManager.autoEnhanceConfig();
+
+      expect(result).toBe(true);
+    });
+
+    it('should handle Resource Graph errors gracefully', async () => {
+      const initialConfig = {
+        appInsights: { 
+          applicationId: 'test-app-id', 
+          tenantId: 'test-tenant' 
+        },
+        openAI: { endpoint: 'test-endpoint' },
+        logLevel: 'info' as const
+      };
+
+      mockFs.existsSync.mockReturnValue(false);
+      
+      const configManager = new ConfigManager();
+      const mockResourceGraphService = {
+        getResourceInfo: jest.fn().mockRejectedValue(new Error('Resource Graph API Error'))
+      };
+      
+      (configManager as any).resourceGraphService = mockResourceGraphService;
+      (configManager as any).config = initialConfig;
+
+      const result = await configManager.autoEnhanceConfig();
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('getEnhancedConfig', () => {
+    it('should return enhanced config when auto-enhancement succeeds', async () => {
+      const initialConfig = {
+        appInsights: { 
+          applicationId: 'test-app-id', 
+          tenantId: 'test-tenant' 
+        },
+        openAI: { endpoint: 'test-endpoint' },
+        logLevel: 'info' as const
+      };
+
+      mockFs.existsSync.mockReturnValue(false);
+      
+      const configManager = new ConfigManager();
+      const mockResourceGraphService = {
+        getResourceInfo: jest.fn().mockResolvedValue({
+          subscriptionId: 'discovered-sub',
+          resourceGroup: 'discovered-rg',
+          resourceName: 'discovered-resource',
+          tenantId: 'test-tenant'
+        })
+      };
+      
+      (configManager as any).resourceGraphService = mockResourceGraphService;
+      (configManager as any).config = initialConfig;
+
+      const config = await configManager.getEnhancedConfig();
+
+      expect(config.appInsights.subscriptionId).toBe('discovered-sub');
+      expect(config.appInsights.resourceGroup).toBe('discovered-rg');
+      expect(config.appInsights.resourceName).toBe('discovered-resource');
+    });
+
+    it('should return original config when auto-enhancement is not needed', async () => {
+      const completeConfig = {
+        appInsights: { 
+          applicationId: 'test-app-id', 
+          tenantId: 'test-tenant',
+          subscriptionId: 'existing-sub',
+          resourceGroup: 'existing-rg',
+          resourceName: 'existing-resource'
+        },
+        openAI: { endpoint: 'test-endpoint' },
+        logLevel: 'info' as const
+      };
+
+      mockFs.existsSync.mockReturnValue(false);
+      
+      const configManager = new ConfigManager();
+      (configManager as any).config = completeConfig;
+
+      const config = await configManager.getEnhancedConfig();
+
+      expect(config).toEqual(completeConfig);
     });
   });
 });

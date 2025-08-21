@@ -50,6 +50,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@azure/arm-resourcegraph": "^4.2.1",
     "@azure/core-auth": "^1.10.0",
     "@azure/identity": "^4.11.1",
     "@azure/openai": "^2.0.0",
@@ -58,6 +59,7 @@
     "commander": "^14.0.0",
     "dotenv": "^17.2.1",
     "inquirer": "^12.9.2",
+    "open": "^10.2.0",
     "openai": "^5.12.2",
     "winston": "^3.17.0"
   }

@@ -331,4 +331,45 @@ describe('StepExecutionService', () => {
       expect(true).toBe(true); // Placeholder - would need public method to verify history
     });
   });
+
+  describe('external execution', () => {
+    it('should handle external execution action gracefully when service not available', async () => {
+      // Mock ConfigManager to not provide external execution config
+      const mockConfigManager = {
+        getConfig: () => ({
+          appInsights: {
+            tenantId: 'test-tenant'
+            // Missing required fields for external execution
+          }
+        })
+      };
+      
+      // Mock the getUserAction to include external option but service will handle gracefully
+      mockInquirer.prompt
+        .mockResolvedValueOnce({ action: 'external' })
+        .mockResolvedValueOnce({ continue: '' }) // For the "Press Enter to continue" prompt
+        .mockResolvedValueOnce({ action: 'cancel' }); // Return to menu and cancel
+
+      const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
+
+      // Should handle missing service gracefully and then cancel
+      expect(mockInquirer.prompt).toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it('should continue workflow after external execution attempt', async () => {
+      mockInquirer.prompt
+        .mockResolvedValueOnce({ action: 'external' })
+        .mockResolvedValueOnce({ continue: '' })
+        .mockResolvedValueOnce({ action: 'execute' });
+      
+      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+
+      const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
+
+      // Should eventually execute the query normally
+      expect(result).not.toBeNull();
+      expect(result?.result).toEqual(mockQueryResult);
+    });
+  });
 });
