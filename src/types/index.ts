@@ -21,6 +21,33 @@ export interface Config {
   language?: string;
 }
 
+/**
+ * Enhanced configuration supporting multiple providers
+ */
+export interface MultiProviderConfig {
+  providers: {
+    ai: {
+      default: string; // Default AI provider to use
+      [key: string]: any; // Allow dynamic provider configurations
+    };
+    dataSources: {
+      default: string; // Default data source provider to use
+      [key: string]: any; // Allow dynamic provider configurations
+    };
+    auth: {
+      default: string; // Default auth provider to use
+      [key: string]: any; // Allow dynamic provider configurations
+    };
+  };
+  logLevel: 'debug' | 'info' | 'warn' | 'error';
+  language?: string;
+  fallbackBehavior?: {
+    enableProviderFallback: boolean;
+    aiProviderOrder?: string[];
+    dataSourceProviderOrder?: string[];
+  };
+}
+
 export interface QueryResult {
   tables: QueryTable[];
 }
@@ -71,7 +98,7 @@ export interface QueryHistory {
 // OpenAI response types for type safety
 export interface OpenAIChoice {
   message?: {
-    content?: string | null;
+    content?: string | null; // Allow null for compatibility
   };
   finish_reason?: string;
 }
