@@ -85,7 +85,7 @@ export class OpenAIProvider implements IAIProvider {
       
       // Parse the JSON response
       const kqlQuery = this.extractKQLFromResponse(generatedContent);
-      const confidence = this.calculateConfidence(response.choices[0]);
+      const confidence = this.calculateConfidence(response.choices[0], generatedContent);
       const reasoning = this.extractReasoningFromResponse(generatedContent);
 
       const result: NLQuery = {
@@ -178,7 +178,7 @@ export class OpenAIProvider implements IAIProvider {
       
       // Parse the JSON response
       const kqlQuery = this.extractKQLFromResponse(generatedContent);
-      const confidence = this.calculateConfidence(response.choices[0]);
+      const confidence = this.calculateConfidence(response.choices[0], generatedContent);
       const reasoning = this.extractReasoningFromResponse(generatedContent);
 
       const result: NLQuery = {
@@ -237,7 +237,7 @@ export class OpenAIProvider implements IAIProvider {
     }
   }
 
-  private calculateConfidence(choice: OpenAIChoice): number {
+  private calculateConfidence(choice: OpenAIChoice, content?: string): number {
     // Base confidence calculation on finish_reason and other factors
     let confidence = 0.7; // Default confidence
     
@@ -245,6 +245,11 @@ export class OpenAIProvider implements IAIProvider {
       confidence = 0.85;
     } else if (choice.finish_reason === 'length') {
       confidence = 0.6; // Lower confidence if truncated
+    }
+
+    // Reduce confidence for non-JSON responses
+    if (content && !this.isJsonResponse(content)) {
+      confidence = 0.5; // Lower confidence for non-JSON responses
     }
 
     return Math.min(Math.max(confidence, 0), 1);
