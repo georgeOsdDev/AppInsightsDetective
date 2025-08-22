@@ -4,8 +4,7 @@ import { IAuthenticationProvider } from '../../core/interfaces/IAuthenticationPr
 import { AIProviderConfig } from '../../core/types/ProviderTypes';
 import { NLQuery, OpenAIChoice } from '../../types';
 import { logger } from '../../utils/logger';
-import { getLanguageInstructions } from '../../utils/languageUtils';
-import { buildSystemPrompt, buildRegenerationPrompt, buildExplanationSystemPrompt } from './prompts/systemPrompts';
+import { buildSystemPrompt, buildRegenerationPrompt, buildExplanationSystemPrompt, buildPatternAnalysisPrompt, buildInsightsPrompt } from './prompts/systemPrompts';
 
 /**
  * OpenAI provider implementation (non-Azure)
@@ -280,7 +279,7 @@ export class OpenAIProvider implements IAIProvider {
    */
   private async performPatternAnalysis(request: QueryAnalysisRequest): Promise<QueryAnalysisResult['patterns']> {
     try {
-      const prompt = this.buildPatternAnalysisPrompt(request.result, request.originalQuery);
+      const prompt = buildPatternAnalysisPrompt(request.result, request.originalQuery);
       const response = await this.generateResponse(prompt);
       
       // Parse AI response into structured format
@@ -364,7 +363,7 @@ export class OpenAIProvider implements IAIProvider {
    */
   private async generateAIInsights(request: QueryAnalysisRequest): Promise<string> {
     try {
-      const prompt = this.buildInsightsPrompt(request.result, request.originalQuery, request.options?.language);
+      const prompt = buildInsightsPrompt(request.result, request.originalQuery, request.options?.language);
       return await this.generateResponse(prompt);
     } catch (error) {
       logger.warn('AI insights generation failed:', error);
@@ -429,63 +428,6 @@ export class OpenAIProvider implements IAIProvider {
     }
     
     return queries;
-  }
-
-  private buildPatternAnalysisPrompt(result: any, originalQuery: string): string {
-    const dataSummary = this.prepareDataSummary(result);
-    return `
-Analyze this Application Insights query result for patterns and anomalies:
-
-Query: "${originalQuery}"
-Data Summary: ${JSON.stringify(dataSummary, null, 2)}
-
-Please identify:
-1. Notable patterns or trends in the data
-2. Any anomalies or outliers (be specific about values/rows)
-3. Correlations between columns if applicable
-
-Respond in JSON format:
-{
-  "trends": [{"description": "trend description", "confidence": 0.8, "visualization": "trend visualization"}],
-  "anomalies": [{"type": "spike", "description": "anomaly description", "severity": "medium", "affectedRows": [1,2,3]}],
-  "correlations": [{"columns": ["col1", "col2"], "coefficient": 0.7, "significance": "moderate"}]
-}`;
-  }
-
-  private buildInsightsPrompt(result: any, originalQuery: string, language?: string): string {
-    const dataSummary = this.prepareDataSummary(result);
-    const languageInstructions = language ? getLanguageInstructions(language as any) : '';
-    
-    return `
-Analyze this Application Insights query result and provide business insights:
-
-Query: "${originalQuery}"
-Data Summary: ${JSON.stringify(dataSummary, null, 2)}
-
-${languageInstructions}
-
-Please provide:
-1. Key patterns and trends in the data
-2. Business insights relevant to Application Insights monitoring
-3. Potential issues or opportunities
-4. Specific actions or recommendations
-
-Focus on practical, actionable insights for application monitoring and performance analysis.
-Respond in clear, business-friendly language.`;
-  }
-
-  private prepareDataSummary(result: any) {
-    if (!result?.tables?.length) return { tables: 0, rows: 0 };
-    
-    const firstTable = result.tables[0];
-    const sampleSize = Math.min(5, firstTable.rows?.length || 0);
-    
-    return {
-      tableCount: result.tables.length,
-      columns: firstTable.columns?.map((col: any) => ({ name: col.name, type: col.type })) || [],
-      totalRows: firstTable.rows?.length || 0,
-      sampleRows: firstTable.rows?.slice(0, sampleSize) || []
-    };
   }
 
   private parsePatternAnalysisResponse(response: string): QueryAnalysisResult['patterns'] {
