@@ -45,7 +45,7 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
           const tokenResponse = await credential.getToken(['https://api.applicationinsights.io/.default']);
           token = tokenResponse.token;
         }
-        
+
         config.headers.Authorization = `Bearer ${token}`;
         return config;
       } catch (error) {
@@ -100,7 +100,7 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
 
       // Test connection with a simple query
       const url = `/${this.config.applicationId}/query`;
-      
+
       await this.httpClient.post(url, {
         query: 'requests | take 1',
       });
@@ -109,9 +109,9 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
       return { isValid: true };
     } catch (error) {
       logger.error('Application Insights connection validation failed:', error);
-      return { 
-        isValid: false, 
-        error: `Connection validation failed: ${error}` 
+      return {
+        isValid: false,
+        error: `Connection validation failed: ${error}`
       };
     }
   }
@@ -144,7 +144,7 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
 
       // Get application info
       const infoUrl = `/${this.config.applicationId}`;
-      
+
       const response = await this.httpClient.get(infoUrl);
 
       const metadata = {

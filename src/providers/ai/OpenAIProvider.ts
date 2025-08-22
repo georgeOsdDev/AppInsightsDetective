@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { IAIProvider, QueryGenerationRequest, QueryExplanationRequest, RegenerationRequest } from '../../core/interfaces/IAIProvider';
+import { IAIProvider, QueryGenerationRequest, QueryExplanationRequest, RegenerationRequest, QueryAnalysisRequest, QueryAnalysisResult } from '../../core/interfaces/IAIProvider';
 import { IAuthenticationProvider } from '../../core/interfaces/IAuthenticationProvider';
 import { AIProviderConfig } from '../../core/types/ProviderTypes';
 import { NLQuery, OpenAIChoice } from '../../types';
@@ -218,6 +218,309 @@ export class OpenAIProvider implements IAIProvider {
       logger.error('Failed to generate response:', error);
       throw new Error(`Response generation failed: ${error}`);
     }
+  }
+
+  /**
+   * Analyze query results using AI
+   */
+  async analyzeQueryResult(request: QueryAnalysisRequest): Promise<QueryAnalysisResult> {
+    await this.initialize();
+
+    if (!this.openAIClient) {
+      throw new Error('OpenAI client not initialized');
+    }
+
+    try {
+      logger.info(`Starting ${request.analysisType} analysis with OpenAI`);
+
+      const result: QueryAnalysisResult = {};
+
+      switch (request.analysisType) {
+        case 'patterns':
+          result.patterns = await this.performPatternAnalysis(request);
+          break;
+
+        case 'anomalies':
+          const patterns = await this.performPatternAnalysis(request);
+          // Filter to focus on anomalies
+          result.patterns = {
+            trends: [],
+            anomalies: patterns?.anomalies || [],
+            correlations: []
+          };
+          break;
+
+        case 'insights':
+          result.insights = await this.generateContextualInsights(request);
+          result.aiInsights = await this.generateAIInsights(request);
+          break;
+
+        case 'full':
+          result.patterns = await this.performPatternAnalysis(request);
+          result.insights = await this.generateContextualInsights(request);
+          result.aiInsights = await this.generateAIInsights(request);
+          break;
+      }
+
+      // Always generate recommendations and follow-up queries for non-statistical analysis
+      result.recommendations = await this.generateRecommendations(request);
+      result.followUpQueries = await this.generateFollowUpQueries(request);
+
+      logger.info(`${request.analysisType} analysis completed successfully`);
+      return result;
+
+    } catch (error) {
+      logger.error('Analysis failed:', error);
+      throw new Error(`Analysis failed: ${error}`);
+    }
+  }
+
+  /**
+   * Perform pattern analysis using AI
+   */
+  private async performPatternAnalysis(request: QueryAnalysisRequest): Promise<QueryAnalysisResult['patterns']> {
+    try {
+      const prompt = this.buildPatternAnalysisPrompt(request.result, request.originalQuery);
+      const response = await this.generateResponse(prompt);
+      
+      // Parse AI response into structured format
+      return this.parsePatternAnalysisResponse(response);
+    } catch (error) {
+      logger.warn('Pattern analysis failed, returning basic analysis:', error);
+      return {
+        trends: [],
+        anomalies: [],
+        correlations: []
+      };
+    }
+  }
+
+  /**
+   * Generate contextual insights
+   */
+  private async generateContextualInsights(request: QueryAnalysisRequest): Promise<QueryAnalysisResult['insights']> {
+    // Basic data quality assessment
+    const firstTable = request.result.tables?.[0];
+    if (!firstTable) {
+      return {
+        dataQuality: {
+          completeness: 0,
+          consistency: ['No data available'],
+          recommendations: ['Verify query criteria and data source']
+        },
+        businessInsights: {
+          keyFindings: [],
+          potentialIssues: ['No data returned'],
+          opportunities: []
+        },
+        followUpQueries: []
+      };
+    }
+
+    const totalRows = firstTable.rows?.length || 0;
+    const totalColumns = firstTable.columns?.length || 0;
+    
+    // Calculate completeness
+    let nullCount = 0;
+    if (firstTable.rows && firstTable.columns) {
+      firstTable.rows.forEach((row: any[]) => {
+        row.forEach(cell => {
+          if (cell === null || cell === undefined || cell === '') {
+            nullCount++;
+          }
+        });
+      });
+    }
+    
+    const totalCells = totalRows * totalColumns;
+    const completeness = totalCells > 0 ? ((totalCells - nullCount) / totalCells) * 100 : 0;
+    
+    const consistency: string[] = [];
+    const recommendations: string[] = [];
+    
+    // Basic consistency checks
+    if (completeness < 80) {
+      consistency.push('High percentage of null values detected');
+      recommendations.push('Consider filtering out incomplete records');
+    }
+
+    return {
+      dataQuality: {
+        completeness: Number(completeness.toFixed(1)),
+        consistency,
+        recommendations
+      },
+      businessInsights: {
+        keyFindings: [],
+        potentialIssues: [],
+        opportunities: []
+      },
+      followUpQueries: []
+    };
+  }
+
+  /**
+   * Generate AI-powered insights
+   */
+  private async generateAIInsights(request: QueryAnalysisRequest): Promise<string> {
+    try {
+      const prompt = this.buildInsightsPrompt(request.result, request.originalQuery, request.options?.language);
+      return await this.generateResponse(prompt);
+    } catch (error) {
+      logger.warn('AI insights generation failed:', error);
+      return 'AI insights temporarily unavailable. Please try again later.';
+    }
+  }
+
+  /**
+   * Generate recommendations based on analysis
+   */
+  private async generateRecommendations(request: QueryAnalysisRequest): Promise<string[]> {
+    const recommendations: string[] = [];
+    const firstTable = request.result.tables?.[0];
+    
+    if (!firstTable || !firstTable.rows) {
+      recommendations.push('No data returned - consider adjusting your query criteria');
+      return recommendations;
+    }
+
+    const totalRows = firstTable.rows.length;
+    
+    if (totalRows === 0) {
+      recommendations.push('No data returned - consider adjusting your query criteria');
+    } else if (totalRows > 10000) {
+      recommendations.push('Large dataset returned - consider adding filters to improve performance');
+    }
+    
+    return recommendations;
+  }
+
+  /**
+   * Generate follow-up queries
+   */
+  private async generateFollowUpQueries(request: QueryAnalysisRequest): Promise<QueryAnalysisResult['followUpQueries']> {
+    const queries = [];
+    const firstTable = request.result.tables?.[0];
+    
+    if (!firstTable || !firstTable.rows) {
+      return [];
+    }
+
+    // Basic follow-up query suggestions
+    if (firstTable.rows.length > 0) {
+      queries.push({
+        query: `${request.originalQuery} | limit 10`,
+        purpose: 'View sample results',
+        priority: 'low' as const
+      });
+    }
+    
+    // Check if there are datetime columns for temporal analysis
+    const hasDateTimeColumn = firstTable.columns?.some((col: any) => 
+      col.type?.includes('datetime') || col.name?.toLowerCase().includes('time')
+    );
+    
+    if (hasDateTimeColumn) {
+      queries.push({
+        query: `${request.originalQuery} | summarize count() by bin(timestamp, 1h)`,
+        purpose: 'Analyze temporal distribution',
+        priority: 'medium' as const
+      });
+    }
+    
+    return queries;
+  }
+
+  private buildPatternAnalysisPrompt(result: any, originalQuery: string): string {
+    const dataSummary = this.prepareDataSummary(result);
+    return `
+Analyze this Application Insights query result for patterns and anomalies:
+
+Query: "${originalQuery}"
+Data Summary: ${JSON.stringify(dataSummary, null, 2)}
+
+Please identify:
+1. Notable patterns or trends in the data
+2. Any anomalies or outliers (be specific about values/rows)
+3. Correlations between columns if applicable
+
+Respond in JSON format:
+{
+  "trends": [{"description": "trend description", "confidence": 0.8, "visualization": "trend visualization"}],
+  "anomalies": [{"type": "spike", "description": "anomaly description", "severity": "medium", "affectedRows": [1,2,3]}],
+  "correlations": [{"columns": ["col1", "col2"], "coefficient": 0.7, "significance": "moderate"}]
+}`;
+  }
+
+  private buildInsightsPrompt(result: any, originalQuery: string, language?: string): string {
+    const dataSummary = this.prepareDataSummary(result);
+    const languageInstructions = language ? getLanguageInstructions(language as any) : '';
+    
+    return `
+Analyze this Application Insights query result and provide business insights:
+
+Query: "${originalQuery}"
+Data Summary: ${JSON.stringify(dataSummary, null, 2)}
+
+${languageInstructions}
+
+Please provide:
+1. Key patterns and trends in the data
+2. Business insights relevant to Application Insights monitoring
+3. Potential issues or opportunities
+4. Specific actions or recommendations
+
+Focus on practical, actionable insights for application monitoring and performance analysis.
+Respond in clear, business-friendly language.`;
+  }
+
+  private prepareDataSummary(result: any) {
+    if (!result?.tables?.length) return { tables: 0, rows: 0 };
+    
+    const firstTable = result.tables[0];
+    const sampleSize = Math.min(5, firstTable.rows?.length || 0);
+    
+    return {
+      tableCount: result.tables.length,
+      columns: firstTable.columns?.map((col: any) => ({ name: col.name, type: col.type })) || [],
+      totalRows: firstTable.rows?.length || 0,
+      sampleRows: firstTable.rows?.slice(0, sampleSize) || []
+    };
+  }
+
+  private parsePatternAnalysisResponse(response: string): QueryAnalysisResult['patterns'] {
+    try {
+      const jsonContent = this.extractJSONFromResponse(response);
+      const parsed = JSON.parse(jsonContent);
+      return {
+        trends: parsed.trends || [],
+        anomalies: parsed.anomalies || [],
+        correlations: parsed.correlations || []
+      };
+    } catch (error) {
+      logger.warn('Failed to parse pattern analysis response:', error);
+      return {
+        trends: [],
+        anomalies: [],
+        correlations: []
+      };
+    }
+  }
+
+  /**
+   * Extract JSON content from markdown code blocks or raw response
+   */
+  private extractJSONFromResponse(response: string): string {
+    // Extract JSON from code blocks (```json ... ```)
+    const codeBlockMatch = response.match(/```(?:json)?\n?(.*?)\n?```/s);
+    if (codeBlockMatch) {
+      return codeBlockMatch[1].trim();
+    }
+
+    // If no code blocks, return the raw response cleaned up
+    return response
+      .replace(/^(Here's the JSON:|JSON:|Response:)/i, '')
+      .trim();
   }
 
   // Private helper methods (similar to AzureOpenAIProvider)
