@@ -79,9 +79,12 @@ describe('ConfigManager', () => {
       const configManager = new ConfigManager();
       const config = configManager.getConfig();
 
-      expect(config.appInsights.applicationId).toBe('env-app-id');
-      expect(config.appInsights.tenantId).toBe('env-tenant-id');
-      expect(config.openAI.endpoint).toBe('env-openai-endpoint');
+      const dataSourceConfig = config.providers.dataSources['application-insights'];
+      const aiConfig = config.providers.ai['azure-openai'];
+
+      expect(dataSourceConfig.applicationId).toBe('env-app-id');
+      expect(dataSourceConfig.tenantId).toBe('env-tenant-id');
+      expect(aiConfig.endpoint).toBe('env-openai-endpoint');
       expect(config.logLevel).toBe('debug');
     });
 
@@ -308,9 +311,10 @@ describe('ConfigManager', () => {
 
       const config = await configManager.getEnhancedConfig();
 
-      expect(config.appInsights.subscriptionId).toBe('discovered-sub');
-      expect(config.appInsights.resourceGroup).toBe('discovered-rg');
-      expect(config.appInsights.resourceName).toBe('discovered-resource');
+      const dataSourceConfig = config.providers.dataSources['application-insights'];
+      expect(dataSourceConfig.subscriptionId).toBe('discovered-sub');
+      expect(dataSourceConfig.resourceGroup).toBe('discovered-rg');
+      expect(dataSourceConfig.resourceName).toBe('discovered-resource');
     });
 
     it('should return original config when auto-enhancement is not needed', async () => {

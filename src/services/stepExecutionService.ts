@@ -61,17 +61,19 @@ export class StepExecutionService {
     try {
       const configManager = new ConfigManager();
       const config = await configManager.getEnhancedConfig(); // Use enhanced config
-      const appInsights = config.appInsights;
+      
+      const defaultDataSource = configManager.getDefaultProvider('dataSources');
+      const dataSourceConfig = configManager.getProviderConfig('dataSources', defaultDataSource);
 
       // Check if required Azure resource information is available
-      if (appInsights.tenantId && appInsights.subscriptionId && 
-          appInsights.resourceGroup && appInsights.resourceName) {
+      if (dataSourceConfig?.tenantId && dataSourceConfig.subscriptionId && 
+          dataSourceConfig.resourceGroup && dataSourceConfig.resourceName) {
         
         const azureResourceInfo: AzureResourceInfo = {
-          tenantId: appInsights.tenantId,
-          subscriptionId: appInsights.subscriptionId,
-          resourceGroup: appInsights.resourceGroup,
-          resourceName: appInsights.resourceName
+          tenantId: dataSourceConfig.tenantId,
+          subscriptionId: dataSourceConfig.subscriptionId,
+          resourceGroup: dataSourceConfig.resourceGroup,
+          resourceName: dataSourceConfig.resourceName
         };
 
         this.externalExecutionService = new ExternalExecutionService(azureResourceInfo);
