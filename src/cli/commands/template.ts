@@ -5,6 +5,390 @@ import { Bootstrap } from '../../infrastructure/Bootstrap';
 import { ITemplateRepository, QueryTemplate, TemplateParameters } from '../../core/interfaces/ITemplateRepository';
 import { IQueryOrchestrator } from '../../core/interfaces/IQueryOrchestrator';
 import { logger } from '../../utils/logger';
+import { NLQuery, QueryResult, SupportedLanguage, ExplanationOptions } from '../../types';
+import { Visualizer } from '../../utils/visualizer';
+
+/**
+ * Template execution service for interactive flow
+ */
+class TemplateExecutionService {
+  private queryHistory: string[] = [];
+  private currentAttempt: number = 0;
+
+  constructor(
+    private template: QueryTemplate,
+    private originalQuery: string
+  ) {}
+
+  /**
+   * Start interactive template execution flow
+   */
+  async executeInteractively(nlQuery: NLQuery): Promise<{ result: QueryResult; executionTime: number } | null> {
+    this.queryHistory = [nlQuery.generatedKQL];
+    this.currentAttempt = 1;
+
+    console.log(chalk.blue.bold('\n🔍 Generated KQL Query'));
+
+    while (true) {
+      // Display query summary
+      this.displayQuerySummary(nlQuery);
+
+      // Get user action
+      const action = await this.getUserAction();
+
+      switch (action.action) {
+        case 'execute':
+          return await this.executeQuery(nlQuery.generatedKQL);
+
+        case 'explain':
+          await this.explainQuery(nlQuery);
+          continue;
+
+        case 'portal':
+          await this.handlePortalExecution(nlQuery);
+          continue;
+
+        case 'regenerate':
+          const newQuery = await this.regenerateQuery(nlQuery);
+          if (newQuery) {
+            nlQuery = newQuery;
+            continue;
+          } else {
+            Visualizer.displayError('Failed to regenerate query. Please try a different approach.');
+            continue;
+          }
+
+        case 'edit':
+          const editedQuery = await this.editQuery(nlQuery.generatedKQL);
+          if (editedQuery) {
+            nlQuery = {
+              generatedKQL: editedQuery,
+              confidence: 0.5, // Edited queries have moderate confidence
+              reasoning: 'Manually edited template query'
+            };
+            this.queryHistory.push(editedQuery);
+            continue;
+          } else {
+            continue;
+          }
+
+        case 'cancel':
+          Visualizer.displayInfo('Template execution cancelled.');
+          return null;
+      }
+    }
+  }
+
+  /**
+   * Display query summary
+   */
+  private displayQuerySummary(nlQuery: NLQuery): void {
+    console.log(chalk.cyan.bold('\n📝 Template Query:'));
+    console.log(chalk.white(`  "${this.template.description}"`));
+
+    Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
+
+    if (nlQuery.reasoning) {
+      console.log(chalk.cyan.bold('\n💭 AI Reasoning:'));
+      console.log(chalk.dim(`  ${nlQuery.reasoning}`));
+    }
+
+    // Template information
+    console.log(chalk.cyan.bold('\n📋 Template Information:'));
+    console.log(chalk.dim(`  Template: ${this.template.name}`));
+    console.log(chalk.dim(`  Category: ${this.template.category}`));
+    console.log(chalk.dim(`  Confidence: ${Math.round(nlQuery.confidence * 100)}%`));
+
+    // Query history
+    if (this.queryHistory.length > 1) {
+      console.log(chalk.cyan.bold(`\n📜 Query History (${this.queryHistory.length} versions):`));
+      console.log(chalk.dim('  Multiple versions available.'));
+    }
+  }
+
+  /**
+   * Get user action
+   */
+  private async getUserAction(): Promise<{action: string}> {
+    const choices = [
+      {
+        name: '🚀 Execute Query - Run this KQL query against Application Insights',
+        value: 'execute',
+        short: 'Execute'
+      },
+      {
+        name: '📖 Explain Query - Get detailed explanation of what this query does',
+        value: 'explain',
+        short: 'Explain'
+      },
+      {
+        name: '🌐 Open in Azure Portal - Execute query in Azure Portal with full visualization capabilities',
+        value: 'portal',
+        short: 'Portal'
+      },
+      {
+        name: '🔄 Regenerate Query - Ask AI to create a different query approach',
+        value: 'regenerate',
+        short: 'Regenerate'
+      },
+      {
+        name: '✏️  Edit Query - Manually modify the KQL query',
+        value: 'edit',
+        short: 'Edit'
+      },
+      {
+        name: '❌ Cancel - Stop query execution',
+        value: 'cancel',
+        short: 'Cancel'
+      }
+    ];
+
+    const { action } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'What would you like to do with this query?',
+        choices: choices,
+        pageSize: 10
+      }
+    ]);
+
+    return { action };
+  }
+
+  /**
+   * Explain query
+   */
+  private async explainQuery(nlQuery: NLQuery): Promise<void> {
+    try {
+      // Initialize AI service for explanation
+      const bootstrap = new Bootstrap();
+      const container = await bootstrap.initialize();
+      const aiService = container.resolve<any>('aiService');
+
+      // Language selection prompt
+      const languageOptions = this.getLanguageOptions();
+      const { selectedLanguage, technicalLevel, includeExamples } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'selectedLanguage',
+          message: 'Select explanation language:',
+          choices: languageOptions,
+          default: 'auto'
+        },
+        {
+          type: 'list',
+          name: 'technicalLevel',
+          message: 'Select technical level:',
+          choices: [
+            { name: '🟢 Beginner - Simple explanations with basic concepts', value: 'beginner' },
+            { name: '🟡 Intermediate - Balanced technical explanations', value: 'intermediate' },
+            { name: '🔴 Advanced - Detailed technical insights', value: 'advanced' }
+          ],
+          default: 'intermediate'
+        },
+        {
+          type: 'confirm',
+          name: 'includeExamples',
+          message: 'Include practical examples?',
+          default: true
+        }
+      ]);
+
+      const explanationOptions: ExplanationOptions = {
+        language: selectedLanguage,
+        technicalLevel,
+        includeExamples
+      };
+
+      Visualizer.displayInfo(`Generating detailed query explanation in ${this.getLanguageName(selectedLanguage)}...`);
+
+      const explanation = await aiService.explainKQLQuery(nlQuery.generatedKQL, explanationOptions);
+
+      console.log(chalk.green.bold('\n📚 Query Explanation:'));
+      console.log(chalk.dim('='.repeat(50)));
+      console.log(chalk.white(explanation));
+      console.log(chalk.dim('='.repeat(50)));
+
+      // Continuation confirmation
+      await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+        }
+      ]);
+
+    } catch (error) {
+      logger.error('Failed to explain query:', error);
+      Visualizer.displayError(`Failed to generate explanation: ${error}`);
+    }
+  }
+
+  /**
+   * Regenerate query using template description
+   */
+  private async regenerateQuery(previousQuery: NLQuery): Promise<NLQuery | null> {
+    try {
+      this.currentAttempt++;
+      Visualizer.displayInfo(`Regenerating query (attempt ${this.currentAttempt})...`);
+
+      // Initialize AI service for regeneration
+      const bootstrap = new Bootstrap();
+      const container = await bootstrap.initialize();
+      const aiService = container.resolve<any>('aiService');
+      const appInsightsService = container.resolve<any>('appInsightsService');
+
+      // Use template description as the "original question" for regeneration
+      const originalQuestion = this.template.description;
+
+      // Context for analyzing previous query issues
+      const regenerationContext = {
+        previousQuery: previousQuery.generatedKQL,
+        previousReasoning: previousQuery.reasoning,
+        attemptNumber: this.currentAttempt
+      };
+
+      const schema = await appInsightsService.getSchema();
+      const newQuery = await aiService.regenerateKQLQuery(
+        originalQuestion,
+        regenerationContext,
+        schema
+      );
+
+      if (newQuery) {
+        this.queryHistory.push(newQuery.generatedKQL);
+        Visualizer.displaySuccess('New query generated successfully!');
+        return newQuery;
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to regenerate query:', error);
+      Visualizer.displayError(`Failed to regenerate query: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Edit query manually
+   */
+  private async editQuery(currentQuery: string): Promise<string | null> {
+    try {
+      const { query } = await inquirer.prompt([
+        {
+          type: 'editor',
+          name: 'query',
+          message: 'Edit the KQL query:',
+          default: currentQuery
+        }
+      ]);
+
+      const editedQuery = query.trim();
+
+      if (editedQuery === currentQuery) {
+        Visualizer.displayInfo('No changes made to the query.');
+        return null;
+      }
+
+      if (!editedQuery) {
+        Visualizer.displayError('Empty query is not allowed.');
+        return null;
+      }
+
+      Visualizer.displaySuccess('Query edited successfully!');
+      return editedQuery;
+
+    } catch (error) {
+      logger.error('Failed to edit query:', error);
+      Visualizer.displayError(`Failed to edit query: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Handle portal execution
+   */
+  private async handlePortalExecution(_nlQuery: NLQuery): Promise<void> {
+    Visualizer.displayInfo('Azure Portal execution is not implemented yet for template queries.');
+    
+    // Continuation confirmation
+    await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'continue',
+        message: 'Press Enter to continue...',
+      }
+    ]);
+  }
+
+  /**
+   * Execute query
+   */
+  private async executeQuery(query: string): Promise<{ result: QueryResult; executionTime: number }> {
+    try {
+      Visualizer.displayInfo('Executing query...');
+      
+      // Initialize services for execution
+      const bootstrap = new Bootstrap();
+      const container = await bootstrap.initialize();
+      const appInsightsService = container.resolve<any>('appInsightsService');
+      
+      const startTime = Date.now();
+      const result = await appInsightsService.executeQuery(query);
+      const executionTime = Date.now() - startTime;
+      
+      Visualizer.displaySuccess('Query executed successfully!');
+      return { result, executionTime };
+    } catch (error) {
+      logger.error('Query execution failed:', error);
+      throw new Error(`Query execution failed: ${error}`);
+    }
+  }
+
+  /**
+   * Get language options
+   */
+  private getLanguageOptions() {
+    return [
+      { name: '🌐 Auto - Detect best language', value: 'auto' },
+      { name: '🇺🇸 English', value: 'en' },
+      { name: '🇯🇵 Japanese (日本語)', value: 'ja' },
+      { name: '🇰🇷 Korean (한국어)', value: 'ko' },
+      { name: '🇨🇳 Chinese Simplified (简体中文)', value: 'zh' },
+      { name: '🇹🇼 Chinese Traditional (繁體中文)', value: 'zh-TW' },
+      { name: '🇪🇸 Spanish (Español)', value: 'es' },
+      { name: '🇫🇷 French (Français)', value: 'fr' },
+      { name: '🇩🇪 German (Deutsch)', value: 'de' },
+      { name: '🇮🇹 Italian (Italiano)', value: 'it' },
+      { name: '🇵🇹 Portuguese (Português)', value: 'pt' },
+      { name: '🇷🇺 Russian (Русский)', value: 'ru' },
+      { name: '🇸🇦 Arabic (العربية)', value: 'ar' }
+    ];
+  }
+
+  /**
+   * Get language name from code
+   */
+  private getLanguageName(languageCode: SupportedLanguage): string {
+    const languageMap: Record<SupportedLanguage, string> = {
+      'auto': 'Auto-detect',
+      'en': 'English',
+      'ja': 'Japanese',
+      'ko': 'Korean',
+      'zh': 'Chinese (Simplified)',
+      'zh-TW': 'Chinese (Traditional)',
+      'es': 'Spanish',
+      'fr': 'French',
+      'de': 'German',
+      'it': 'Italian',
+      'pt': 'Portuguese',
+      'ru': 'Russian',
+      'ar': 'Arabic'
+    };
+    return languageMap[languageCode] || 'Unknown';
+  }
+}
 
 /**
  * Create template management command
@@ -430,31 +814,28 @@ export function createTemplateCommand(): Command {
         // Generate the final KQL query with parameters applied
         const finalKqlQuery = await templateRepository.applyTemplate(template, parameters);
 
-        // Show the final query to user (similar to interactive mode)
-        console.log(chalk.cyan.bold('\n🔍 Final KQL Query:'));
-        console.log(chalk.dim('='.repeat(50)));
-        console.log(chalk.green(finalKqlQuery));
-        console.log(chalk.dim('='.repeat(50)));
+        // Create NLQuery object for interactive flow
+        const nlQuery: NLQuery = {
+          generatedKQL: finalKqlQuery,
+          confidence: 0.9, // Template queries have high confidence
+          reasoning: `Generated from template "${template.name}" with user-provided parameters`
+        };
 
         // Interactive confirmation (unless --auto-execute is used)
         if (!options.autoExecute) {
-          const { action } = await inquirer.prompt([{
-            type: 'list',
-            name: 'action',
-            message: 'What would you like to do?',
-            choices: [
-              { name: '▶️  Execute query', value: 'execute' },
-              { name: '❌ Cancel', value: 'cancel' }
-            ]
-          }]);
-
-          if (action === 'cancel') {
-            console.log(chalk.gray('Template execution cancelled.'));
-            return;
+          // Use interactive template execution flow
+          const templateExecutionService = new TemplateExecutionService(template, finalKqlQuery);
+          const executionResult = await templateExecutionService.executeInteractively(nlQuery);
+          
+          if (executionResult) {
+            // Handle output similar to the main query command
+            const { handleOutput } = await import('../index');
+            await handleOutput(executionResult.result, options, executionResult.executionTime);
           }
+          return;
         }
 
-        // Now initialize full system for execution (OpenAI client initialization will happen here)
+        // Auto-execute mode: bypass interactive flow
         console.log(chalk.green.bold('\n🚀 Executing template...'));
         const bootstrap = new Bootstrap();
         const container = await bootstrap.initialize();
