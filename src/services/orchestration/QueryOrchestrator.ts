@@ -3,7 +3,8 @@ import {
   NLQueryRequest, 
   TemplateQueryRequest, 
   IAIProvider, 
-  IDataSourceProvider 
+  IDataSourceProvider,
+  ITemplateRepository
 } from '../../core/interfaces';
 import { QueryResultWithTiming, NLQuery } from '../../types';
 import { logger } from '../../utils/logger';
@@ -14,7 +15,8 @@ import { logger } from '../../utils/logger';
 export class QueryOrchestrator implements IQueryOrchestrator {
   constructor(
     private aiProvider: IAIProvider,
-    private dataSourceProvider: IDataSourceProvider
+    private dataSourceProvider: IDataSourceProvider,
+    private templateRepository?: ITemplateRepository
   ) {}
 
   /**
@@ -60,9 +62,42 @@ export class QueryOrchestrator implements IQueryOrchestrator {
   async executeTemplateQuery(request: TemplateQueryRequest): Promise<QueryResultWithTiming> {
     logger.info(`Executing template query: ${request.templateId}`);
 
-    // For now, template queries are not fully implemented (Phase 4)
-    // This is a placeholder for future template system integration
-    throw new Error('Template queries are not yet implemented. This feature is planned for Phase 4.');
+    if (!this.templateRepository) {
+      throw new Error('Template repository is not configured');
+    }
+
+    const startTime = Date.now();
+
+    try {
+      // Get the template
+      const template = await this.templateRepository.getTemplate(request.templateId);
+      if (!template) {
+        throw new Error(`Template not found: ${request.templateId}`);
+      }
+
+      // Apply parameters to generate KQL query
+      const kqlQuery = await this.templateRepository.applyTemplate(template, request.parameters);
+
+      // Execute the generated KQL
+      const result = await this.dataSourceProvider.executeQuery({
+        query: kqlQuery
+      });
+
+      const executionTime = Date.now() - startTime;
+
+      logger.info(`Template query executed successfully in ${executionTime}ms`);
+
+      return {
+        result,
+        executionTime
+      };
+
+    } catch (error) {
+      const executionTime = Date.now() - startTime;
+      logger.error('Failed to execute template query:', error);
+      
+      throw new Error(`Template query execution failed: ${error}`);
+    }
   }
 
   /**

@@ -3,15 +3,16 @@ import chalk from 'chalk';
 import { 
   IOutputRenderer,
   IQuerySession,
-  SessionOptions
+  SessionOptions,
+  ITemplateRepository
 } from '../core/interfaces';
 import { QueryService, QueryServiceRequest } from '../services/QueryService';
-import { TemplateService } from '../services/TemplateService';
 import { AnalysisService } from '../services/analysisService';
 import { SupportedLanguage, OutputFormat, QueryResult } from '../types';
 import { detectTimeSeriesData } from '../utils/chart';
 import { FileOutputManager } from '../utils/fileOutput';
 import { OutputFormatter } from '../utils/outputFormatter';
+import { QueryTemplate } from '../core/interfaces/ITemplateRepository';
 import { logger } from '../utils/logger';
 
 /**
@@ -37,7 +38,7 @@ export class InteractiveSessionController {
 
   constructor(
     private queryService: QueryService,
-    private templateService: TemplateService,
+    private templateRepository: ITemplateRepository,
     private analysisService: AnalysisService,
     private outputRenderer: IOutputRenderer,
     private options: InteractiveSessionControllerOptions = {}
@@ -436,7 +437,7 @@ export class InteractiveSessionController {
    */
   private async showTemplates(): Promise<void> {
     try {
-      const templates = await this.templateService.getTemplates();
+      const templates = await this.templateRepository.getTemplates();
       
       if (templates.length === 0) {
         console.log(this.outputRenderer.renderInfo('No templates available yet').content);
@@ -444,7 +445,7 @@ export class InteractiveSessionController {
       }
 
       console.log(chalk.cyan.bold('\n📋 Available Templates:'));
-      templates.forEach((template, index) => {
+      templates.forEach((template: QueryTemplate, index: number) => {
         console.log(chalk.white(`${index + 1}. ${template.name} (${template.category})`));
         console.log(chalk.dim(`   ${template.description}`));
       });

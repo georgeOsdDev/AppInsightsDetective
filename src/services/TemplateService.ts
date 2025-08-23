@@ -1,65 +1,41 @@
+import { 
+  ITemplateRepository, 
+  QueryTemplate, 
+  TemplateFilter, 
+  TemplateParameters 
+} from '../core/interfaces/ITemplateRepository';
 import { logger } from '../utils/logger';
 
 /**
- * Query template definition
- */
-export interface QueryTemplate {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  kqlTemplate: string;
-  parameters: Array<{
-    name: string;
-    type: 'string' | 'number' | 'datetime' | 'timespan';
-    description: string;
-    required: boolean;
-    defaultValue?: any;
-    validValues?: any[];
-  }>;
-  metadata: {
-    author?: string;
-    version: string;
-    createdAt: Date;
-    updatedAt: Date;
-    tags: string[];
-  };
-}
-
-/**
- * Template search criteria
- */
-export interface TemplateFilter {
-  category?: string;
-  tags?: string[];
-  searchTerm?: string;
-}
-
-/**
- * Template parameters for applying a template
- */
-export interface TemplateParameters {
-  [parameterName: string]: any;
-}
-
-/**
  * Template service for managing query templates
- * 
- * Note: This is a basic implementation for Phase 3. 
- * Full template system implementation is planned for Phase 4.
+ * Implements ITemplateRepository for Phase 4 template system
  */
-export class TemplateService {
+export class TemplateService implements ITemplateRepository {
   private templates = new Map<string, QueryTemplate>();
+  private initialized = false;
 
   constructor() {
-    // Initialize with some basic templates
-    this.initializeBasicTemplates();
+    // Will be initialized when first accessed
+  }
+
+  /**
+   * Initialize repository with basic templates
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
+    await this.initializeBasicTemplates();
+    this.initialized = true;
   }
 
   /**
    * Get templates with optional filtering
    */
   async getTemplates(filter?: TemplateFilter): Promise<QueryTemplate[]> {
+    await this.initialize();
+    
     logger.debug('TemplateService: Getting templates with filter:', filter);
 
     let templates = Array.from(this.templates.values());
@@ -93,6 +69,8 @@ export class TemplateService {
    * Save a template
    */
   async saveTemplate(template: QueryTemplate): Promise<void> {
+    await this.initialize();
+    
     logger.info(`TemplateService: Saving template: ${template.id}`);
 
     // Validate template
@@ -120,6 +98,8 @@ export class TemplateService {
    * Get a specific template by ID
    */
   async getTemplate(id: string): Promise<QueryTemplate | null> {
+    await this.initialize();
+    
     const template = this.templates.get(id);
     if (!template) {
       logger.warn(`TemplateService: Template not found: ${id}`);
@@ -158,6 +138,8 @@ export class TemplateService {
    * Delete a template
    */
   async deleteTemplate(id: string): Promise<boolean> {
+    await this.initialize();
+    
     const existed = this.templates.delete(id);
     if (existed) {
       logger.info(`TemplateService: Template deleted: ${id}`);
@@ -171,6 +153,8 @@ export class TemplateService {
    * Get template categories
    */
   async getCategories(): Promise<string[]> {
+    await this.initialize();
+    
     const categories = new Set(Array.from(this.templates.values()).map(t => t.category));
     return Array.from(categories).sort();
   }
@@ -178,7 +162,7 @@ export class TemplateService {
   /**
    * Initialize basic templates
    */
-  private initializeBasicTemplates(): void {
+  private async initializeBasicTemplates(): Promise<void> {
     const basicTemplates: QueryTemplate[] = [
       {
         id: 'requests-overview',
@@ -218,6 +202,44 @@ by bin(timestamp, {{binSize}})
           updatedAt: new Date(),
           tags: ['requests', 'performance', 'overview']
         }
+      },
+      {
+        id: 'errors-analysis',
+        name: 'Error Analysis',
+        description: 'Analyze exceptions and failures over time',
+        category: 'Troubleshooting',
+        kqlTemplate: `exceptions
+| where timestamp > ago({{timespan}})
+| summarize 
+    ErrorCount = count(),
+    UniqueErrors = dcount(type)
+by bin(timestamp, {{binSize}}), type
+| order by timestamp desc, ErrorCount desc`,
+        parameters: [
+          {
+            name: 'timespan',
+            type: 'timespan',
+            description: 'Time period to analyze',
+            required: true,
+            defaultValue: '1h',
+            validValues: ['15m', '1h', '6h', '1d', '7d']
+          },
+          {
+            name: 'binSize',
+            type: 'timespan', 
+            description: 'Aggregation bin size',
+            required: true,
+            defaultValue: '5m',
+            validValues: ['1m', '5m', '15m', '1h']
+          }
+        ],
+        metadata: {
+          author: 'AppInsights Detective',
+          version: '1.0.0',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          tags: ['exceptions', 'errors', 'troubleshooting']
+        }
       }
     ];
 
@@ -231,7 +253,7 @@ by bin(timestamp, {{binSize}})
   /**
    * Validate template structure
    */
-  private validateTemplate(template: QueryTemplate): void {
+  validateTemplate(template: QueryTemplate): void {
     if (!template.id || !template.name || !template.kqlTemplate) {
       throw new Error('Template must have id, name, and kqlTemplate');
     }
@@ -271,7 +293,7 @@ by bin(timestamp, {{binSize}})
   private formatParameterValue(value: any, type: string): string {
     switch (type) {
       case 'string':
-        return `"${value}"`;
+        return String(value);  // Don't add quotes - let the template control quoting
       case 'datetime':
         if (value instanceof Date) {
           return `datetime(${value.toISOString()})`;
