@@ -13,7 +13,9 @@ import { logger } from '../utils/logger';
  */
 export interface QueryServiceRequest extends NLQueryRequest {
   sessionId?: string;
-  mode?: 'direct' | 'step' | 'raw';
+  mode?: 'direct' | 'step' | 'raw' | 'template';
+  templateId?: string;
+  parameters?: Record<string, any>;
 }
 
 /**
@@ -64,6 +66,17 @@ export class QueryService {
         // Execute as raw KQL
         result = await this.orchestrator.executeRawQuery(request.userInput);
         session.addToHistory(request.userInput, 1.0, 'generated', 'Raw KQL execution');
+      } else if (request.mode === 'template') {
+        // Execute as template query
+        if (!request.templateId) {
+          throw new Error('Template ID is required for template mode');
+        }
+        result = await this.orchestrator.executeTemplateQuery({
+          templateId: request.templateId,
+          parameters: request.parameters || {},
+          schema: request.schema
+        });
+        session.addToHistory(`Template: ${request.templateId}`, 1.0, 'generated', 'Template execution');
       } else {
         // Execute as natural language query
         // First generate the KQL

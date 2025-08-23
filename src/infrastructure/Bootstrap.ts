@@ -9,7 +9,8 @@ import {
   IAuthenticationProvider,
   IQueryOrchestrator,
   ISessionManager,
-  IOutputRenderer
+  IOutputRenderer,
+  ITemplateRepository
 } from '../core/interfaces';
 import { ConfigManager } from '../utils/config';
 import { logger } from '../utils/logger';
@@ -98,8 +99,12 @@ export class Bootstrap {
     const dataSourceProvider = this.container.resolve<IDataSourceProvider>('dataSourceProvider');
     const configManager = this.container.resolve<ConfigManager>('configManager');
 
-    // Register orchestration layer
-    const queryOrchestrator = new QueryOrchestrator(aiProvider, dataSourceProvider);
+    // Register business logic layer
+    const templateService = new TemplateService();
+    this.container.register<ITemplateRepository>('templateRepository', templateService);
+
+    // Register orchestration layer (with template repository support)
+    const queryOrchestrator = new QueryOrchestrator(aiProvider, dataSourceProvider, templateService);
     this.container.register<IQueryOrchestrator>('queryOrchestrator', queryOrchestrator);
 
     const sessionManager = new SessionManager();
@@ -108,9 +113,6 @@ export class Bootstrap {
     // Register business logic layer
     const queryService = new QueryService(queryOrchestrator, sessionManager, aiProvider);
     this.container.register('queryService', queryService);
-
-    const templateService = new TemplateService();
-    this.container.register('templateService', templateService);
 
     // Register presentation layer
     const outputRenderer = new ConsoleOutputRenderer();
@@ -126,6 +128,11 @@ export class Bootstrap {
     const authService = new AuthService();
     const appInsightsService = new AppInsightsService(authService, configManager);
     const aiService = new AIService(authService, configManager);
+    
+    // Register these services in the container so they can be resolved by template commands
+    this.container.register('authService', authService);
+    this.container.register('appInsightsService', appInsightsService);
+    this.container.register('aiService', aiService);
     
     const analysisService = new AnalysisService(aiService, configManager, aiProvider);
     this.container.register('analysisService', analysisService);

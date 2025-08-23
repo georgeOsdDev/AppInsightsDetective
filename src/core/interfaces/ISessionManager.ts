@@ -5,7 +5,7 @@ import { SupportedLanguage } from '../../types';
  */
 export interface SessionOptions {
   language?: SupportedLanguage;
-  defaultMode?: 'direct' | 'step' | 'raw';
+  defaultMode?: 'direct' | 'step' | 'raw' | 'template';
   showConfidenceThreshold?: number;
   allowEditing?: boolean;
   maxRegenerationAttempts?: number;

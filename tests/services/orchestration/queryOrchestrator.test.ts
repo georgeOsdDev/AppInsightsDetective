@@ -1,5 +1,5 @@
 import { QueryOrchestrator } from '../../../src/services/orchestration/QueryOrchestrator';
-import { IAIProvider, IDataSourceProvider } from '../../../src/core/interfaces';
+import { IAIProvider, IDataSourceProvider, ITemplateRepository, QueryTemplate, TemplateParameters } from '../../../src/core/interfaces';
 import { NLQuery, QueryResult } from '../../../src/types';
 
 // Mock AI Provider
@@ -54,12 +54,69 @@ const mockDataSourceProvider: IDataSourceProvider = {
   })
 };
 
+// Mock Template Repository
+const mockTemplate: QueryTemplate = {
+  id: 'test-template',
+  name: 'Test Template',
+  description: 'A test template',
+  category: 'Testing',
+  kqlTemplate: 'requests | where timestamp > ago({{timespan}}) | take {{limit}}',
+  parameters: [
+    {
+      name: 'timespan',
+      type: 'timespan',
+      description: 'Time period',
+      required: true,
+      defaultValue: '1h'
+    },
+    {
+      name: 'limit',
+      type: 'number',
+      description: 'Row limit',
+      required: false,
+      defaultValue: 100
+    }
+  ],
+  metadata: {
+    author: 'Test Author',
+    version: '1.0.0',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    tags: ['test']
+  }
+};
+
+const mockTemplateRepository: ITemplateRepository = {
+  getTemplate: jest.fn().mockResolvedValue(mockTemplate),
+  getTemplates: jest.fn().mockResolvedValue([mockTemplate]),
+  saveTemplate: jest.fn().mockResolvedValue(undefined),
+  deleteTemplate: jest.fn().mockResolvedValue(true),
+  searchTemplates: jest.fn().mockResolvedValue([mockTemplate]),
+  applyTemplate: jest.fn().mockResolvedValue('requests | where timestamp > ago(1h) | take 100'),
+  getCategories: jest.fn().mockResolvedValue(['Testing']),
+  initialize: jest.fn().mockResolvedValue(undefined),
+  validateTemplate: jest.fn().mockReturnValue(undefined)
+};
+
 describe('QueryOrchestrator', () => {
   let orchestrator: QueryOrchestrator;
+  let orchestratorWithTemplates: QueryOrchestrator;
 
   beforeEach(() => {
-    orchestrator = new QueryOrchestrator(mockAIProvider, mockDataSourceProvider);
+    // Reset all mocks to their original implementations
     jest.clearAllMocks();
+    
+    // Re-setup the mock implementations
+    (mockDataSourceProvider.executeQuery as jest.Mock).mockResolvedValue({
+      tables: [{
+        name: 'PrimaryResult',
+        columns: [{ name: 'timestamp', type: 'datetime' }],
+        rows: [['2024-01-01T00:00:00Z']]
+      }]
+    });
+    
+    orchestrator = new QueryOrchestrator(mockAIProvider, mockDataSourceProvider);
+    orchestratorWithTemplates = new QueryOrchestrator(mockAIProvider, mockDataSourceProvider, mockTemplateRepository);
   });
 
   describe('executeNaturalLanguageQuery', () => {
@@ -148,13 +205,55 @@ describe('QueryOrchestrator', () => {
   });
 
   describe('executeTemplateQuery', () => {
-    it('should throw not implemented error', async () => {
+    it('should throw error when template repository is not configured', async () => {
       const request = {
         templateId: 'test-template',
         parameters: {}
       };
 
-      await expect(orchestrator.executeTemplateQuery(request)).rejects.toThrow('Template queries are not yet implemented');
+      await expect(orchestrator.executeTemplateQuery(request)).rejects.toThrow('Template repository is not configured');
+    });
+
+    it('should execute template query successfully', async () => {
+      const request = {
+        templateId: 'test-template',
+        parameters: {
+          timespan: '2h',
+          limit: 50
+        }
+      };
+
+      const result = await orchestratorWithTemplates.executeTemplateQuery(request);
+
+      expect(result).toHaveProperty('result');
+      expect(result).toHaveProperty('executionTime');
+      expect(mockTemplateRepository.getTemplate).toHaveBeenCalledWith('test-template');
+      expect(mockTemplateRepository.applyTemplate).toHaveBeenCalledWith(mockTemplate, request.parameters);
+      expect(mockDataSourceProvider.executeQuery).toHaveBeenCalledWith({
+        query: 'requests | where timestamp > ago(1h) | take 100'
+      });
+    });
+
+    it('should throw error when template not found', async () => {
+      const request = {
+        templateId: 'nonexistent-template',
+        parameters: {}
+      };
+
+      (mockTemplateRepository.getTemplate as jest.Mock).mockResolvedValueOnce(null);
+
+      await expect(orchestratorWithTemplates.executeTemplateQuery(request)).rejects.toThrow('Template not found: nonexistent-template');
+    });
+
+    it('should handle template application errors', async () => {
+      const request = {
+        templateId: 'test-template',
+        parameters: {}
+      };
+
+      (mockTemplateRepository.applyTemplate as jest.Mock).mockRejectedValueOnce(new Error('Invalid parameters'));
+
+      await expect(orchestratorWithTemplates.executeTemplateQuery(request)).rejects.toThrow('Template query execution failed');
     });
   });
 });

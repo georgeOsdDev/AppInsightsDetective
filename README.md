@@ -18,6 +18,9 @@ AppInsights Detective is an intelligent CLI tool that allows you to query your A
 - 📈 **Rich Visualization**: Console-based charts and formatted tables with smart column management
 - 📁 **Multiple Output Formats**: JSON, CSV, TSV, Raw, and Table formats with customizable encoding
 - 💾 **Smart File Export**: Save results with automatic format detection and encoding options
+- 📋 **Template System**: Create, manage, and execute reusable query templates with parameters
+- 🏠 **User Templates**: Custom template creation and file-based persistence in `templates/user/`
+- ⚡ **Performance Optimized**: Fast template operations with lazy initialization
 - 🕵 **Interactive Mode**: Comprehensive step-by-step query experience with guided assistance
   - 📖 **Query Analysis & Validation**: AI-powered query explanation, regeneration, and confidence assessment
   - 🔄 **Query History & Management**: Track, edit, and regenerate queries with confidence-based recommendations
@@ -172,6 +175,11 @@ aidx query --raw "requests | take 10"
 | `aidx query [question]` | Query with natural language |
 | `aidx -i` or `aidx --interactive` | Interactive query mode |
 | `aidx query --raw [kql]` | Execute raw KQL query |
+| `aidx template list` | List available query templates |
+| `aidx template show <id>` | Show detailed template information |
+| `aidx template create` | Create new template interactively |
+| `aidx template use <id>` | Execute template with parameters |
+| `aidx template delete <id>` | Delete user-created template |
 
 ### Query Command Options
 
@@ -574,6 +582,223 @@ Analysis results are available in **12+ languages** with culturally appropriate 
 
 This comprehensive Interactive Mode and Analysis system provides both novice and expert users with powerful tools for exploring Application Insights data, understanding patterns, and making data-driven decisions about application performance and reliability.
 
+## 📋 Template System - Reusable Query Templates
+
+AppInsights Detective includes a powerful **template system** that allows you to create, manage, and execute reusable query templates with parameterized KQL queries. This feature enables you to standardize common analysis patterns and share them across your team.
+
+### 🎯 Template System Benefits
+
+- **🔄 Reusability**: Create once, use many times with different parameters  
+- **📚 Knowledge Sharing**: Share proven query patterns with your team
+- **⚡ Quick Analysis**: Execute complex queries instantly with simple parameters
+- **📈 Standardization**: Ensure consistent analysis approaches across projects
+- **🎨 Customization**: Create templates tailored to your specific monitoring needs
+
+### 📂 Built-in Templates
+
+AppInsights Detective comes with four production-ready templates covering common monitoring scenarios:
+
+| Template ID | Name | Category | Description |
+|-------------|------|----------|-------------|
+| `requests-overview` | Requests Overview | Performance | Web request performance analysis over time |
+| `errors-analysis` | Error Analysis | Troubleshooting | Application exceptions and failure analysis |
+| `performance-insights` | Performance Insights | Performance | Performance counter metrics and trends |
+| `dependency-analysis` | Dependency Analysis | Dependencies | External dependency call performance |
+
+### 📋 Template Management Commands
+
+#### List Templates
+```bash
+# List all templates
+aidx template list
+
+# Filter by category
+aidx template list --category Performance
+
+# Search templates
+aidx template list --search "error"
+
+# Filter by tags
+aidx template list --tags "performance,overview"
+```
+
+#### Show Template Details
+```bash
+# View detailed template information
+aidx template show requests-overview
+
+# Shows: description, parameters, KQL template, and usage info
+```
+
+#### List Categories
+```bash
+# See all available template categories
+aidx template categories
+```
+
+### 🚀 Using Templates
+
+#### Execute Templates Interactively
+```bash
+# Interactive parameter collection
+aidx template use requests-overview
+
+# System will prompt for:
+# - timespan: Time period to analyze (15m, 1h, 6h, 1d, 7d)
+# - binSize: Aggregation bin size (1m, 5m, 15m, 1h)
+```
+
+#### Execute with JSON Parameters
+```bash
+# Quick execution with predefined parameters
+aidx template use errors-analysis --params '{"timespan":"2h","binSize":"10m"}'
+
+# Save results to file
+aidx template use performance-insights --params '{"timespan":"1d","category":"Process","binSize":"1h"}' --output results.json --format json
+```
+
+#### Advanced Parameter Features
+- **Predefined Values**: Choose from validated options or enter custom values
+- **Custom Parameters**: Add additional parameters beyond template definition
+- **Flexible Input**: Mix structured and free-form parameter input
+- **Parameter Validation**: Automatic validation of required and valid values
+
+### 📝 Creating Custom Templates
+
+#### Interactive Template Creation
+```bash
+# Guided template creation process
+aidx template create
+
+# Interactive wizard will prompt for:
+# - Template name and description
+# - Category and tags
+# - KQL template with {{parameter}} placeholders
+# - Parameter definitions with types and validation
+```
+
+#### Create from File
+```bash
+# Load template from JSON file
+aidx template create --file my-template.json
+
+# Pre-populate with specific values
+aidx template create --name "My Template" --category "Custom"
+```
+
+#### Template File Format
+```json
+{
+  "id": "my-custom-template",
+  "name": "My Custom Template",
+  "description": "Analyze custom metrics with filtering",
+  "category": "Custom",
+  "kqlTemplate": "customEvents\n| where timestamp > ago({{timespan}})\n| where name == \"{{eventName}}\"\n| summarize count() by bin(timestamp, {{binSize}})",
+  "parameters": [
+    {
+      "name": "timespan",
+      "type": "timespan",
+      "description": "Time period to analyze",
+      "required": true,
+      "defaultValue": "1h",
+      "validValues": ["15m", "1h", "6h", "1d"]
+    },
+    {
+      "name": "eventName",
+      "type": "string", 
+      "description": "Custom event name to analyze",
+      "required": true
+    },
+    {
+      "name": "binSize",
+      "type": "timespan",
+      "description": "Aggregation bin size",
+      "required": true,
+      "defaultValue": "5m",
+      "validValues": ["1m", "5m", "15m", "1h"]
+    }
+  ],
+  "metadata": {
+    "author": "Your Name",
+    "version": "1.0.0",
+    "tags": ["custom", "events", "analysis"]
+  }
+}
+```
+
+### 🏠 User Template Directory
+
+#### Template Storage Location
+- **User Templates**: `templates/user/` directory in your project
+- **Auto-loading**: JSON files are automatically discovered and loaded
+- **Persistence**: Templates created via CLI are saved as JSON files
+- **Isolation**: User templates are separate from built-in system templates
+
+#### Managing User Templates
+```bash
+# Templates are automatically saved to templates/user/
+aidx template create  # Creates and saves to templates/user/<template-id>.json
+
+# Delete user-created templates (system templates cannot be deleted)
+aidx template delete my-custom-template
+
+# Force deletion without confirmation
+aidx template delete my-custom-template --force
+```
+
+### 📊 Template Parameter Types
+
+| Type | Description | Example Values |
+|------|-------------|----------------|
+| `string` | Text values | `"error"`, `"login"`, `"api"` |
+| `number` | Numeric values | `100`, `0.5`, `42` |
+| `datetime` | Date/time values | `"2024-01-01T00:00:00Z"` |
+| `timespan` | Duration values | `"1h"`, `"30m"`, `"7d"` |
+
+### 🎯 Template Usage Examples
+
+#### Performance Analysis
+```bash
+# Quick request analysis
+aidx template use requests-overview --params '{"timespan":"4h","binSize":"15m"}'
+
+# Detailed performance investigation
+aidx template use performance-insights --params '{"timespan":"1d","category":"ASP.NET Applications","binSize":"1h"}' --output perf-report.csv
+```
+
+#### Error Investigation
+```bash
+# Recent error analysis
+aidx template use errors-analysis --params '{"timespan":"2h","binSize":"5m"}'
+
+# Export error trends for reporting
+aidx template use errors-analysis --params '{"timespan":"7d","binSize":"1h"}' --output weekly-errors.json --format json --pretty
+```
+
+#### Dependency Monitoring
+```bash
+# Check external service health
+aidx template use dependency-analysis --params '{"timespan":"1h","binSize":"5m"}'
+
+# Long-term dependency trend analysis
+aidx template use dependency-analysis --params '{"timespan":"30d","binSize":"1d"}' --output dependency-trends.csv
+```
+
+### 🔧 Template Development Workflow
+
+1. **Identify Patterns**: Find commonly used query patterns in your monitoring
+2. **Create Template**: Use `aidx template create` to build reusable templates
+3. **Test Parameters**: Verify templates work with various parameter combinations
+4. **Share with Team**: Commit template files to version control
+5. **Iterate**: Refine templates based on usage and feedback
+
+### ⚡ Performance Optimizations
+
+- **Fast Read Operations**: Template listing, display, and category commands bypass OpenAI initialization
+- **Lazy Loading**: Templates are loaded only when needed
+- **Efficient Caching**: Templates are cached in memory after first load
+- **Direct Service Access**: Read-only operations use TemplateService directly
+
 ## 💡 Example Queries
 
 ```bash
@@ -596,6 +821,13 @@ aidx "Show me user sessions by geographic location"
 aidx "Show me custom events by type"
 aidx "What's the trend for failed logins?"
 aidx "Display custom metrics over time"
+
+# Template-based Analysis
+aidx template list                                    # View available templates
+aidx template use requests-overview                   # Interactive request analysis
+aidx template use errors-analysis --params '{"timespan":"4h","binSize":"10m"}'  # Quick error analysis
+aidx template create                                  # Create custom template
+aidx template show performance-insights              # View template details
 
 # Interactive Mode Examples with Analysis
 aidx -i  # Start interactive session with guided query building
@@ -620,6 +852,10 @@ aidx "Show me request data" --output results.json --format json --pretty
 aidx "Show request counts by operation" --output requests.csv --format csv
 aidx "Performance metrics" --output metrics.tsv --format tsv --no-headers
 aidx "User data" --output users.csv --format csv --encoding utf16le
+
+# Template Output Examples
+aidx template use dependency-analysis --params '{"timespan":"1d","binSize":"1h"}' --output deps.json --format json
+aidx template use requests-overview --output requests.csv --format csv --no-headers
 
 # Smart Column Management Examples
 aidx "Show me request data"                               # Default: hides empty columns

@@ -1,65 +1,44 @@
+import { 
+  ITemplateRepository, 
+  QueryTemplate, 
+  TemplateFilter, 
+  TemplateParameters 
+} from '../core/interfaces/ITemplateRepository';
 import { logger } from '../utils/logger';
-
-/**
- * Query template definition
- */
-export interface QueryTemplate {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  kqlTemplate: string;
-  parameters: Array<{
-    name: string;
-    type: 'string' | 'number' | 'datetime' | 'timespan';
-    description: string;
-    required: boolean;
-    defaultValue?: any;
-    validValues?: any[];
-  }>;
-  metadata: {
-    author?: string;
-    version: string;
-    createdAt: Date;
-    updatedAt: Date;
-    tags: string[];
-  };
-}
-
-/**
- * Template search criteria
- */
-export interface TemplateFilter {
-  category?: string;
-  tags?: string[];
-  searchTerm?: string;
-}
-
-/**
- * Template parameters for applying a template
- */
-export interface TemplateParameters {
-  [parameterName: string]: any;
-}
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 /**
  * Template service for managing query templates
- * 
- * Note: This is a basic implementation for Phase 3. 
- * Full template system implementation is planned for Phase 4.
+ * Implements ITemplateRepository for Phase 4 template system
  */
-export class TemplateService {
+export class TemplateService implements ITemplateRepository {
   private templates = new Map<string, QueryTemplate>();
+  private initialized = false;
 
   constructor() {
-    // Initialize with some basic templates
-    this.initializeBasicTemplates();
+    // Will be initialized when first accessed
+  }
+
+  /**
+   * Initialize repository with basic templates
+   */
+  async initialize(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+
+    await this.initializeBasicTemplates();
+    await this.loadUserTemplates();
+    this.initialized = true;
   }
 
   /**
    * Get templates with optional filtering
    */
   async getTemplates(filter?: TemplateFilter): Promise<QueryTemplate[]> {
+    await this.initialize();
+    
     logger.debug('TemplateService: Getting templates with filter:', filter);
 
     let templates = Array.from(this.templates.values());
@@ -93,6 +72,8 @@ export class TemplateService {
    * Save a template
    */
   async saveTemplate(template: QueryTemplate): Promise<void> {
+    await this.initialize();
+    
     logger.info(`TemplateService: Saving template: ${template.id}`);
 
     // Validate template
@@ -101,7 +82,28 @@ export class TemplateService {
     // Update timestamps
     template.metadata.updatedAt = new Date();
 
+    // Store in memory
     this.templates.set(template.id, template);
+
+    // Save to file (user templates only - don't overwrite built-in templates)
+    if (template.metadata.author !== 'System') {
+      try {
+        const userTemplatesDir = path.join(process.cwd(), 'templates', 'user');
+        
+        // Ensure directory exists
+        await fs.mkdir(userTemplatesDir, { recursive: true });
+        
+        const filePath = path.join(userTemplatesDir, `${template.id}.json`);
+        const templateJson = JSON.stringify(template, null, 2);
+        
+        await fs.writeFile(filePath, templateJson, 'utf-8');
+        logger.debug(`TemplateService: Template saved to file: ${filePath}`);
+      } catch (error) {
+        logger.warn(`TemplateService: Failed to save template to file:`, error);
+        // Don't fail the operation - template is still saved in memory
+      }
+    }
+
     logger.info(`TemplateService: Template saved successfully: ${template.id}`);
   }
 
@@ -120,6 +122,8 @@ export class TemplateService {
    * Get a specific template by ID
    */
   async getTemplate(id: string): Promise<QueryTemplate | null> {
+    await this.initialize();
+    
     const template = this.templates.get(id);
     if (!template) {
       logger.warn(`TemplateService: Template not found: ${id}`);
@@ -158,6 +162,8 @@ export class TemplateService {
    * Delete a template
    */
   async deleteTemplate(id: string): Promise<boolean> {
+    await this.initialize();
+    
     const existed = this.templates.delete(id);
     if (existed) {
       logger.info(`TemplateService: Template deleted: ${id}`);
@@ -171,6 +177,8 @@ export class TemplateService {
    * Get template categories
    */
   async getCategories(): Promise<string[]> {
+    await this.initialize();
+    
     const categories = new Set(Array.from(this.templates.values()).map(t => t.category));
     return Array.from(categories).sort();
   }
@@ -178,12 +186,12 @@ export class TemplateService {
   /**
    * Initialize basic templates
    */
-  private initializeBasicTemplates(): void {
+  private async initializeBasicTemplates(): Promise<void> {
     const basicTemplates: QueryTemplate[] = [
       {
         id: 'requests-overview',
         name: 'Requests Overview',
-        description: 'Get an overview of requests over a time period',
+        description: 'Get an overview of web requests over a time period',
         category: 'Performance',
         kqlTemplate: `requests
 | where timestamp > ago({{timespan}})
@@ -212,11 +220,138 @@ by bin(timestamp, {{binSize}})
           }
         ],
         metadata: {
-          author: 'AppInsights Detective',
+          author: 'System',
           version: '1.0.0',
           createdAt: new Date(),
           updatedAt: new Date(),
           tags: ['requests', 'performance', 'overview']
+        }
+      },
+      {
+        id: 'errors-analysis',
+        name: 'Error Analysis',
+        description: 'Analyze application exceptions and failures over time',
+        category: 'Troubleshooting',
+        kqlTemplate: `exceptions
+| where timestamp > ago({{timespan}})
+| summarize 
+    ErrorCount = count(),
+    UniqueErrors = dcount(type)
+by bin(timestamp, {{binSize}}), type
+| order by timestamp desc, ErrorCount desc`,
+        parameters: [
+          {
+            name: 'timespan',
+            type: 'timespan',
+            description: 'Time period to analyze',
+            required: true,
+            defaultValue: '1h',
+            validValues: ['15m', '1h', '6h', '1d', '7d']
+          },
+          {
+            name: 'binSize',
+            type: 'timespan', 
+            description: 'Aggregation bin size',
+            required: true,
+            defaultValue: '5m',
+            validValues: ['1m', '5m', '15m', '1h']
+          }
+        ],
+        metadata: {
+          author: 'System',
+          version: '1.0.0',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          tags: ['exceptions', 'errors', 'troubleshooting']
+        }
+      },
+      {
+        id: 'performance-insights',
+        name: 'Performance Insights',
+        description: 'Analyze application performance metrics and trends',
+        category: 'Performance',
+        kqlTemplate: `performanceCounters
+| where timestamp > ago({{timespan}})
+| where categoryName == "{{category}}"
+| summarize 
+    AvgValue = avg(value),
+    MinValue = min(value),
+    MaxValue = max(value),
+    Count = count()
+by bin(timestamp, {{binSize}}), counterName
+| order by timestamp desc, AvgValue desc`,
+        parameters: [
+          {
+            name: 'timespan',
+            type: 'timespan',
+            description: 'Time period to analyze',
+            required: true,
+            defaultValue: '1h',
+            validValues: ['15m', '1h', '6h', '1d', '7d']
+          },
+          {
+            name: 'category',
+            type: 'string',
+            description: 'Performance counter category',
+            required: true,
+            defaultValue: 'Process',
+            validValues: ['Process', 'Memory', 'Processor', 'ASP.NET Applications']
+          },
+          {
+            name: 'binSize',
+            type: 'timespan',
+            description: 'Aggregation bin size',
+            required: true,
+            defaultValue: '5m',
+            validValues: ['1m', '5m', '15m', '1h']
+          }
+        ],
+        metadata: {
+          author: 'System',
+          version: '1.0.0',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          tags: ['performance', 'counters', 'metrics']
+        }
+      },
+      {
+        id: 'dependency-analysis',
+        name: 'Dependency Analysis', 
+        description: 'Analyze external dependency calls and their performance',
+        category: 'Dependencies',
+        kqlTemplate: `dependencies
+| where timestamp > ago({{timespan}})
+| summarize 
+    CallCount = count(),
+    AvgDuration = avg(duration),
+    SuccessRate = round(100.0 * countif(success == true) / count(), 2),
+    FailureCount = countif(success == false)
+by bin(timestamp, {{binSize}}), type, target
+| order by timestamp desc, CallCount desc`,
+        parameters: [
+          {
+            name: 'timespan',
+            type: 'timespan',
+            description: 'Time period to analyze',
+            required: true,
+            defaultValue: '1h',
+            validValues: ['15m', '1h', '6h', '1d', '7d']
+          },
+          {
+            name: 'binSize',
+            type: 'timespan',
+            description: 'Aggregation bin size',
+            required: true,
+            defaultValue: '5m',
+            validValues: ['1m', '5m', '15m', '1h']
+          }
+        ],
+        metadata: {
+          author: 'System',
+          version: '1.0.0',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          tags: ['dependencies', 'external', 'performance']
         }
       }
     ];
@@ -229,9 +364,86 @@ by bin(timestamp, {{binSize}})
   }
 
   /**
+   * Load user templates from the templates/user directory
+   */
+  private async loadUserTemplates(): Promise<void> {
+    const userTemplatesDir = path.join(process.cwd(), 'templates', 'user');
+    
+    try {
+      // Check if user templates directory exists
+      await fs.access(userTemplatesDir);
+      
+      const files = await fs.readdir(userTemplatesDir);
+      const jsonFiles = files.filter(file => file.endsWith('.json'));
+      
+      let loadedCount = 0;
+      
+      for (const file of jsonFiles) {
+        try {
+          const filePath = path.join(userTemplatesDir, file);
+          const content = await fs.readFile(filePath, 'utf-8');
+          const templateData = JSON.parse(content);
+          
+          // Validate and create template
+          if (templateData.id && templateData.name && templateData.kqlTemplate) {
+            // Ensure metadata exists
+            if (!templateData.metadata) {
+              templateData.metadata = {
+                author: 'User',
+                version: '1.0.0',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                tags: []
+              };
+            } else {
+              // Ensure dates are Date objects
+              if (templateData.metadata.createdAt) {
+                templateData.metadata.createdAt = new Date(templateData.metadata.createdAt);
+              } else {
+                templateData.metadata.createdAt = new Date();
+              }
+              
+              if (templateData.metadata.updatedAt) {
+                templateData.metadata.updatedAt = new Date(templateData.metadata.updatedAt);
+              } else {
+                templateData.metadata.updatedAt = new Date();
+              }
+            }
+
+            // Ensure parameters array exists
+            if (!templateData.parameters) {
+              templateData.parameters = [];
+            }
+
+            const template: QueryTemplate = templateData;
+            
+            // Validate template
+            this.validateTemplate(template);
+            
+            // Store template
+            this.templates.set(template.id, template);
+            loadedCount++;
+            
+            logger.debug(`TemplateService: Loaded user template: ${template.id} from ${file}`);
+          } else {
+            logger.warn(`TemplateService: Invalid template structure in ${file}`);
+          }
+        } catch (error) {
+          logger.warn(`TemplateService: Failed to load template from ${file}:`, error);
+        }
+      }
+      
+      logger.info(`TemplateService: Loaded ${loadedCount} user template(s) from ${userTemplatesDir}`);
+    } catch (error) {
+      // Directory doesn't exist or can't be accessed - that's okay
+      logger.debug(`TemplateService: User templates directory not found or not accessible: ${userTemplatesDir}`);
+    }
+  }
+
+  /**
    * Validate template structure
    */
-  private validateTemplate(template: QueryTemplate): void {
+  validateTemplate(template: QueryTemplate): void {
     if (!template.id || !template.name || !template.kqlTemplate) {
       throw new Error('Template must have id, name, and kqlTemplate');
     }
@@ -271,7 +483,7 @@ by bin(timestamp, {{binSize}})
   private formatParameterValue(value: any, type: string): string {
     switch (type) {
       case 'string':
-        return `"${value}"`;
+        return String(value);  // Don't add quotes - let the template control quoting
       case 'datetime':
         if (value instanceof Date) {
           return `datetime(${value.toISOString()})`;

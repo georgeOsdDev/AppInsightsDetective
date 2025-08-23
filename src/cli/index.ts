@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { createSetupCommand } from './commands/setup';
 import { createQueryCommand } from './commands/query';
 import { createStatusCommand } from './commands/status';
+import { createTemplateCommand } from './commands/template';
 import { logger } from '../utils/logger';
 import chalk from 'chalk';
 import { Bootstrap } from '../infrastructure/Bootstrap';
@@ -24,7 +25,7 @@ let bootstrap: Bootstrap;
 /**
  * Handle output formatting and file writing
  */
-async function handleOutput(result: any, options: any, executionTime: number): Promise<void> {
+export async function handleOutput(result: any, options: any, executionTime: number): Promise<void> {
   const outputFormat = options.format as OutputFormat;
   const outputFile = options.output as string | undefined;
   const encoding = FileOutputManager.isValidEncoding(options.encoding) ? options.encoding : 'utf8';
@@ -176,6 +177,7 @@ program
 program.addCommand(createSetupCommand());
 program.addCommand(createQueryCommand());
 program.addCommand(createStatusCommand());
+program.addCommand(createTemplateCommand());
 
 // Default Action
 program

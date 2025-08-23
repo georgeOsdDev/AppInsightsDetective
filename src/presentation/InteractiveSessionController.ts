@@ -3,15 +3,16 @@ import chalk from 'chalk';
 import { 
   IOutputRenderer,
   IQuerySession,
-  SessionOptions
+  SessionOptions,
+  ITemplateRepository
 } from '../core/interfaces';
 import { QueryService, QueryServiceRequest } from '../services/QueryService';
-import { TemplateService } from '../services/TemplateService';
 import { AnalysisService } from '../services/analysisService';
 import { SupportedLanguage, OutputFormat, QueryResult } from '../types';
 import { detectTimeSeriesData } from '../utils/chart';
 import { FileOutputManager } from '../utils/fileOutput';
 import { OutputFormatter } from '../utils/outputFormatter';
+import { QueryTemplate } from '../core/interfaces/ITemplateRepository';
 import { logger } from '../utils/logger';
 
 /**
@@ -19,7 +20,7 @@ import { logger } from '../utils/logger';
  */
 export interface InteractiveSessionControllerOptions {
   language?: SupportedLanguage;
-  defaultMode?: 'direct' | 'step' | 'raw';
+  defaultMode?: 'direct' | 'step' | 'raw' | 'template';
   outputFormat?: OutputFormat;
   outputFile?: string;
   prettyJson?: boolean;
@@ -37,7 +38,7 @@ export class InteractiveSessionController {
 
   constructor(
     private queryService: QueryService,
-    private templateService: TemplateService,
+    private templateRepository: ITemplateRepository,
     private analysisService: AnalysisService,
     private outputRenderer: IOutputRenderer,
     private options: InteractiveSessionControllerOptions = {}
@@ -130,6 +131,17 @@ export class InteractiveSessionController {
 
         if (['templates'].includes(trimmedInput.toLowerCase())) {
           await this.showTemplates();
+          continue;
+        }
+
+        // Handle template usage with "use template" command
+        if (trimmedInput.toLowerCase().startsWith('use template')) {
+          const templateId = trimmedInput.substring('use template'.length).trim();
+          if (templateId) {
+            await this.useTemplate(templateId);
+          } else {
+            await this.selectAndUseTemplate();
+          }
           continue;
         }
 
@@ -251,7 +263,7 @@ export class InteractiveSessionController {
   /**
    * Get execution mode from user
    */
-  private async getExecutionMode(input: string): Promise<'direct' | 'step' | 'raw'> {
+  private async getExecutionMode(input: string): Promise<'direct' | 'step' | 'raw' | 'template'> {
     // Check if it looks like raw KQL
     const looksLikeKQL = /^(requests|dependencies|exceptions|pageViews|traces|customEvents)\s*\|/.test(input.trim());
     
@@ -406,6 +418,7 @@ export class InteractiveSessionController {
     console.log(chalk.white('• "settings" - Update session settings'));
     console.log(chalk.white('• "history" - Show query history'));
     console.log(chalk.white('• "templates" - Browse query templates'));
+    console.log(chalk.white('• "use template [id]" - Use a specific template or select interactively'));
     console.log(chalk.white('• "exit", "quit", or "q" - End session'));
   }
 
@@ -436,7 +449,7 @@ export class InteractiveSessionController {
    */
   private async showTemplates(): Promise<void> {
     try {
-      const templates = await this.templateService.getTemplates();
+      const templates = await this.templateRepository.getTemplates();
       
       if (templates.length === 0) {
         console.log(this.outputRenderer.renderInfo('No templates available yet').content);
@@ -444,13 +457,142 @@ export class InteractiveSessionController {
       }
 
       console.log(chalk.cyan.bold('\n📋 Available Templates:'));
-      templates.forEach((template, index) => {
+      templates.forEach((template: QueryTemplate, index: number) => {
         console.log(chalk.white(`${index + 1}. ${template.name} (${template.category})`));
         console.log(chalk.dim(`   ${template.description}`));
+        console.log(chalk.gray(`   Use: use template ${template.id}`));
       });
       
     } catch (error) {
       console.log(this.outputRenderer.renderError(`Failed to load templates: ${error}`).content);
+    }
+  }
+
+  /**
+   * Select and use a template interactively
+   */
+  private async selectAndUseTemplate(): Promise<void> {
+    try {
+      const templates = await this.templateRepository.getTemplates();
+      
+      if (templates.length === 0) {
+        console.log(this.outputRenderer.renderInfo('No templates available yet').content);
+        return;
+      }
+
+      const { selectedTemplate } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'selectedTemplate',
+          message: '📋 Select a template to use:',
+          choices: templates.map(t => ({
+            name: `${t.name} (${t.category}) - ${t.description}`,
+            value: t
+          }))
+        }
+      ]);
+
+      await this.useTemplate(selectedTemplate.id, selectedTemplate);
+      
+    } catch (error) {
+      console.log(this.outputRenderer.renderError(`Failed to select template: ${error}`).content);
+    }
+  }
+
+  /**
+   * Use a specific template
+   */
+  private async useTemplate(templateId: string, template?: QueryTemplate): Promise<void> {
+    try {
+      // Get template if not provided
+      if (!template) {
+        const fetchedTemplate = await this.templateRepository.getTemplate(templateId);
+        if (!fetchedTemplate) {
+          console.log(this.outputRenderer.renderError(`Template not found: ${templateId}`).content);
+          return;
+        }
+        template = fetchedTemplate;
+      }
+
+      console.log(chalk.cyan.bold(`\n📋 Using Template: ${template.name}`));
+      console.log(chalk.dim(`Category: ${template.category}`));
+      console.log(chalk.dim(`Description: ${template.description}`));
+
+      // Collect parameters if template has any
+      const parameters: Record<string, any> = {};
+      
+      if (template.parameters && template.parameters.length > 0) {
+        console.log(chalk.yellow('\n⚙️ Template Parameters:'));
+        
+        for (const param of template.parameters) {
+          let message = `${param.description}`;
+          if (param.defaultValue !== undefined) {
+            message += ` (default: ${param.defaultValue})`;
+          }
+          if (param.validValues && param.validValues.length > 0) {
+            message += ` [options: ${param.validValues.join(', ')}]`;
+          }
+
+          const promptConfig: any = {
+            name: param.name,
+            message,
+            default: param.defaultValue,
+            validate: (input: any) => {
+              if (param.required && (!input || input.toString().trim() === '')) {
+                return `${param.name} is required`;
+              }
+              if (param.validValues && param.validValues.length > 0 && !param.validValues.includes(input)) {
+                return `Invalid value. Valid options: ${param.validValues.join(', ')}`;
+              }
+              return true;
+            }
+          };
+
+          if (param.validValues && param.validValues.length > 0) {
+            promptConfig.type = 'list';
+            promptConfig.choices = param.validValues;
+          } else {
+            promptConfig.type = 'input';
+          }
+
+          const { [param.name]: value } = await inquirer.prompt([promptConfig]);
+          parameters[param.name] = value;
+        }
+      }
+
+      // Apply template and execute
+      const query = await this.templateRepository.applyTemplate(template, parameters);
+      
+      console.log(chalk.green.bold('\n🔍 Generated Query:'));
+      console.log(chalk.dim('─'.repeat(50)));
+      console.log(chalk.white(query));
+      console.log(chalk.dim('─'.repeat(50)));
+
+      // Ask user if they want to execute the query
+      const { shouldExecute } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'shouldExecute',
+          message: '🚀 Execute this template query?',
+          default: true
+        }
+      ]);
+
+      if (shouldExecute && this.currentSession) {
+        const result = await this.queryService.executeQuery({
+          userInput: '', // Empty since we're using template mode
+          templateId: template.id,
+          parameters,
+          sessionId: this.currentSession.sessionId,
+          mode: 'template'
+        });
+
+        await this.displayResults(result.result, query);
+      }
+
+    } catch (error) {
+      logger.error('Failed to use template:', error);
+      console.log(this.outputRenderer.renderError(`Failed to use template: ${error}`).content);
     }
   }
 
