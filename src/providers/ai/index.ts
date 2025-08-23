@@ -1,1 +1,1 @@
-export * from './AzureOpenAIProvider';
+export * from './OpenAIProvider';

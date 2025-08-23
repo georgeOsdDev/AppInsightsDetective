@@ -6,6 +6,7 @@ import { QueryResult } from '../../types';
 export interface QueryExecutionRequest {
   query: string;
   timeout?: number;
+  timespan?: string;
 }
 
 /**
@@ -20,17 +21,20 @@ export interface ValidationResult {
  * Schema result for data source
  */
 export interface SchemaResult {
-  tables: string[];
-  schema: any;
+  tables?: string[];
+  schema?: any;
+  error?: string;
 }
 
 /**
  * Metadata about the data source
  */
 export interface MetadataResult {
-  name: string;
-  type: string;
-  properties: Record<string, any>;
+  name?: string;
+  type?: string;
+  properties?: Record<string, any>;
+  metadata?: any;
+  error?: string;
 }
 
 /**
