@@ -50,6 +50,8 @@ export interface NLQuery {
   generatedKQL: string;
   confidence: number;
   reasoning?: string;
+  originalQuestion?: string;  // Added for compatibility
+  timestamp?: Date;           // Added for compatibility
 }
 
 // Regeneration context for AI service
