@@ -778,37 +778,6 @@ export function createTemplateCommand(): Command {
               parameters[param.name] = value;
             }
           }
-          
-          // Offer to add additional parameters not defined in template
-          const { addExtra } = await inquirer.prompt([{
-            type: 'confirm',
-            name: 'addExtra',
-            message: 'Would you like to add any additional custom parameters?',
-            default: false
-          }]);
-          
-          if (addExtra) {
-            console.log(chalk.yellow('\n🔧 Add custom parameters (press Enter with empty name to finish):'));
-            
-            while (true) {
-              const { paramName } = await inquirer.prompt([{
-                type: 'input',
-                name: 'paramName',
-                message: 'Parameter name:'
-              }]);
-              
-              if (!paramName.trim()) break;
-              
-              const { paramValue } = await inquirer.prompt([{
-                type: 'input',
-                name: 'paramValue',
-                message: `Value for ${paramName}:`
-              }]);
-              
-              parameters[paramName] = paramValue;
-              console.log(chalk.green(`✅ Added custom parameter: ${paramName} = ${paramValue}`));
-            }
-          }
         }
 
         // Generate the final KQL query with parameters applied

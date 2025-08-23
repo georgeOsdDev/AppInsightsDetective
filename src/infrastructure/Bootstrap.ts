@@ -129,6 +129,11 @@ export class Bootstrap {
     const appInsightsService = new AppInsightsService(authService, configManager);
     const aiService = new AIService(authService, configManager);
     
+    // Register these services in the container so they can be resolved by template commands
+    this.container.register('authService', authService);
+    this.container.register('appInsightsService', appInsightsService);
+    this.container.register('aiService', aiService);
+    
     const analysisService = new AnalysisService(aiService, configManager, aiProvider);
     this.container.register('analysisService', analysisService);
 
