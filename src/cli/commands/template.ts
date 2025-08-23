@@ -307,14 +307,13 @@ export function createTemplateCommand(): Command {
     .option('-p, --params <params>', 'Parameters in JSON format (e.g., \'{"timespan":"2h","limit":100}\')')
     .option('-o, --output <file>', 'Output file path')
     .option('-f, --format <format>', 'Output format (table, json, csv, tsv)', 'table')
+    .option('--direct', 'Execute query directly without confirmation (bypass interactive mode)')
     .action(async (templateId, options) => {
       try {
-        const bootstrap = new Bootstrap();
-        const container = await bootstrap.initialize();
-        const templateRepository = container.resolve<ITemplateRepository>('templateRepository');
-        const queryOrchestrator = container.resolve<IQueryOrchestrator>('queryOrchestrator');
+        // Get template first (without initializing OpenAI)
+        const { TemplateService } = await import('../../services/TemplateService');
+        const templateRepository = new TemplateService();
 
-        // Get template
         const template = await templateRepository.getTemplate(templateId);
         if (!template) {
           console.log(chalk.red(`Template not found: ${templateId}`));
@@ -428,8 +427,39 @@ export function createTemplateCommand(): Command {
           }
         }
 
-        // Execute template
+        // Generate the final KQL query with parameters applied
+        const finalKqlQuery = await templateRepository.applyTemplate(template, parameters);
+
+        // Show the final query to user (similar to interactive mode)
+        console.log(chalk.cyan.bold('\n🔍 Final KQL Query:'));
+        console.log(chalk.dim('='.repeat(50)));
+        console.log(chalk.green(finalKqlQuery));
+        console.log(chalk.dim('='.repeat(50)));
+
+        // Interactive confirmation (unless --direct is used)
+        if (!options.direct) {
+          const { action } = await inquirer.prompt([{
+            type: 'list',
+            name: 'action',
+            message: 'What would you like to do?',
+            choices: [
+              { name: '▶️  Execute query', value: 'execute' },
+              { name: '❌ Cancel', value: 'cancel' }
+            ]
+          }]);
+
+          if (action === 'cancel') {
+            console.log(chalk.gray('Template execution cancelled.'));
+            return;
+          }
+        }
+
+        // Now initialize full system for execution (OpenAI client initialization will happen here)
         console.log(chalk.green.bold('\n🚀 Executing template...'));
+        const bootstrap = new Bootstrap();
+        const container = await bootstrap.initialize();
+        const queryOrchestrator = container.resolve<IQueryOrchestrator>('queryOrchestrator');
+
         const result = await queryOrchestrator.executeTemplateQuery({
           templateId: template.id,
           parameters: parameters
