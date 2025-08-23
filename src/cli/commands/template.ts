@@ -307,7 +307,7 @@ export function createTemplateCommand(): Command {
     .option('-p, --params <params>', 'Parameters in JSON format (e.g., \'{"timespan":"2h","limit":100}\')')
     .option('-o, --output <file>', 'Output file path')
     .option('-f, --format <format>', 'Output format (table, json, csv, tsv)', 'table')
-    .option('--direct', 'Execute query directly without confirmation (bypass interactive mode)')
+    .option('--auto-execute', 'Execute query directly without confirmation')
     .action(async (templateId, options) => {
       try {
         // Get template first (without initializing OpenAI)
@@ -436,8 +436,8 @@ export function createTemplateCommand(): Command {
         console.log(chalk.green(finalKqlQuery));
         console.log(chalk.dim('='.repeat(50)));
 
-        // Interactive confirmation (unless --direct is used)
-        if (!options.direct) {
+        // Interactive confirmation (unless --auto-execute is used)
+        if (!options.autoExecute) {
           const { action } = await inquirer.prompt([{
             type: 'list',
             name: 'action',
