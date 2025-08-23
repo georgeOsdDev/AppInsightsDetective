@@ -6,6 +6,7 @@ import { createQueryCommand } from './commands/query';
 import { createStatusCommand } from './commands/status';
 import { createTemplateCommand } from './commands/template';
 import { createListProvidersCommand } from './commands/listProviders';
+import { createProvidersCommand } from './commands/providers';
 import { logger } from '../utils/logger';
 import chalk from 'chalk';
 import { Bootstrap } from '../infrastructure/Bootstrap';
@@ -180,6 +181,7 @@ program.addCommand(createQueryCommand());
 program.addCommand(createStatusCommand());
 program.addCommand(createTemplateCommand());
 program.addCommand(createListProvidersCommand());
+program.addCommand(createProvidersCommand());
 
 // Default Action
 program
@@ -335,6 +337,17 @@ function showWelcomeMessage(): void {
   console.log(chalk.cyan('  aidx --language ja "errors"') + chalk.dim('   # Japanese explanations'));
   console.log(chalk.cyan('  aidx --interactive') + chalk.dim('           # Full interactive session'));
   console.log(chalk.cyan('  aidx --raw "requests | take 5"') + chalk.dim(' # Raw KQL query'));
+  console.log('');
+  console.log('Provider management:');
+  console.log(chalk.cyan('  aidx list-providers') + chalk.dim('                     # List available providers'));
+  console.log(chalk.cyan('  aidx providers show') + chalk.dim('                    # Show current provider configuration'));
+  console.log(chalk.cyan('  aidx providers set-default ai openai') + chalk.dim('  # Switch AI provider'));
+  console.log(chalk.cyan('  aidx providers configure ai azure-openai') + chalk.dim(' # Configure specific provider'));
+  console.log('');
+  console.log('Template management:');
+  console.log(chalk.cyan('  aidx template list') + chalk.dim('                     # List available templates'));
+  console.log(chalk.cyan('  aidx template use <templateId>') + chalk.dim('        # Use a template'));
+  console.log(chalk.cyan('  aidx template create') + chalk.dim('                  # Create new template'));
   console.log('');
   console.log('Output formats:');
   console.log(chalk.cyan('  aidx "errors" --format json') + chalk.dim('                          # Display JSON to console'));

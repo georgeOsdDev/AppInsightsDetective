@@ -18,7 +18,12 @@ jest.mock('../../src/utils/config', () => {
           deploymentName: 'gpt-4'
         }
       }),
-      validateConfig: () => true
+      validateConfig: () => true,
+      hasMultiProviderConfig: () => false, // Return false to use legacy providers in tests
+      getMultiProviderConfig: () => null,
+      getDefaultProvider: () => 'azure-openai',
+      getAvailableProviders: () => [],
+      getProviderConfig: () => null
     }))
   };
 });

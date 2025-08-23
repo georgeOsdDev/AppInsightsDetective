@@ -66,6 +66,49 @@ export class Bootstrap {
   }
 
   private async registerProviders(configManager: ConfigManager): Promise<void> {
+    // Use multi-provider config if available, otherwise fall back to legacy
+    if (configManager.hasMultiProviderConfig()) {
+      await this.registerMultiProviders(configManager);
+    } else {
+      await this.registerLegacyProviders(configManager);
+    }
+
+    logger.info('Providers registered successfully');
+  }
+
+  /**
+   * Register providers using multi-provider configuration
+   */
+  private async registerMultiProviders(configManager: ConfigManager): Promise<void> {
+    const config = configManager.getMultiProviderConfig();
+    
+    // Create auth provider
+    const defaultAuthProvider = config.providers.auth.default;
+    const authConfig = config.providers.auth[defaultAuthProvider];
+    const authProvider = this.providerFactory.createAuthProvider(defaultAuthProvider as any, authConfig);
+    this.container.register<IAuthenticationProvider>('authProvider', authProvider);
+
+    // Create AI provider
+    const defaultAIProvider = config.providers.ai.default;
+    const aiConfig = config.providers.ai[defaultAIProvider];
+    const aiProvider = this.providerFactory.createAIProvider(defaultAIProvider as any, aiConfig, authProvider);
+    this.container.register<IAIProvider>('aiProvider', aiProvider);
+
+    // Create data source provider
+    const defaultDataSourceProvider = config.providers.dataSources.default;
+    const dataSourceConfig = config.providers.dataSources[defaultDataSourceProvider];
+    const dataSourceProvider = this.providerFactory.createDataSourceProvider(
+      defaultDataSourceProvider as any, 
+      dataSourceConfig, 
+      authProvider
+    );
+    this.container.register<IDataSourceProvider>('dataSourceProvider', dataSourceProvider);
+  }
+
+  /**
+   * Register providers using legacy configuration (for backward compatibility)
+   */
+  private async registerLegacyProviders(configManager: ConfigManager): Promise<void> {
     const config = configManager.getConfig();
 
     // Create auth provider
@@ -95,8 +138,6 @@ export class Bootstrap {
       resourceName: config.appInsights.resourceName,
     }, authProvider);
     this.container.register<IDataSourceProvider>('dataSourceProvider', dataSourceProvider);
-
-    logger.info('Providers registered successfully');
   }
 
   /**
