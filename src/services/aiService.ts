@@ -31,16 +31,21 @@ export class AIService implements IAIProvider {
 
   private async initializeOpenAI(): Promise<void> {
     try {
-      const config = this.configManager.getConfig();
+      const defaultAI = this.configManager.getDefaultProvider('ai');
+      const aiConfig = this.configManager.getProviderConfig('ai', defaultAI);
+      
+      if (!aiConfig) {
+        throw new Error(`AI provider '${defaultAI}' configuration not found`);
+      }
 
-      if (config.openAI.apiKey) {
+      if (aiConfig.apiKey) {
         // API Key authentication
         this.openAIClient = new OpenAI({
-          apiKey: config.openAI.apiKey,
-          baseURL: `${config.openAI.endpoint}/openai/deployments/${config.openAI.deploymentName}`,
+          apiKey: aiConfig.apiKey,
+          baseURL: `${aiConfig.endpoint}/openai/deployments/${aiConfig.deploymentName}`,
           defaultQuery: { 'api-version': '2024-02-15-preview' },
           defaultHeaders: {
-            'api-key': config.openAI.apiKey,
+            'api-key': aiConfig.apiKey,
           },
         });
       } else {
@@ -50,7 +55,7 @@ export class AIService implements IAIProvider {
 
         this.openAIClient = new OpenAI({
           apiKey: tokenResponse.token,
-          baseURL: `${config.openAI.endpoint}/openai/deployments/${config.openAI.deploymentName}`,
+          baseURL: `${aiConfig.endpoint}/openai/deployments/${aiConfig.deploymentName}`,
           defaultQuery: { 'api-version': '2024-02-15-preview' },
           defaultHeaders: {
             'Authorization': `Bearer ${tokenResponse.token}`,
@@ -78,12 +83,18 @@ export class AIService implements IAIProvider {
     return withLoadingIndicator(
       'Generating KQL query with AI...',
       async () => {
-        const config = this.configManager.getConfig();
+        const defaultAI = this.configManager.getDefaultProvider('ai');
+        const aiConfig = this.configManager.getProviderConfig('ai', defaultAI);
+        
+        if (!aiConfig) {
+          throw new Error(`AI provider '${defaultAI}' configuration not found`);
+        }
+
         const systemPrompt = this.buildSystemPrompt(schema);
         const userPrompt = this.buildUserPrompt(naturalLanguageQuery);
 
         const response = await this.openAIClient!.chat.completions.create({
-          model: config.openAI.deploymentName || 'gpt-4',
+          model: aiConfig.deploymentName || 'gpt-4',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
@@ -345,11 +356,18 @@ Example structure: | summarize count() by bin(timestamp, 1h) | render timechart`
     return withLoadingIndicator(
       `Generating KQL query explanation in language: ${language}...`,
       async () => {
+        const defaultAI = this.configManager.getDefaultProvider('ai');
+        const aiConfig = this.configManager.getProviderConfig('ai', defaultAI);
+        
+        if (!aiConfig) {
+          throw new Error(`AI provider '${defaultAI}' configuration not found`);
+        }
+
         const systemPrompt = this.buildExplanationSystemPrompt(language, technicalLevel, includeExamples);
         const userPrompt = `Please explain this KQL query in detail:\n\n${kqlQuery}`;
 
         const response = await this.openAIClient!.chat.completions.create({
-          model: config.openAI.deploymentName || 'gpt-4',
+          model: aiConfig.deploymentName || 'gpt-4',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
@@ -436,7 +454,13 @@ ${exampleInstructions}`;
     return withLoadingIndicator(
       `Regenerating KQL query (attempt ${context.attemptNumber})...`,
       async () => {
-        const config = this.configManager.getConfig();
+        const defaultAI = this.configManager.getDefaultProvider('ai');
+        const aiConfig = this.configManager.getProviderConfig('ai', defaultAI);
+        
+        if (!aiConfig) {
+          throw new Error(`AI provider '${defaultAI}' configuration not found`);
+        }
+
         const systemPrompt = this.buildSystemPrompt(schema);
 
         const userPrompt = `Convert this natural language query to KQL: "${originalQuestion}"
@@ -453,7 +477,7 @@ Please provide a DIFFERENT approach or query structure. Consider:
 Respond with only the new KQL query, no explanations.`;
 
         const response = await this.openAIClient!.chat.completions.create({
-          model: config.openAI.deploymentName || 'gpt-4',
+          model: aiConfig.deploymentName || 'gpt-4',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
@@ -534,10 +558,15 @@ Respond with only the new KQL query, no explanations.`;
     return withLoadingIndicator(
       'Generating AI analysis...',
       async () => {
-        const config = this.configManager.getConfig();
+        const defaultAI = this.configManager.getDefaultProvider('ai');
+        const aiConfig = this.configManager.getProviderConfig('ai', defaultAI);
+        
+        if (!aiConfig) {
+          throw new Error(`AI provider '${defaultAI}' configuration not found`);
+        }
         
         const response = await this.openAIClient!.chat.completions.create({
-          model: config.openAI.deploymentName || 'gpt-4',
+          model: aiConfig.deploymentName || 'gpt-4',
           messages: [
             { 
               role: 'system', 

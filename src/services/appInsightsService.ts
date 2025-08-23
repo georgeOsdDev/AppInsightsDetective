@@ -14,8 +14,14 @@ export class AppInsightsService {
     this.authService = authService;
     this.configManager = configManager;
 
-    const config = this.configManager.getConfig();
-    const baseURL = config.appInsights.endpoint || 'https://api.applicationinsights.io/v1/apps';
+    const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
+    const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
+    
+    if (!dataSourceConfig) {
+      throw new Error(`Data source provider '${defaultDataSource}' configuration not found`);
+    }
+    
+    const baseURL = dataSourceConfig.endpoint || 'https://api.applicationinsights.io/v1/apps';
 
     this.httpClient = axios.create({
       baseURL,
@@ -52,8 +58,14 @@ export class AppInsightsService {
     return withLoadingIndicator(
       'Executing query on Application Insights...',
       async () => {
-        const config = this.configManager.getConfig();
-        const url = `/${config.appInsights.applicationId}/query`;
+        const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
+        const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
+        
+        if (!dataSourceConfig) {
+          throw new Error(`Data source provider '${defaultDataSource}' configuration not found`);
+        }
+        
+        const url = `/${dataSourceConfig.applicationId}/query`;
 
         const response = await this.httpClient.post(url, {
           query: kqlQuery,
@@ -72,8 +84,15 @@ export class AppInsightsService {
     return withLoadingIndicator(
       'Validating Application Insights connection...',
       async () => {
+        const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
+        const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
+        
+        if (!dataSourceConfig) {
+          throw new Error(`Data source provider '${defaultDataSource}' configuration not found`);
+        }
+        
         // Test connection with a simple query
-        await this.httpClient.post(`/${this.configManager.getConfig().appInsights.applicationId}/query`, {
+        await this.httpClient.post(`/${dataSourceConfig.applicationId}/query`, {
           query: 'requests | take 1',
         });
         return true;
@@ -92,8 +111,14 @@ export class AppInsightsService {
     return withLoadingIndicator(
       'Retrieving Application Insights schema...',
       async () => {
-        const config = this.configManager.getConfig();
-        const url = `/${config.appInsights.applicationId}/metadata`;
+        const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
+        const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
+        
+        if (!dataSourceConfig) {
+          throw new Error(`Data source provider '${defaultDataSource}' configuration not found`);
+        }
+        
+        const url = `/${dataSourceConfig.applicationId}/metadata`;
 
         const response = await this.httpClient.get(url);
         return response.data;

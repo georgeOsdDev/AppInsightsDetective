@@ -1,30 +1,7 @@
-export interface AppInsightsConfig {
-  applicationId: string;
-  tenantId: string;
-  endpoint?: string;
-  // External execution configuration
-  subscriptionId?: string;
-  resourceGroup?: string;
-  resourceName?: string;
-}
-
-export interface OpenAIConfig {
-  endpoint: string;
-  apiKey?: string;
-  deploymentName?: string;
-}
-
-export interface Config {
-  appInsights: AppInsightsConfig;
-  openAI: OpenAIConfig;
-  logLevel: 'debug' | 'info' | 'warn' | 'error';
-  language?: string;
-}
-
 /**
- * Enhanced configuration supporting multiple providers
+ * Main configuration supporting multiple providers
  */
-export interface MultiProviderConfig {
+export interface Config {
   providers: {
     ai: {
       default: string; // Default AI provider to use
@@ -47,6 +24,12 @@ export interface MultiProviderConfig {
     dataSourceProviderOrder?: string[];
   };
 }
+
+/**
+ * @deprecated Use Config instead
+ * Alias for backward compatibility in code (not configuration files)
+ */
+export type MultiProviderConfig = Config;
 
 export interface QueryResult {
   tables: QueryTable[];

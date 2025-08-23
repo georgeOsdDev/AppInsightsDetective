@@ -66,21 +66,7 @@ export class Bootstrap {
   }
 
   private async registerProviders(configManager: ConfigManager): Promise<void> {
-    // Use multi-provider config if available, otherwise fall back to legacy
-    if (configManager.hasMultiProviderConfig()) {
-      await this.registerMultiProviders(configManager);
-    } else {
-      await this.registerLegacyProviders(configManager);
-    }
-
-    logger.info('Providers registered successfully');
-  }
-
-  /**
-   * Register providers using multi-provider configuration
-   */
-  private async registerMultiProviders(configManager: ConfigManager): Promise<void> {
-    const config = configManager.getMultiProviderConfig();
+    const config = configManager.getConfig();
     
     // Create auth provider
     const defaultAuthProvider = config.providers.auth.default;
@@ -103,41 +89,8 @@ export class Bootstrap {
       authProvider
     );
     this.container.register<IDataSourceProvider>('dataSourceProvider', dataSourceProvider);
-  }
 
-  /**
-   * Register providers using legacy configuration (for backward compatibility)
-   */
-  private async registerLegacyProviders(configManager: ConfigManager): Promise<void> {
-    const config = configManager.getConfig();
-
-    // Create auth provider
-    const authProvider = this.providerFactory.createAuthProvider('azure-managed-identity', {
-      type: 'azure-managed-identity',
-      tenantId: config.appInsights.tenantId,
-    });
-    this.container.register<IAuthenticationProvider>('authProvider', authProvider);
-
-    // Create AI provider
-    const aiProvider = this.providerFactory.createAIProvider('azure-openai', {
-      type: 'azure-openai',
-      endpoint: config.openAI.endpoint,
-      apiKey: config.openAI.apiKey,
-      deploymentName: config.openAI.deploymentName || 'gpt-4',
-    }, authProvider);
-    this.container.register<IAIProvider>('aiProvider', aiProvider);
-
-    // Create data source provider
-    const dataSourceProvider = this.providerFactory.createDataSourceProvider('application-insights', {
-      type: 'application-insights',
-      applicationId: config.appInsights.applicationId,
-      tenantId: config.appInsights.tenantId,
-      endpoint: config.appInsights.endpoint,
-      subscriptionId: config.appInsights.subscriptionId,
-      resourceGroup: config.appInsights.resourceGroup,
-      resourceName: config.appInsights.resourceName,
-    }, authProvider);
-    this.container.register<IDataSourceProvider>('dataSourceProvider', dataSourceProvider);
+    logger.info('Providers registered successfully');
   }
 
   /**
