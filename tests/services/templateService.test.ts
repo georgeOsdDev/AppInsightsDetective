@@ -1,16 +1,37 @@
 import { TemplateService } from '../../src/services/TemplateService';
 import { QueryTemplate, TemplateParameters } from '../../src/core/interfaces/ITemplateRepository';
+import * as fs from 'fs';
+import * as path from 'path';
 
 describe('TemplateService', () => {
   let templateService: TemplateService;
+  const userTemplatesDir = path.join(process.cwd(), 'templates/user');
 
   beforeEach(() => {
     templateService = new TemplateService();
+    // Clean up any existing test template files
+    cleanupTestTemplates();
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+    // Clean up test template files after each test
+    cleanupTestTemplates();
   });
+
+  function cleanupTestTemplates() {
+    try {
+      const testFiles = ['test-template.json'];
+      testFiles.forEach(file => {
+        const filePath = path.join(userTemplatesDir, file);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      });
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  }
 
   describe('Initialization', () => {
     it('should initialize with basic templates', async () => {
