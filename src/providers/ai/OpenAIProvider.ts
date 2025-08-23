@@ -10,16 +10,13 @@ import { buildSystemPrompt, buildRegenerationPrompt, buildExplanationSystemPromp
  * OpenAI provider implementation (non-Azure)
  */
 export class OpenAIProvider implements IAIProvider {
-  private openAIClient: OpenAI | null = null;
-  private initializationPromise: Promise<void> | null = null;
+  protected openAIClient: OpenAI | null = null;
+  protected initializationPromise: Promise<void> | null = null;
 
   constructor(
-    private config: AIProviderConfig,
-    private authProvider?: IAuthenticationProvider
+    protected config: AIProviderConfig,
+    protected authProvider?: IAuthenticationProvider
   ) {
-    if (this.config.type !== 'openai') {
-      throw new Error('Invalid provider type for OpenAIProvider');
-    }
     this.initializationPromise = this.initializeOpenAI();
   }
 
@@ -32,7 +29,10 @@ export class OpenAIProvider implements IAIProvider {
     }
   }
 
-  private async initializeOpenAI(): Promise<void> {
+  protected async initializeOpenAI(): Promise<void> {
+    if (this.config.type !== 'openai') {
+      throw new Error('Invalid provider type for OpenAIProvider');
+    }
     try {
       if (!this.config.apiKey) {
         throw new Error('OpenAI API key is required');
@@ -81,7 +81,7 @@ export class OpenAIProvider implements IAIProvider {
       }
 
       const generatedContent = response.choices[0].message.content;
-      
+
       // Parse the JSON response
       const kqlQuery = this.extractKQLFromResponse(generatedContent);
       const confidence = this.calculateConfidence(response.choices[0], generatedContent);
@@ -174,7 +174,7 @@ export class OpenAIProvider implements IAIProvider {
       }
 
       const generatedContent = response.choices[0].message.content;
-      
+
       // Parse the JSON response
       const kqlQuery = this.extractKQLFromResponse(generatedContent);
       const confidence = this.calculateConfidence(response.choices[0], generatedContent);
@@ -281,7 +281,7 @@ export class OpenAIProvider implements IAIProvider {
     try {
       const prompt = buildPatternAnalysisPrompt(request.result, request.originalQuery);
       const response = await this.generateResponse(prompt);
-      
+
       // Parse AI response into structured format
       return this.parsePatternAnalysisResponse(response);
     } catch (error) {
@@ -318,11 +318,11 @@ export class OpenAIProvider implements IAIProvider {
 
     const totalRows = firstTable.rows?.length || 0;
     const totalColumns = firstTable.columns?.length || 0;
-    
+
     // Calculate completeness
     let nullCount = 0;
     if (firstTable.rows && firstTable.columns) {
-      firstTable.rows.forEach((row: any[]) => {
+      firstTable.rows.forEach((row: unknown[]) => {
         row.forEach(cell => {
           if (cell === null || cell === undefined || cell === '') {
             nullCount++;
@@ -330,13 +330,13 @@ export class OpenAIProvider implements IAIProvider {
         });
       });
     }
-    
+
     const totalCells = totalRows * totalColumns;
     const completeness = totalCells > 0 ? ((totalCells - nullCount) / totalCells) * 100 : 0;
-    
+
     const consistency: string[] = [];
     const recommendations: string[] = [];
-    
+
     // Basic consistency checks
     if (completeness < 80) {
       consistency.push('High percentage of null values detected');
@@ -377,20 +377,20 @@ export class OpenAIProvider implements IAIProvider {
   private async generateRecommendations(request: QueryAnalysisRequest): Promise<string[]> {
     const recommendations: string[] = [];
     const firstTable = request.result.tables?.[0];
-    
+
     if (!firstTable || !firstTable.rows) {
       recommendations.push('No data returned - consider adjusting your query criteria');
       return recommendations;
     }
 
     const totalRows = firstTable.rows.length;
-    
+
     if (totalRows === 0) {
       recommendations.push('No data returned - consider adjusting your query criteria');
     } else if (totalRows > 10000) {
       recommendations.push('Large dataset returned - consider adding filters to improve performance');
     }
-    
+
     return recommendations;
   }
 
@@ -400,7 +400,7 @@ export class OpenAIProvider implements IAIProvider {
   private async generateFollowUpQueries(request: QueryAnalysisRequest): Promise<QueryAnalysisResult['followUpQueries']> {
     const queries = [];
     const firstTable = request.result.tables?.[0];
-    
+
     if (!firstTable || !firstTable.rows) {
       return [];
     }
@@ -413,12 +413,12 @@ export class OpenAIProvider implements IAIProvider {
         priority: 'low' as const
       });
     }
-    
+
     // Check if there are datetime columns for temporal analysis
-    const hasDateTimeColumn = firstTable.columns?.some((col: any) => 
+    const hasDateTimeColumn = firstTable.columns?.some((col: { name: string; type: string }) =>
       col.type?.includes('datetime') || col.name?.toLowerCase().includes('time')
     );
-    
+
     if (hasDateTimeColumn) {
       queries.push({
         query: `${request.originalQuery} | summarize count() by bin(timestamp, 1h)`,
@@ -426,7 +426,7 @@ export class OpenAIProvider implements IAIProvider {
         priority: 'medium' as const
       });
     }
-    
+
     return queries;
   }
 
@@ -465,8 +465,8 @@ export class OpenAIProvider implements IAIProvider {
       .trim();
   }
 
-  // Private helper methods (similar to AzureOpenAIProvider)
-  private extractKQLFromResponse(content: string): string {
+  // Protected helper methods for inheritance
+  protected extractKQLFromResponse(content: string): string {
     try {
       const parsed = JSON.parse(content);
       return parsed.kql || content;
@@ -476,16 +476,16 @@ export class OpenAIProvider implements IAIProvider {
       if (kqlMatch) {
         return kqlMatch[1].trim();
       }
-      
+
       // Last resort: return content as-is
       return content.trim();
     }
   }
 
-  private calculateConfidence(choice: OpenAIChoice, content?: string): number {
+  protected calculateConfidence(choice: OpenAIChoice, content?: string): number {
     // Base confidence calculation on finish_reason and other factors
     let confidence = 0.7; // Default confidence
-    
+
     if (choice.finish_reason === 'stop') {
       confidence = 0.85;
     } else if (choice.finish_reason === 'length') {
@@ -500,7 +500,7 @@ export class OpenAIProvider implements IAIProvider {
     return Math.min(Math.max(confidence, 0), 1);
   }
 
-  private extractReasoningFromResponse(content: string): string {
+  protected extractReasoningFromResponse(content: string): string {
     try {
       const parsed = JSON.parse(content);
       return parsed.reasoning || 'Generated by OpenAI';

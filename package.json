@@ -4,7 +4,7 @@
   "description": "Query Azure Application Insights with natural language using AI",
   "main": "dist/cli/index.js",
   "bin": {
-    "aidx": "dist/cli/index.js"
+    "aidx": "dist/src/cli/index.js"
   },
   "scripts": {
     "build": "tsc",
