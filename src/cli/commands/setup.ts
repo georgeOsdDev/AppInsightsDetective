@@ -4,25 +4,15 @@ import { ConfigManager } from '../../utils/config';
 import { Visualizer } from '../../utils/visualizer';
 import { logger } from '../../utils/logger';
 import chalk from 'chalk';
-import { MultiProviderConfig } from '../../types';
+import { Config } from '../../types';
 
 export function createSetupCommand(): Command {
   const setupCommand = new Command('setup')
     .description('Setup AppInsights Detective configuration')
-    .option('--legacy', 'Use legacy single-provider configuration format')
-    .option('--migrate', 'Migrate existing legacy configuration to multi-provider format')
     .action(async (options) => {
       try {
         const configManager = new ConfigManager();
-        
-        if (options.migrate) {
-          await migrateConfiguration(configManager);
-        } else if (options.legacy) {
-          await setupLegacyConfiguration(configManager);
-        } else {
-          await setupMultiProviderConfiguration(configManager);
-        }
-        
+        await setupConfiguration(configManager);
       } catch (error) {
         logger.error('Setup failed:', error);
         Visualizer.displayError(`Setup failed: ${error}`);
@@ -34,9 +24,9 @@ export function createSetupCommand(): Command {
 }
 
 /**
- * Setup new multi-provider configuration
+ * Setup configuration
  */
-async function setupMultiProviderConfiguration(configManager: ConfigManager): Promise<void> {
+async function setupConfiguration(configManager: ConfigManager): Promise<void> {
   Visualizer.displayInfo('Setting up AppInsights Detective with multi-provider support...');
   console.log(chalk.dim('This will create a new configuration supporting multiple AI and data source providers.\n'));
 
@@ -55,8 +45,8 @@ async function setupMultiProviderConfiguration(configManager: ConfigManager): Pr
   // Step 4: General Settings
   const generalSettings = await configureGeneralSettings();
 
-  // Create multi-provider configuration
-  const multiProviderConfig: MultiProviderConfig = {
+  // Create configuration
+  const config: Config = {
     providers: {
       ai: {
         default: aiProvider,
@@ -81,9 +71,9 @@ async function setupMultiProviderConfiguration(configManager: ConfigManager): Pr
   };
 
   // Save configuration
-  configManager.updateMultiProviderConfig(multiProviderConfig);
+  configManager.updateConfig(config);
 
-  Visualizer.displaySuccess('Multi-provider configuration saved successfully!');
+  Visualizer.displaySuccess('Configuration saved successfully!');
   console.log(chalk.green('\n🎉 Setup Complete!'));
   console.log(chalk.dim('You can now use aidx to query your data sources with AI assistance.'));
   console.log();

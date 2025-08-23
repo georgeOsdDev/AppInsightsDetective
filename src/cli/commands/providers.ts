@@ -22,11 +22,6 @@ export function createProvidersCommand(): Command {
       try {
         const configManager = new ConfigManager();
         
-        if (!configManager.hasMultiProviderConfig()) {
-          Visualizer.displayError('Multi-provider configuration is required. Run "aidx setup" first.');
-          process.exit(1);
-        }
-
         // Validate type
         const validTypes = ['ai', 'dataSources', 'auth'];
         if (!validTypes.includes(type)) {
@@ -79,11 +74,6 @@ export function createProvidersCommand(): Command {
       try {
         const configManager = new ConfigManager();
         
-        if (!configManager.hasMultiProviderConfig()) {
-          Visualizer.displayError('Multi-provider configuration is required. Run "aidx setup" first.');
-          process.exit(1);
-        }
-
         // Validate type
         const validTypes = ['ai', 'dataSources', 'auth'];
         if (!validTypes.includes(type)) {
@@ -140,13 +130,7 @@ export function createProvidersCommand(): Command {
       try {
         const configManager = new ConfigManager();
         
-        if (!configManager.hasMultiProviderConfig()) {
-          Visualizer.displayWarning('Using legacy configuration format.');
-          showLegacyConfiguration(configManager);
-          return;
-        }
-
-        const config = configManager.getMultiProviderConfig();
+        const config = configManager.getConfig();
         const providerTypes = options.type ? [options.type] : ['ai', 'dataSources', 'auth'];
 
         console.log(chalk.cyan.bold('\n🔧 Current Provider Configuration:'));
@@ -206,27 +190,6 @@ export function createProvidersCommand(): Command {
     });
 
   return providersCommand;
-}
-
-function showLegacyConfiguration(configManager: ConfigManager): void {
-  const config = configManager.getConfig();
-  
-  console.log(chalk.yellow.bold('\n⚠️ Legacy Configuration Format:'));
-  console.log(chalk.dim('Consider running "aidx setup --migrate" to upgrade to multi-provider format.\n'));
-  
-  console.log(chalk.white.bold('AI Provider:'));
-  console.log(`  ✅ azure-openai (default)`);
-  console.log(chalk.dim(`     Endpoint: ${config.openAI.endpoint}`));
-  console.log(chalk.dim(`     Deployment: ${config.openAI.deploymentName}`));
-  
-  console.log(chalk.white.bold('\nData Source Provider:'));
-  console.log(`  ✅ application-insights (default)`);
-  console.log(chalk.dim(`     Application ID: ${config.appInsights.applicationId}`));
-  console.log(chalk.dim(`     Tenant ID: ${config.appInsights.tenantId.substring(0, 8)}...`));
-  
-  console.log(chalk.white.bold('\nAuth Provider:'));
-  console.log(`  ✅ azure-managed-identity (default)`);
-  console.log(chalk.dim(`     Tenant ID: ${config.appInsights.tenantId.substring(0, 8)}...`));
 }
 
 function getProviderTypeLabel(type: string): string {
