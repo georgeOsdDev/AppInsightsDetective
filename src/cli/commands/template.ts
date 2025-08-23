@@ -24,9 +24,9 @@ export function createTemplateCommand(): Command {
     .option('-s, --search <term>', 'Search templates by name or description')
     .action(async (options) => {
       try {
-        const bootstrap = new Bootstrap();
-        const container = await bootstrap.initialize();
-        const templateRepository = container.resolve<ITemplateRepository>('templateRepository');
+        // Create TemplateService directly - no need for OpenAI initialization
+        const { TemplateService } = await import('../../services/TemplateService');
+        const templateRepository = new TemplateService();
 
         const filter: any = {};
         if (options.category) filter.category = options.category;
@@ -68,9 +68,9 @@ export function createTemplateCommand(): Command {
     .description('Show detailed information about a specific template')
     .action(async (templateId) => {
       try {
-        const bootstrap = new Bootstrap();
-        const container = await bootstrap.initialize();
-        const templateRepository = container.resolve<ITemplateRepository>('templateRepository');
+        // Create TemplateService directly - no need for OpenAI initialization
+        const { TemplateService } = await import('../../services/TemplateService');
+        const templateRepository = new TemplateService();
 
         const template = await templateRepository.getTemplate(templateId);
         if (!template) {
@@ -111,6 +111,190 @@ export function createTemplateCommand(): Command {
 
       } catch (error) {
         logger.error('Failed to show template:', error);
+        console.log(chalk.red(`Error: ${error}`));
+        process.exit(1);
+      }
+    });
+
+  // Create template
+  templateCommand
+    .command('create')
+    .description('Create a new template')
+    .option('-n, --name <name>', 'Template name')
+    .option('-d, --description <description>', 'Template description')
+    .option('-c, --category <category>', 'Template category')
+    .option('-f, --file <file>', 'Load template from file')
+    .action(async (options) => {
+      try {
+        const { TemplateService } = await import('../../services/TemplateService');
+        const templateRepository = new TemplateService();
+
+        let templateData: Partial<QueryTemplate>;
+
+        if (options.file) {
+          // Load from file
+          const fs = await import('fs/promises');
+          const path = await import('path');
+          
+          try {
+            const filePath = path.resolve(options.file);
+            const fileContent = await fs.readFile(filePath, 'utf-8');
+            templateData = JSON.parse(fileContent);
+            
+            console.log(chalk.green(`✅ Loaded template from ${filePath}`));
+          } catch (error) {
+            console.log(chalk.red(`❌ Failed to load template from file: ${error}`));
+            process.exit(1);
+          }
+        } else {
+          // Interactive creation
+          console.log(chalk.cyan.bold('\n📝 Create New Template'));
+          console.log(chalk.dim('='.repeat(50)));
+
+          const answers = await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'name',
+              message: 'Template name:',
+              default: options.name,
+              validate: (input) => input.trim() ? true : 'Template name is required'
+            },
+            {
+              type: 'input',
+              name: 'description',
+              message: 'Template description:',
+              default: options.description,
+              validate: (input) => input.trim() ? true : 'Description is required'
+            },
+            {
+              type: 'input',
+              name: 'category',
+              message: 'Template category:',
+              default: options.category || 'Custom',
+              validate: (input) => input.trim() ? true : 'Category is required'
+            },
+            {
+              type: 'editor',
+              name: 'kqlTemplate',
+              message: 'KQL template (use {{paramName}} for parameters):'
+            },
+            {
+              type: 'input',
+              name: 'tags',
+              message: 'Tags (comma-separated):',
+              filter: (input) => input.split(',').map((t: string) => t.trim()).filter((t: string) => t)
+            }
+          ]);
+
+          // Collect parameters
+          const parameters = [];
+          console.log(chalk.yellow('\n⚙️ Define template parameters (press Enter with empty name to finish):'));
+          
+          while (true) {
+            const paramAnswers = await inquirer.prompt([
+              {
+                type: 'input',
+                name: 'name',
+                message: 'Parameter name:'
+              }
+            ]);
+
+            if (!paramAnswers.name.trim()) break;
+
+            const paramDetails = await inquirer.prompt([
+              {
+                type: 'list',
+                name: 'type',
+                message: 'Parameter type:',
+                choices: ['string', 'number', 'datetime', 'timespan'],
+                default: 'string'
+              },
+              {
+                type: 'input',
+                name: 'description',
+                message: 'Parameter description:',
+                validate: (input) => input.trim() ? true : 'Description is required'
+              },
+              {
+                type: 'confirm',
+                name: 'required',
+                message: 'Is this parameter required?',
+                default: true
+              },
+              {
+                type: 'input',
+                name: 'defaultValue',
+                message: 'Default value (optional):',
+                when: (answers) => !answers.required
+              },
+              {
+                type: 'input',
+                name: 'validValues',
+                message: 'Valid values (comma-separated, optional):',
+                filter: (input) => input ? input.split(',').map((v: string) => v.trim()).filter((v: string) => v) : []
+              }
+            ]);
+
+            parameters.push({
+              name: paramAnswers.name.trim(),
+              type: paramDetails.type,
+              description: paramDetails.description,
+              required: paramDetails.required,
+              defaultValue: paramDetails.defaultValue || undefined,
+              validValues: paramDetails.validValues.length > 0 ? paramDetails.validValues : undefined
+            });
+
+            console.log(chalk.green(`✅ Added parameter: ${paramAnswers.name}`));
+          }
+
+          templateData = {
+            name: answers.name,
+            description: answers.description,
+            category: answers.category,
+            kqlTemplate: answers.kqlTemplate,
+            parameters,
+            metadata: {
+              tags: answers.tags,
+              version: '1.0.0',
+              author: 'User',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          };
+        }
+
+        // Generate unique ID
+        const templateId = templateData.name?.toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') || `template-${Date.now()}`;
+
+        const template: QueryTemplate = {
+          id: templateId,
+          name: templateData.name!,
+          description: templateData.description!,
+          category: templateData.category!,
+          kqlTemplate: templateData.kqlTemplate!,
+          parameters: templateData.parameters || [],
+          metadata: {
+            author: templateData.metadata?.author || 'User',
+            version: templateData.metadata?.version || '1.0.0',
+            createdAt: templateData.metadata?.createdAt || new Date(),
+            updatedAt: new Date(),
+            tags: templateData.metadata?.tags || []
+          }
+        };
+
+        // Validate and save template
+        templateRepository.validateTemplate(template);
+        await templateRepository.saveTemplate(template);
+
+        console.log(chalk.green.bold(`\n🎉 Template created successfully!`));
+        console.log(chalk.white(`ID: ${template.id}`));
+        console.log(chalk.white(`Name: ${template.name}`));
+        console.log(chalk.dim(`Use 'aidx template show ${template.id}' to view details`));
+
+      } catch (error) {
+        logger.error('Failed to create template:', error);
         console.log(chalk.red(`Error: ${error}`));
         process.exit(1);
       }
@@ -169,7 +353,7 @@ export function createTemplateCommand(): Command {
                 if (param.required && (!input || input.toString().trim() === '')) {
                   return `${param.name} is required`;
                 }
-                if (param.validValues && param.validValues.length > 0 && !param.validValues.includes(input)) {
+                if (param.validValues && param.validValues.length > 0 && input && !param.validValues.includes(input)) {
                   return `Invalid value. Valid options: ${param.validValues.join(', ')}`;
                 }
                 return true;
@@ -177,14 +361,70 @@ export function createTemplateCommand(): Command {
             };
 
             if (param.validValues && param.validValues.length > 0) {
-              promptConfig.type = 'list';
-              promptConfig.choices = param.validValues;
+              // Show list of valid values, but allow custom input
+              const choices = [...param.validValues, { name: 'Custom value (type your own)', value: '__custom__' }];
+              
+              const { [param.name]: selectedValue } = await inquirer.prompt([{
+                ...promptConfig,
+                type: 'list',
+                choices
+              }]);
+              
+              if (selectedValue === '__custom__') {
+                // Allow free input
+                const { [param.name]: customValue } = await inquirer.prompt([{
+                  type: 'input',
+                  name: param.name,
+                  message: `Enter custom value for ${param.name}:`,
+                  default: param.defaultValue,
+                  validate: (input: any) => {
+                    if (param.required && (!input || input.toString().trim() === '')) {
+                      return `${param.name} is required`;
+                    }
+                    return true;
+                  }
+                }]);
+                parameters[param.name] = customValue;
+              } else {
+                parameters[param.name] = selectedValue;
+              }
             } else {
+              // Free text input
               promptConfig.type = 'input';
+              const { [param.name]: value } = await inquirer.prompt([promptConfig]);
+              parameters[param.name] = value;
             }
-
-            const { [param.name]: value } = await inquirer.prompt([promptConfig]);
-            parameters[param.name] = value;
+          }
+          
+          // Offer to add additional parameters not defined in template
+          const { addExtra } = await inquirer.prompt([{
+            type: 'confirm',
+            name: 'addExtra',
+            message: 'Would you like to add any additional custom parameters?',
+            default: false
+          }]);
+          
+          if (addExtra) {
+            console.log(chalk.yellow('\n🔧 Add custom parameters (press Enter with empty name to finish):'));
+            
+            while (true) {
+              const { paramName } = await inquirer.prompt([{
+                type: 'input',
+                name: 'paramName',
+                message: 'Parameter name:'
+              }]);
+              
+              if (!paramName.trim()) break;
+              
+              const { paramValue } = await inquirer.prompt([{
+                type: 'input',
+                name: 'paramValue',
+                message: `Value for ${paramName}:`
+              }]);
+              
+              parameters[paramName] = paramValue;
+              console.log(chalk.green(`✅ Added custom parameter: ${paramName} = ${paramValue}`));
+            }
           }
         }
 
@@ -212,9 +452,9 @@ export function createTemplateCommand(): Command {
     .description('List template categories')
     .action(async () => {
       try {
-        const bootstrap = new Bootstrap();
-        const container = await bootstrap.initialize();
-        const templateRepository = container.resolve<ITemplateRepository>('templateRepository');
+        // Create TemplateService directly - no need for OpenAI initialization
+        const { TemplateService } = await import('../../services/TemplateService');
+        const templateRepository = new TemplateService();
 
         const categories = await templateRepository.getCategories();
         
@@ -230,6 +470,74 @@ export function createTemplateCommand(): Command {
 
       } catch (error) {
         logger.error('Failed to list categories:', error);
+        console.log(chalk.red(`Error: ${error}`));
+        process.exit(1);
+      }
+    });
+
+  // Delete template
+  templateCommand
+    .command('delete <templateId>')
+    .alias('rm')
+    .description('Delete a user-created template')
+    .option('-f, --force', 'Force deletion without confirmation')
+    .action(async (templateId, options) => {
+      try {
+        const { TemplateService } = await import('../../services/TemplateService');
+        const templateRepository = new TemplateService();
+
+        // Get template to check if it exists and if it's deletable
+        const template = await templateRepository.getTemplate(templateId);
+        if (!template) {
+          console.log(chalk.red(`Template not found: ${templateId}`));
+          process.exit(1);
+        }
+
+        // Don't allow deleting system templates
+        if (template.metadata.author === 'System') {
+          console.log(chalk.red(`Cannot delete system template: ${templateId}`));
+          process.exit(1);
+        }
+
+        // Confirm deletion unless forced
+        if (!options.force) {
+          const { confirm } = await inquirer.prompt([{
+            type: 'confirm',
+            name: 'confirm',
+            message: chalk.yellow(`Are you sure you want to delete template "${template.name}"?`),
+            default: false
+          }]);
+
+          if (!confirm) {
+            console.log(chalk.gray('Template deletion cancelled.'));
+            return;
+          }
+        }
+
+        // Delete template
+        const deleted = await templateRepository.deleteTemplate(templateId);
+        
+        if (deleted) {
+          // Also delete the file if it exists
+          try {
+            const fs = await import('fs/promises');
+            const path = await import('path');
+            const filePath = path.join(process.cwd(), 'templates', 'user', `${templateId}.json`);
+            await fs.unlink(filePath);
+            logger.debug(`Template file deleted: ${filePath}`);
+          } catch (error) {
+            // File might not exist, that's okay
+            logger.debug(`Template file not found for deletion: ${templateId}.json`);
+          }
+
+          console.log(chalk.green(`✅ Template deleted: ${template.name}`));
+        } else {
+          console.log(chalk.red(`Failed to delete template: ${templateId}`));
+          process.exit(1);
+        }
+
+      } catch (error) {
+        logger.error('Failed to delete template:', error);
         console.log(chalk.red(`Error: ${error}`));
         process.exit(1);
       }

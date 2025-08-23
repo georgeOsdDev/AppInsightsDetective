@@ -1,0 +1,47 @@
+{
+  "id": "custom-trace-analysis",
+  "name": "Custom Trace Analysis",
+  "description": "Analyze application traces with custom filtering",
+  "category": "Custom",
+  "kqlTemplate": "traces\n| where timestamp > ago({{timespan}})\n| where severityLevel >= {{minSeverity}}\n| where message contains \"{{searchTerm}}\"\n| summarize Count = count() by bin(timestamp, {{binSize}}), severityLevel\n| order by timestamp desc",
+  "parameters": [
+    {
+      "name": "timespan",
+      "type": "timespan",
+      "description": "Time period to analyze",
+      "required": true,
+      "defaultValue": "1h",
+      "validValues": ["15m", "1h", "4h", "1d", "7d"]
+    },
+    {
+      "name": "minSeverity",
+      "type": "number",
+      "description": "Minimum severity level (0=Verbose, 1=Info, 2=Warning, 3=Error, 4=Critical)",
+      "required": true,
+      "defaultValue": 1,
+      "validValues": [0, 1, 2, 3, 4]
+    },
+    {
+      "name": "searchTerm",
+      "type": "string",
+      "description": "Text to search for in trace messages",
+      "required": false,
+      "defaultValue": ""
+    },
+    {
+      "name": "binSize",
+      "type": "timespan",
+      "description": "Aggregation bin size",
+      "required": true,
+      "defaultValue": "5m",
+      "validValues": ["1m", "5m", "15m", "1h"]
+    }
+  ],
+  "metadata": {
+    "author": "Example User",
+    "version": "1.0.0",
+    "createdAt": "2025-08-23T09:00:00.000Z",
+    "updatedAt": "2025-08-23T09:00:00.000Z",
+    "tags": ["traces", "custom", "analysis", "example"]
+  }
+}

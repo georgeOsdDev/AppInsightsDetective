@@ -23,7 +23,7 @@ describe('TemplateService', () => {
       // Call twice to ensure initialization only happens once
       await templateService.getTemplates();
       const templates = await templateService.getTemplates();
-      expect(templates.length).toBe(2); // Should have 2 basic templates
+      expect(templates.length).toBe(4); // Should have 4 basic templates
     });
   });
 
