@@ -1,82 +1,156 @@
-import { AIService } from './aiService';
+import { IAIProvider, QueryAnalysisRequest } from '../core/interfaces/IAIProvider';
 import { ConfigManager } from '../utils/config';
-import { 
-  QueryResult, 
+import {
+  QueryResult,
   QueryColumn,
-  AnalysisType, 
-  AnalysisResult, 
-  StatisticalAnalysis, 
-  PatternAnalysis, 
+  AnalysisType,
+  AnalysisResult,
+  StatisticalAnalysis,
+  PatternAnalysis,
   ContextualInsights,
   SupportedLanguage
 } from '../types';
 import { logger } from '../utils/logger';
 import { getLanguageInstructions, resolveEffectiveLanguage } from '../utils/languageUtils';
+import { AIService } from './aiService';
 
 export class AnalysisService {
   constructor(
     private aiService: AIService,
-    private configManager: ConfigManager
+    private configManager: ConfigManager,
+    private aiProvider?: IAIProvider  // Optional modern AI provider
   ) {}
 
   /**
    * Analyze query result with specified analysis type
    */
   async analyzeQueryResult(
-    result: QueryResult, 
+    result: QueryResult,
     originalQuery: string,
     analysisType: AnalysisType,
     options: { language?: SupportedLanguage } = {}
   ): Promise<AnalysisResult> {
     try {
       logger.info(`Starting ${analysisType} analysis of query result`);
-      
-      const analysis: AnalysisResult = {};
 
-      switch (analysisType) {
-        case 'statistical':
-          analysis.statistical = this.performStatisticalAnalysis(result);
-          break;
-          
-        case 'patterns':
-          analysis.patterns = await this.performPatternAnalysis(result, originalQuery, options.language);
-          break;
-          
-        case 'anomalies':
-          analysis.patterns = await this.performPatternAnalysis(result, originalQuery, options.language);
-          // Filter to focus on anomalies
-          if (analysis.patterns) {
-            analysis.patterns.trends = [];
-            analysis.patterns.correlations = [];
-          }
-          break;
-          
-        case 'insights':
-          analysis.insights = await this.generateContextualInsights(result, originalQuery, options.language);
-          analysis.aiInsights = await this.generateAIInsights(result, originalQuery, options.language);
-          break;
-          
-        case 'full':
-          analysis.statistical = this.performStatisticalAnalysis(result);
-          analysis.patterns = await this.performPatternAnalysis(result, originalQuery, options.language);
-          analysis.insights = await this.generateContextualInsights(result, originalQuery, options.language);
-          analysis.aiInsights = await this.generateAIInsights(result, originalQuery, options.language);
-          break;
+      // Use AI provider if available and analysis type requires AI
+      if (this.aiProvider && analysisType !== 'statistical') {
+        return await this.delegateToAIProvider(result, originalQuery, analysisType, options);
       }
 
-      // Always generate recommendations and follow-up queries for non-statistical analysis
-      if (analysisType !== 'statistical') {
-        analysis.recommendations = await this.generateRecommendations(result, originalQuery, options.language);
-        analysis.followUpQueries = await this.generateFollowUpQueries(result, originalQuery, options.language);
-      }
+      // Fallback to legacy analysis approach
+      return await this.performLegacyAnalysis(result, originalQuery, analysisType, options);
 
-      logger.info(`${analysisType} analysis completed successfully`);
-      return analysis;
-      
     } catch (error) {
       logger.error('Analysis failed:', error);
       throw new Error(`Analysis failed: ${error}`);
     }
+  }
+
+  /**
+   * Delegate analysis to AI provider
+   */
+  private async delegateToAIProvider(
+    result: QueryResult,
+    originalQuery: string,
+    analysisType: AnalysisType,
+    options: { language?: SupportedLanguage }
+  ): Promise<AnalysisResult> {
+    if (!this.aiProvider) {
+      throw new Error('AI provider not available');
+    }
+
+    const request: QueryAnalysisRequest = {
+      result,
+      originalQuery,
+      analysisType: analysisType as any, // Map to AI provider types
+      options
+    };
+
+    const aiResult = await this.aiProvider.analyzeQueryResult(request);
+
+    // Convert AI provider result to AnalysisResult format
+    const analysis: AnalysisResult = {};
+
+    if (aiResult.patterns) {
+      analysis.patterns = aiResult.patterns;
+    }
+
+    if (aiResult.insights) {
+      analysis.insights = aiResult.insights;
+    }
+
+    if (aiResult.aiInsights) {
+      analysis.aiInsights = aiResult.aiInsights;
+    }
+
+    if (aiResult.recommendations) {
+      analysis.recommendations = aiResult.recommendations;
+    }
+
+    if (aiResult.followUpQueries) {
+      analysis.followUpQueries = aiResult.followUpQueries;
+    }
+
+    // For 'full' analysis, also add statistical analysis
+    if (analysisType === 'full') {
+      analysis.statistical = this.performStatisticalAnalysis(result);
+    }
+
+    logger.info(`${analysisType} analysis completed successfully`);
+    return analysis;
+  }
+
+  /**
+   * Perform legacy analysis using existing AIService
+   */
+  private async performLegacyAnalysis(
+    result: QueryResult,
+    originalQuery: string,
+    analysisType: AnalysisType,
+    options: { language?: SupportedLanguage }
+  ): Promise<AnalysisResult> {
+    const analysis: AnalysisResult = {};
+
+    switch (analysisType) {
+      case 'statistical':
+        analysis.statistical = this.performStatisticalAnalysis(result);
+        break;
+
+      case 'patterns':
+        analysis.patterns = await this.performPatternAnalysis(result, originalQuery, options.language);
+        break;
+
+      case 'anomalies':
+        analysis.patterns = await this.performPatternAnalysis(result, originalQuery, options.language);
+        // Filter to focus on anomalies
+        if (analysis.patterns) {
+          analysis.patterns.trends = [];
+          analysis.patterns.correlations = [];
+        }
+        break;
+
+      case 'insights':
+        analysis.insights = await this.generateContextualInsights(result, originalQuery, options.language);
+        analysis.aiInsights = await this.generateAIInsights(result, originalQuery, options.language);
+        break;
+
+      case 'full':
+        analysis.statistical = this.performStatisticalAnalysis(result);
+        analysis.patterns = await this.performPatternAnalysis(result, originalQuery, options.language);
+        analysis.insights = await this.generateContextualInsights(result, originalQuery, options.language);
+        analysis.aiInsights = await this.generateAIInsights(result, originalQuery, options.language);
+        break;
+    }
+
+    // Always generate recommendations and follow-up queries for non-statistical analysis
+    if (analysisType !== 'statistical') {
+      analysis.recommendations = await this.generateRecommendations(result, originalQuery, options.language);
+      analysis.followUpQueries = await this.generateFollowUpQueries(result, originalQuery, options.language);
+    }
+
+    logger.info(`${analysisType} analysis completed successfully`);
+    return analysis;
   }
 
   /**
@@ -93,16 +167,16 @@ export class AnalysisService {
 
     const firstTable = result.tables[0];
     const totalRows = firstTable.rows.length;
-    
+
     // Calculate unique values and null percentages
     const uniqueValues: Record<string, number> = {};
     const nullPercentage: Record<string, number> = {};
-    
+
     firstTable.columns.forEach((col, index) => {
       const values = firstTable.rows.map(row => row[index]);
       const nonNullValues = values.filter(v => v !== null && v !== undefined);
       const unique = new Set(nonNullValues);
-      
+
       uniqueValues[col.name] = unique.size;
       nullPercentage[col.name] = ((totalRows - nonNullValues.length) / totalRows) * 100;
     });
@@ -110,26 +184,26 @@ export class AnalysisService {
     // Numerical analysis for numeric columns
     let numerical: StatisticalAnalysis['numerical'] = null;
     const numericColumn = this.findNumericColumn(firstTable.columns, firstTable.rows);
-    
+
     if (numericColumn) {
       const values = firstTable.rows
         .map(row => row[numericColumn.index])
         .filter(v => typeof v === 'number' && !isNaN(v)) as number[];
-        
+
       if (values.length > 0) {
         const sorted = values.slice().sort((a, b) => a - b);
         const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
         const median = sorted[Math.floor(sorted.length / 2)];
         const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
         const stdDev = Math.sqrt(variance);
-        
+
         // Simple outlier detection (values beyond 2 standard deviations)
         const outliers = values.filter(v => Math.abs(v - mean) > 2 * stdDev);
-        
+
         // Simple distribution classification
         const skewness = this.calculateSkewness(values, mean, stdDev);
         let distribution: 'normal' | 'skewed' | 'uniform' | 'unknown' = 'unknown';
-        
+
         if (Math.abs(skewness) < 0.5) {
           distribution = 'normal';
         } else if (Math.abs(skewness) < 1) {
@@ -142,7 +216,7 @@ export class AnalysisService {
             distribution = 'skewed';
           }
         }
-        
+
         numerical = {
           mean: Number(mean.toFixed(2)),
           median: Number(median.toFixed(2)),
@@ -156,30 +230,30 @@ export class AnalysisService {
     // Temporal analysis for datetime columns
     let temporal: StatisticalAnalysis['temporal'] = null;
     const dateColumn = this.findDateTimeColumn(firstTable.columns, firstTable.rows);
-    
+
     if (dateColumn) {
       const dates = firstTable.rows
         .map(row => this.parseDate(row[dateColumn.index]))
         .filter(d => d !== null) as Date[];
-        
+
       if (dates.length > 0) {
         dates.sort((a, b) => a.getTime() - b.getTime());
         const timeRange = { start: dates[0], end: dates[dates.length - 1] };
-        
+
         // Simple trend analysis
         let trends: 'increasing' | 'decreasing' | 'stable' | 'seasonal' | 'unknown' = 'unknown';
         if (dates.length >= 3) {
           const firstThird = dates.slice(0, Math.floor(dates.length / 3));
           const lastThird = dates.slice(-Math.floor(dates.length / 3));
-          
+
           const firstAvg = firstThird.reduce((sum, d) => sum + d.getTime(), 0) / firstThird.length;
           const lastAvg = lastThird.reduce((sum, d) => sum + d.getTime(), 0) / lastThird.length;
-          
+
           if (lastAvg > firstAvg) trends = 'increasing';
           else if (lastAvg < firstAvg) trends = 'decreasing';
           else trends = 'stable';
         }
-        
+
         temporal = {
           timeRange,
           trends,
@@ -201,8 +275,14 @@ export class AnalysisService {
   private async performPatternAnalysis(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<PatternAnalysis> {
     try {
       const prompt = this.buildPatternAnalysisPrompt(result, originalQuery);
-      const response = await this.aiService.generateResponse(prompt);
-      
+      let response: string;
+
+      if (this.aiProvider) {
+        response = await this.aiProvider.generateResponse(prompt);
+      } else {
+        response = await this.aiService.generateResponse(prompt);
+      }
+
       // Parse AI response into structured format
       return this.parsePatternAnalysisResponse(response);
     } catch (error) {
@@ -220,21 +300,21 @@ export class AnalysisService {
    */
   private async generateContextualInsights(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<ContextualInsights> {
     const statistical = this.performStatisticalAnalysis(result);
-    
+
     // Data quality assessment
     const totalColumns = result.tables[0]?.columns.length || 0;
     const nullColumns = Object.values(statistical.summary.nullPercentage).filter(p => p > 50).length;
     const completeness = totalColumns > 0 ? ((totalColumns - nullColumns) / totalColumns) * 100 : 0;
-    
+
     const consistency: string[] = [];
     const recommendations: string[] = [];
-    
+
     // Basic consistency checks
     if (completeness < 80) {
       consistency.push('High percentage of null values detected');
       recommendations.push('Consider filtering out incomplete records');
     }
-    
+
     if (statistical.numerical?.outliers.length && statistical.numerical.outliers.length > 0) {
       consistency.push('Outliers detected in numerical data');
       recommendations.push('Investigate outlier values for data quality issues');
@@ -261,7 +341,12 @@ export class AnalysisService {
   private async generateAIInsights(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<string> {
     try {
       const prompt = this.buildInsightsPrompt(result, originalQuery, language);
-      return await this.aiService.generateResponse(prompt);
+
+      if (this.aiProvider) {
+        return await this.aiProvider.generateResponse(prompt);
+      } else {
+        return await this.aiService.generateResponse(prompt);
+      }
     } catch (error) {
       logger.warn('AI insights generation failed:', error);
       return 'AI insights temporarily unavailable. Please try again later.';
@@ -274,17 +359,17 @@ export class AnalysisService {
   private async generateRecommendations(result: QueryResult, originalQuery: string, language?: SupportedLanguage): Promise<string[]> {
     const recommendations: string[] = [];
     const statistical = this.performStatisticalAnalysis(result);
-    
+
     if (statistical.summary.totalRows === 0) {
       recommendations.push('No data returned - consider adjusting your query criteria');
     } else if (statistical.summary.totalRows > 10000) {
       recommendations.push('Large dataset returned - consider adding filters to improve performance');
     }
-    
+
     if (statistical.numerical?.outliers.length && statistical.numerical.outliers.length > statistical.summary.totalRows * 0.1) {
       recommendations.push('High number of outliers detected - investigate data quality');
     }
-    
+
     return recommendations;
   }
 
@@ -298,7 +383,7 @@ export class AnalysisService {
   }[]> {
     const queries = [];
     const statistical = this.performStatisticalAnalysis(result);
-    
+
     if (statistical.numerical?.outliers.length && statistical.numerical.outliers.length > 0) {
       queries.push({
         query: `${originalQuery} | where column_name > ${statistical.numerical.mean + 2 * statistical.numerical.stdDev}`,
@@ -306,7 +391,7 @@ export class AnalysisService {
         priority: 'medium' as const
       });
     }
-    
+
     if (statistical.temporal) {
       queries.push({
         query: `${originalQuery} | summarize count() by bin(timestamp, 1h)`,
@@ -314,7 +399,7 @@ export class AnalysisService {
         priority: 'low' as const
       });
     }
-    
+
     return queries;
   }
 
@@ -324,7 +409,7 @@ export class AnalysisService {
       if (columns[i].type.includes('int') || columns[i].type.includes('real') || columns[i].type.includes('decimal')) {
         return { index: i, name: columns[i].name };
       }
-      
+
       // Check if values are actually numeric
       const sample = rows.slice(0, 10).map(row => row[i]);
       if (sample.every(val => typeof val === 'number' || (!isNaN(Number(val)) && val !== null && val !== ''))) {
@@ -383,7 +468,7 @@ Respond in JSON format:
     const dataSummary = this.prepareDataSummary(result);
     const effectiveLanguage = resolveEffectiveLanguage(language, this.configManager.getConfig().language);
     const languageInstructions = getLanguageInstructions(effectiveLanguage);
-    
+
     return `
 Analyze this Application Insights query result and provide business insights:
 
@@ -404,10 +489,10 @@ Respond in clear, business-friendly language.`;
 
   private prepareDataSummary(result: QueryResult) {
     if (!result.tables.length) return { tables: 0, rows: 0 };
-    
+
     const firstTable = result.tables[0];
     const sampleSize = Math.min(5, firstTable.rows.length);
-    
+
     return {
       tableCount: result.tables.length,
       columns: firstTable.columns.map(col => ({ name: col.name, type: col.type })),

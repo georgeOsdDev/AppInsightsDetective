@@ -6,10 +6,10 @@ import { createQueryCommand } from './commands/query';
 import { createStatusCommand } from './commands/status';
 import { logger } from '../utils/logger';
 import chalk from 'chalk';
-import { AuthService } from '../services/authService';
-import { AppInsightsService } from '../services/appInsightsService';
-import { AIService } from '../services/aiService';
-import { StepExecutionService } from '../services/stepExecutionService';
+import { Bootstrap } from '../infrastructure/Bootstrap';
+import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../core/interfaces';
+import { QueryGenerationRequest } from '../core/interfaces/IAIProvider';
+import { QueryExecutionRequest } from '../core/interfaces/IDataSourceProvider';
 import { InteractiveService } from '../services/interactiveService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
@@ -17,6 +17,9 @@ import { OutputFormatter } from '../utils/outputFormatter';
 import { FileOutputManager } from '../utils/fileOutput';
 import { OutputFormat } from '../types';
 import { detectTimeSeriesData } from '../utils/chart';
+
+// Global bootstrap instance
+let bootstrap: Bootstrap;
 
 /**
  * Handle output formatting and file writing
@@ -200,9 +203,11 @@ program
 
         console.log(chalk.dim('🚀 Starting interactive session...'));
 
-        const authService = new AuthService();
-        const appInsightsService = new AppInsightsService(authService, configManager);
-        const aiService = new AIService(authService, configManager);
+        // For interactive mode, use legacy services for now
+        // TODO: Refactor InteractiveService to use providers directly in Phase 3
+        const authService = new (await import('../services/authService')).AuthService();
+        const appInsightsService = new (await import('../services/appInsightsService')).AppInsightsService(authService, configManager);
+        const aiService = new (await import('../services/aiService')).AIService(authService, configManager);
 
         const interactiveService = new InteractiveService(
           authService,
@@ -235,15 +240,22 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       process.exit(1);
     }
 
-    const authService = new AuthService();
-    const appInsightsService = new AppInsightsService(authService, configManager);
-    const aiService = new AIService(authService, configManager);
+    // Initialize the bootstrap container
+    if (!bootstrap) {
+      bootstrap = new Bootstrap();
+      await bootstrap.initialize();
+    }
+    const container = bootstrap.getContainer();
+
+    // Get providers from container
+    const aiProvider = container.resolve<IAIProvider>('aiProvider');
+    const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
 
     const startTime = Date.now();
 
     if (options.raw) {
       Visualizer.displayInfo(`Executing raw KQL query: ${question}`);
-      const result = await appInsightsService.executeQuery(question);
+      const result = await dataSourceProvider.executeQuery({ query: question });
       const executionTime = Date.now() - startTime;
 
       await handleOutput(result, options, executionTime);
@@ -251,56 +263,51 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       Visualizer.displayInfo(`Processing question: "${question}"`);
 
       Visualizer.displayInfo('Initializing AI services...');
-      await aiService.initialize();
+      await aiProvider.initialize();
 
       // Retrieve schema (optional)
       let schema;
       try {
-        schema = await appInsightsService.getSchema();
+        const schemaResult = await dataSourceProvider.getSchema();
+        schema = schemaResult.schema;
         logger.debug('Schema retrieved for query generation');
       } catch (_error) {
         logger.warn('Could not retrieve schema, proceeding without it');
       }
 
       // Generate KQL query
-      const nlQuery = await aiService.generateKQLQuery(question, schema);
+      const nlQuery = await aiProvider.generateQuery({
+        userInput: question,
+        schema
+      });
 
-      // Step execution mode or row confidence
+      // Step execution mode for low confidence
       const shouldUseStepMode = !options.direct && nlQuery.confidence < 0.7;
 
       if (shouldUseStepMode) {
-        const stepExecutionService = new StepExecutionService(aiService, appInsightsService, {
-          showConfidenceThreshold: 0.7,
-          allowEditing: true,
-          maxRegenerationAttempts: 3
-        });
-
-        if (options.language) {
-          const config = configManager.getConfig();
-          config.language = options.language;
+        // For now, fall back to legacy services for step execution
+        // TODO: Refactor StepExecutionService to use providers in Phase 3
+        Visualizer.displayWarning('Step-by-step execution mode requires interactive mode. Use -i flag for full step mode.');
+        Visualizer.displayInfo(`Generated Query (confidence: ${Math.round(nlQuery.confidence * 100)}%):`);
+        console.log(chalk.cyan(nlQuery.generatedKQL));
+        
+        // Ask for confirmation
+        const inquirer = await import('inquirer');
+        const { proceed } = await inquirer.default.prompt([{
+          type: 'confirm',
+          name: 'proceed',
+          message: 'Execute this query?',
+          default: true
+        }]);
+        
+        if (!proceed) {
+          console.log(chalk.yellow('Query execution cancelled.'));
+          return;
         }
-
-        const result = await stepExecutionService.executeStepByStep(nlQuery, question);
-
-        if (result) {
-          const executionTime = Date.now() - startTime;
-          await handleOutput(result, options, executionTime);
-        }
-        return;
-      }
-
-      // Normal execution (high confidence case)
-      Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
-
-      // Validate query
-      const validation = await aiService.validateQuery(nlQuery.generatedKQL);
-      if (!validation.isValid) {
-        Visualizer.displayError(`Generated query is invalid: ${validation.error}`);
-        return;
       }
 
       // Execute query
-      const result = await appInsightsService.executeQuery(nlQuery.generatedKQL);
+      const result = await dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
       const executionTime = Date.now() - startTime;
 
       await handleOutput(result, options, executionTime);
