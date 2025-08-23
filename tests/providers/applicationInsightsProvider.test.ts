@@ -225,7 +225,10 @@ describe('ApplicationInsightsProvider', () => {
 
       const result = await applicationInsightsProvider.getSchema();
 
-      expect(result).toEqual({ schema: mockSchema.data });
+      expect(result).toEqual({ 
+        schema: mockSchema.data,
+        tables: ['requests', 'dependencies'] 
+      });
       expect(mockAxiosInstance.get).toHaveBeenCalledWith('/test-app-id/metadata');
     });
 
@@ -237,6 +240,7 @@ describe('ApplicationInsightsProvider', () => {
 
       expect(result).toEqual({
         schema: null,
+        tables: [],
         error: 'Schema retrieval failed: Error: Schema retrieval failed'
       });
     });

@@ -128,10 +128,30 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
       const response = await this.httpClient.get(url);
 
       logger.info('Application Insights schema retrieved successfully');
-      return { schema: response.data };
+      
+      // Extract tables from the schema response if available
+      let tables: string[] = [];
+      if (response.data?.tables) {
+        if (Array.isArray(response.data.tables)) {
+          // Handle array format
+          tables = response.data.tables.map((table: any) => table.name || table);
+        } else if (typeof response.data.tables === 'object') {
+          // Handle object format (table names as keys)
+          tables = Object.keys(response.data.tables);
+        }
+      }
+      
+      return { 
+        schema: response.data,
+        tables 
+      };
     } catch (error) {
       logger.error('Failed to retrieve Application Insights schema:', error);
-      return { schema: null, error: `Schema retrieval failed: ${error}` };
+      return { 
+        schema: null, 
+        tables: [],
+        error: `Schema retrieval failed: ${error}` 
+      };
     }
   }
 

@@ -17,16 +17,17 @@ export class OpenAIProvider implements IAIProvider {
     protected config: AIProviderConfig,
     protected authProvider?: IAuthenticationProvider
   ) {
-    this.initializationPromise = this.initializeOpenAI();
+    // Don't start initialization immediately to avoid throwing errors in constructor
   }
 
   /**
    * Initialize the OpenAI client
    */
   async initialize(): Promise<void> {
-    if (this.initializationPromise) {
-      await this.initializationPromise;
+    if (!this.initializationPromise) {
+      this.initializationPromise = this.initializeOpenAI();
     }
+    await this.initializationPromise;
   }
 
   protected async initializeOpenAI(): Promise<void> {

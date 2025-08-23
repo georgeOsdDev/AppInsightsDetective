@@ -43,9 +43,10 @@ describe('OpenAIProvider', () => {
       expect(openAIProvider).toBeInstanceOf(OpenAIProvider);
     });
 
-    it('should throw error for invalid provider type', () => {
+    it('should throw error for invalid provider type', async () => {
       const invalidConfig = { ...mockOpenAIConfig, type: 'invalid' } as any;
-      expect(() => new OpenAIProvider(invalidConfig)).toThrow('Invalid provider type for OpenAIProvider');
+      const provider = new OpenAIProvider(invalidConfig);
+      await expect(provider.initialize()).rejects.toThrow('Invalid provider type for OpenAIProvider');
     });
   });
 
