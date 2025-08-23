@@ -5,6 +5,7 @@ import { createSetupCommand } from './commands/setup';
 import { createQueryCommand } from './commands/query';
 import { createStatusCommand } from './commands/status';
 import { createTemplateCommand } from './commands/template';
+import { createListProvidersCommand } from './commands/listProviders';
 import { logger } from '../utils/logger';
 import chalk from 'chalk';
 import { Bootstrap } from '../infrastructure/Bootstrap';
@@ -178,6 +179,7 @@ program.addCommand(createSetupCommand());
 program.addCommand(createQueryCommand());
 program.addCommand(createStatusCommand());
 program.addCommand(createTemplateCommand());
+program.addCommand(createListProvidersCommand());
 
 // Default Action
 program
