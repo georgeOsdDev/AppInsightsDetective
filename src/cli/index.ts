@@ -221,16 +221,11 @@ program
         const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
         const authProvider = container.resolve<IAuthenticationProvider>('authProvider');
 
-        // For now, create InteractiveService with legacy parameters but get services from container
-        // TODO: Refactor InteractiveService constructor to use providers directly
-        const authService = container.resolve('authService') as any;
-        const appInsightsService = container.resolve('appInsightsService') as any;
-        const aiService = container.resolve('aiService') as any;
-
+        // Use providers directly for interactive mode
         const interactiveService = new InteractiveService(
-          authService,
-          appInsightsService,
-          aiService,
+          aiProvider,
+          dataSourceProvider,
+          authProvider,
           configManager,
           {
             language: options.language,

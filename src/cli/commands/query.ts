@@ -3,7 +3,6 @@ import inquirer from 'inquirer';
 import { Bootstrap } from '../../infrastructure/Bootstrap';
 import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../../core/interfaces';
 import { StepExecutionService } from '../../services/stepExecutionService';
-import { InteractiveService } from '../../services/interactiveService';
 import { ConfigManager } from '../../utils/config';
 import { Visualizer } from '../../utils/visualizer';
 import { OutputFormatter } from '../../utils/outputFormatter';

@@ -11,7 +11,12 @@ jest.mock('../../src/utils/loadingIndicator', () => ({
 }));
 
 // Mock dependencies
-jest.mock('../../src/services/authService');
+jest.mock('../../src/services/authService', () => ({
+  AuthService: jest.fn().mockImplementation(() => ({
+    getOpenAIToken: jest.fn().mockResolvedValue('mock-token'),
+    getAccessToken: jest.fn().mockResolvedValue('mock-token')
+  }))
+}));
 jest.mock('../../src/utils/config');
 jest.mock('../../src/utils/logger', () => ({
   logger: {
@@ -20,6 +25,17 @@ jest.mock('../../src/utils/logger', () => ({
     warn: jest.fn(),
     debug: jest.fn()
   }
+}));
+
+// Mock AI providers
+jest.mock('../../src/providers/ai/AzureOpenAIProvider', () => ({
+  AzureOpenAIProvider: jest.fn().mockImplementation(() => ({
+    generateQuery: jest.fn().mockResolvedValue({
+      generatedKQL: 'requests | count',
+      confidence: 0.9,
+      explanation: 'Mock query'
+    })
+  }))
 }));
 
 // Mock OpenAI
@@ -64,6 +80,16 @@ describe('AI Service with Loading Indicators', () => {
     
     // Setup config mock
     mockConfigManager.getConfig.mockReturnValue({
+      providers: {
+        ai: {
+          default: 'azure-openai',
+          'azure-openai': {
+            endpoint: 'https://test.openai.azure.com',
+            deploymentName: 'gpt-4',
+            apiVersion: '2024-02-15-preview'
+          }
+        }
+      },
       openAI: {
         apiKey: 'test-key',
         endpoint: 'https://test.openai.azure.com',

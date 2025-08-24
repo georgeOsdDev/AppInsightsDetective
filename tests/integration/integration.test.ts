@@ -31,7 +31,21 @@ describe('Integration Tests', () => {
     const mockConfigManager = {
       get: jest.fn().mockReturnValue({ applicationId: 'test-app-id' }),
       getConfig: jest.fn().mockReturnValue({
+        providers: {
+          dataSources: {
+            default: 'application-insights',
+            'application-insights': {
+              applicationId: 'test-app-id',
+              endpoint: 'https://api.applicationinsights.io/v1/apps'
+            }
+          }
+        },
         appInsights: { endpoint: 'https://api.applicationinsights.io/v1/apps' }
+      }),
+      getDefaultProvider: jest.fn().mockReturnValue('application-insights'),
+      getProviderConfig: jest.fn().mockReturnValue({
+        applicationId: 'test-app-id',
+        endpoint: 'https://api.applicationinsights.io/v1/apps'
       }),
       getOpenAIConfig: jest.fn().mockReturnValue({
         apiKey: 'test-key',

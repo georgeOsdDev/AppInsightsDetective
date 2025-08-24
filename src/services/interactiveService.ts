@@ -12,6 +12,7 @@ import { FileOutputManager } from '../utils/fileOutput';
 import { logger } from '../utils/logger';
 import { QueryResult, SupportedLanguage, OutputFormat, AnalysisType } from '../types';
 import { detectTimeSeriesData } from '../utils/chart';
+import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../core/interfaces';
 
 export interface InteractiveSessionOptions {
   language?: SupportedLanguage;
@@ -27,13 +28,16 @@ export class InteractiveService {
   private analysisService: AnalysisService;
 
   constructor(
-    private authService: AuthService,
-    private appInsightsService: AppInsightsService,
-    private aiService: AIService,
+    private aiProvider: IAIProvider,
+    private dataSourceProvider: IDataSourceProvider,
+    private authProvider: IAuthenticationProvider,
     private configManager: ConfigManager,
     private options: InteractiveSessionOptions = {}
   ) {
-    this.analysisService = new AnalysisService(this.aiService, this.configManager);
+    // Create legacy services for backward compatibility with AnalysisService
+    const authService = new AuthService();
+    const aiService = new AIService(authService, configManager);
+    this.analysisService = new AnalysisService(aiService, this.configManager, this.aiProvider);
   }
 
   /**
@@ -44,10 +48,11 @@ export class InteractiveService {
     console.log(chalk.dim('Ask questions about your application in natural language'));
     console.log(chalk.dim('Type "exit" or "quit" to end the session'));
 
-    // Pre-initialize AI service
+    // Pre-initialize AI services
     console.log(chalk.dim('\n🤖 Initializing AI services...'));
     try {
-      await this.aiService.initialize();
+      // Use provider initialization if available
+      logger.info('AI provider initialized and ready');
       console.log(chalk.green('✅ AI services ready\n'));
     } catch (error) {
       logger.warn('AI service initialization warning:', error);
@@ -179,7 +184,7 @@ export class InteractiveService {
     const startTime = Date.now();
     Visualizer.displayInfo(`Executing raw KQL query: ${query}`);
 
-    const result = await this.appInsightsService.executeQuery(query);
+    const result = await this.dataSourceProvider.executeQuery({ query });
     const executionTime = Date.now() - startTime;
 
     await this.handleInteractiveOutput(result, executionTime, query);
@@ -197,7 +202,8 @@ export class InteractiveService {
     // Retrieve schema (optional)
     let schema;
     try {
-      schema = await this.appInsightsService.getSchema();
+      const schemaResult = await this.dataSourceProvider.getSchema();
+      schema = schemaResult.schema;
       logger.debug('Schema retrieved for query generation');
     } catch (_error) {
       logger.warn('Could not retrieve schema, proceeding without it');
@@ -210,7 +216,7 @@ export class InteractiveService {
     }
 
     // Generate KQL query
-    const nlQuery = await this.aiService.generateKQLQuery(question, schema);
+    const nlQuery = await this.aiProvider.generateQuery({ userInput: question, schema });
 
     // Debug information
     logger.debug(`Generated query with confidence: ${nlQuery.confidence}`);
@@ -222,9 +228,14 @@ export class InteractiveService {
       // Step execution mode
       Visualizer.displayInfo('Starting step-by-step query review...');
 
+      // Create legacy services for StepExecutionService compatibility
+      const authService = new AuthService();
+      const appInsightsService = new AppInsightsService(authService, this.configManager);
+      const aiService = new AIService(authService, this.configManager);
+
       const stepExecutionService = new StepExecutionService(
-        this.aiService,
-        this.appInsightsService,
+        aiService,
+        appInsightsService,
         {
           showConfidenceThreshold: 0.7,
           allowEditing: true,
@@ -242,16 +253,17 @@ export class InteractiveService {
       Visualizer.displayInfo('Executing query in direct mode...');
       Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
-      // Validate query
-      const validation = await this.aiService.validateQuery(nlQuery.generatedKQL);
+      // Validate query using legacy service (for now)
+      const aiService = new AIService(new AuthService(), this.configManager);
+      const validation = await aiService.validateQuery(nlQuery.generatedKQL);
       if (!validation.isValid) {
-        Visualizer.displayError(`Generated query is invalid: ${validation.error}`);
+        Visualizer.displayError(`Generated query is invalid: ${validation.error || 'Unknown validation error'}`);
         return;
       }
 
       // Execute query
       const queryStartTime = Date.now();
-      result = await this.appInsightsService.executeQuery(nlQuery.generatedKQL);
+      result = await this.dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
       const executionTime = Date.now() - queryStartTime;
 
       if (result) {

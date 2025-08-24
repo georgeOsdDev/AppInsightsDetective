@@ -37,7 +37,12 @@ export class AuthService {
 
   public async getAccessToken(scopes: string[] = ['https://api.applicationinsights.io/.default']): Promise<string> {
     if (this.authProvider) {
-      return this.authProvider.getAccessToken(scopes);
+      try {
+        return await this.authProvider.getAccessToken(scopes);
+      } catch (error) {
+        logger.warn('Provider authentication failed, falling back to direct credential:', error);
+        // Continue to fallback implementation
+      }
     }
 
     // Fallback implementation
