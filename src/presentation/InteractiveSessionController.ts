@@ -86,20 +86,10 @@ export class InteractiveSessionController {
 
     try {
       // Create session with configured options
-      const sessionOptions: SessionOptions = {
+      this.currentSession = await this.queryService.createSession({
         language: this.options.language || 'auto',
-        defaultMode: this.options.defaultMode || 'step',
-        showConfidenceThreshold: 0.7,
-        allowEditing: true,
-        maxRegenerationAttempts: 3
-      };
-
-      const result = await this.queryService.executeQuery({
-        userInput: '', // Dummy request to create session
-        mode: sessionOptions.defaultMode
+        defaultMode: this.options.defaultMode || 'step'
       });
-
-      this.currentSession = result.session;
       
       console.log(chalk.green('✅ Interactive session initialized successfully'));
       console.log(chalk.dim(`Session ID: ${this.currentSession.sessionId}`));

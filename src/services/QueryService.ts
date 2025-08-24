@@ -197,6 +197,24 @@ export class QueryService {
   }
 
   /**
+   * Create a new session without executing a query
+   */
+  async createSession(options: {
+    language?: SupportedLanguage;
+    defaultMode?: 'direct' | 'step' | 'raw' | 'template';
+  } = {}): Promise<IQuerySession> {
+    logger.info('QueryService: Creating new session');
+
+    const session = await this.sessionManager.createSession({
+      language: options.language || 'auto',
+      defaultMode: options.defaultMode || 'step'
+    });
+
+    logger.info(`QueryService: Created new session: ${session.sessionId}`);
+    return session;
+  }
+
+  /**
    * Get session history
    */
   async getSessionHistory(sessionId: string): Promise<{

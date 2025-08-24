@@ -13,7 +13,6 @@ import { Bootstrap } from '../infrastructure/Bootstrap';
 import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../core/interfaces';
 import { QueryGenerationRequest } from '../core/interfaces/IAIProvider';
 import { QueryExecutionRequest } from '../core/interfaces/IDataSourceProvider';
-import { InteractiveService } from '../services/interactiveService';
 import { InteractiveSessionController } from '../presentation/InteractiveSessionController';
 import { QueryService } from '../services/QueryService';
 import { ConfigManager } from '../utils/config';
