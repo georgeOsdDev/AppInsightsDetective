@@ -193,18 +193,20 @@ export class InteractiveSessionController {
       // Determine execution mode
       const mode = await this.getExecutionMode(input);
       
-      // Execute query
-      const result = await this.queryService.executeQuery({
-        userInput: input,
-        sessionId: this.currentSession.sessionId,
-        mode
-      });
-
-      // Handle step mode vs direct mode differently
-      if (mode === 'step' && result.nlQuery) {
+      if (mode === 'step') {
+        // Step mode: Generate query first, then show for review
+        const result = await this.queryService.generateQuery({
+          userInput: input,
+          sessionId: this.currentSession.sessionId
+        });
         await this.handleStepMode(result.nlQuery, input);
       } else {
-        // Direct or raw mode - show results immediately
+        // Direct or raw mode: Execute query immediately
+        const result = await this.queryService.executeQuery({
+          userInput: input,
+          sessionId: this.currentSession.sessionId,
+          mode
+        });
         await this.handleDirectMode(result);
       }
 

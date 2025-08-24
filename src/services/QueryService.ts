@@ -215,6 +215,58 @@ export class QueryService {
   }
 
   /**
+   * Generate a query from natural language without executing it (for step mode)
+   */
+  async generateQuery(request: {
+    userInput: string;
+    sessionId?: string;
+    language?: SupportedLanguage;
+    schema?: any;
+  }): Promise<{
+    nlQuery: NLQuery;
+    session: IQuerySession;
+  }> {
+    logger.info('QueryService: Generating query without execution');
+
+    // Get or create session
+    let session: IQuerySession;
+    if (request.sessionId) {
+      const existingSession = await this.sessionManager.getSession(request.sessionId);
+      if (!existingSession) {
+        throw new Error(`Session not found: ${request.sessionId}`);
+      }
+      session = existingSession;
+    } else {
+      session = await this.sessionManager.createSession({
+        language: request.language as any || 'auto',
+        defaultMode: 'step'
+      });
+    }
+
+    try {
+      // Generate the KQL using AI provider
+      const nlQuery = await this.aiProvider.generateQuery({
+        userInput: request.userInput,
+        schema: request.schema
+      });
+
+      // Add to session history but don't execute
+      session.addToHistory(nlQuery.generatedKQL, nlQuery.confidence, 'generated', nlQuery.reasoning);
+
+      logger.info('QueryService: Query generated successfully');
+
+      return {
+        nlQuery,
+        session
+      };
+
+    } catch (error) {
+      logger.error('QueryService: Query generation failed:', error);
+      throw new Error(`Query generation failed: ${error}`);
+    }
+  }
+
+  /**
    * Get session history
    */
   async getSessionHistory(sessionId: string): Promise<{
