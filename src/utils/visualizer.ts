@@ -21,6 +21,32 @@ export class Visualizer {
     });
   }
 
+  /**
+   * Format query result as string (for OutputRenderer)
+   */
+  public static formatResult(result: QueryResult, options?: { hideEmptyColumns?: boolean }): string {
+    if (!result.tables || result.tables.length === 0) {
+      return chalk.yellow('No data returned from query');
+    }
+
+    const lines: string[] = [];
+
+    result.tables.forEach((table, index) => {
+      if (result.tables.length > 1) {
+        lines.push(chalk.bold.blue(`\n=== Table ${index + 1}: ${table.name || 'Unnamed'} ===`));
+      }
+
+      // Display table information
+      lines.push(chalk.dim(`Columns: ${table.columns.length}, Rows: ${table.rows.length}`));
+
+      // Format table
+      const tableContent = this.formatTable(table, options);
+      lines.push(tableContent);
+    });
+
+    return lines.join('\n');
+  }
+
   private static displayTable(table: QueryTable, options?: { hideEmptyColumns?: boolean }): void {
     if (table.rows.length === 0) {
       console.log(chalk.yellow('No rows in result'));
@@ -84,6 +110,76 @@ export class Visualizer {
     } else {
       console.log(chalk.dim(`\nDisplayed ${Math.min(displayRows, table.rows.length)} of ${table.rows.length} rows`));
     }
+  }
+
+  /**
+   * Format table as string (for OutputRenderer)
+   */
+  private static formatTable(table: QueryTable, options?: { hideEmptyColumns?: boolean }): string {
+    if (table.rows.length === 0) {
+      return chalk.yellow('No rows in result');
+    }
+
+    const lines: string[] = [];
+
+    // Get visible columns (filtering empty columns if enabled)
+    const hideEmpty = options?.hideEmptyColumns ?? true; // Default: hide empty columns
+    const { visibleColumns, visibleColumnIndices, hiddenCount } = this.getVisibleColumns(table, hideEmpty);
+    
+    // If all columns are empty, show informative message
+    if (visibleColumns.length === 0) {
+      return chalk.yellow('All columns contain empty data');
+    }
+
+    // Create filtered table for display
+    const filteredTable: QueryTable = {
+      ...table,
+      columns: visibleColumns
+    };
+
+    // Get terminal width (if available)
+    const terminalWidth = process.stdout.columns || 120;
+    const availableWidth = Math.max(terminalWidth - 10, 80); // Consider margins
+
+    // Calculate column widths for visible columns only
+    const columnWidths = this.calculateOptimalColumnWidths(filteredTable, availableWidth);
+
+    // Display header
+    const header = visibleColumns.map((col, index) =>
+      this.padString(col.name, columnWidths[index], col.type)
+    ).join(' | ');
+
+    lines.push(chalk.bold.cyan('\n' + header));
+    lines.push(chalk.gray('-'.repeat(Math.min(header.length, availableWidth))));
+
+    // Display data rows (first 100 rows maximum) - only visible columns
+    const displayRows = Math.min(table.rows.length, 100);
+    for (let rowIndex = 0; rowIndex < displayRows; rowIndex++) {
+      const row = table.rows[rowIndex];
+      const rowString = visibleColumnIndices.map((colIndex, visibleIndex) => {
+        const cellStr = this.formatCell(row[colIndex], visibleColumns[visibleIndex].type);
+        return this.padString(cellStr, columnWidths[visibleIndex], visibleColumns[visibleIndex].type);
+      }).join(' | ');
+
+      lines.push(rowString);
+    }
+
+    // Abbreviated display when there are many rows
+    if (table.rows.length > 100) {
+      lines.push(chalk.yellow(`\n... and ${table.rows.length - 100} more rows (use LIMIT clause to see more)`));
+    }
+
+    // Enhanced summary with hidden columns info
+    const totalColumns = table.columns.length;
+    const visibleColumnsCount = visibleColumns.length;
+    
+    if (hiddenCount > 0) {
+      lines.push(chalk.dim(`\nDisplayed ${Math.min(displayRows, table.rows.length)} of ${table.rows.length} rows (${visibleColumnsCount} columns displayed, ${hiddenCount} empty columns hidden)`));
+    } else {
+      lines.push(chalk.dim(`\nDisplayed ${Math.min(displayRows, table.rows.length)} of ${table.rows.length} rows`));
+    }
+
+    return lines.join('\n');
   }
 
   /**

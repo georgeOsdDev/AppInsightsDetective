@@ -6,6 +6,7 @@ import {
 } from '../../core/interfaces';
 import { QueryResult, AnalysisResult, OutputFormat } from '../../types';
 import { OutputFormatter } from '../../utils/outputFormatter';
+import { Visualizer } from '../../utils/visualizer';
 import { logger } from '../../utils/logger';
 
 /**
@@ -34,26 +35,25 @@ export class ConsoleOutputRenderer implements IOutputRenderer {
       let chartsGenerated = 0;
       let columnsHidden = 0;
 
-      // Main result rendering
-      const formattedOutput = OutputFormatter.formatResult(result, renderOptions.format || 'table', {
-        pretty: renderOptions.pretty,
-        includeHeaders: renderOptions.includeHeaders
-      });
+      if (renderOptions.format === 'table') {
+        // Use Visualizer for table rendering (restored functionality)
+        content = Visualizer.formatResult(result, { 
+          hideEmptyColumns: renderOptions.hideEmptyColumns !== false 
+        });
+        formatUsed = 'table';
+      } else {
+        // Use OutputFormatter for other formats
+        const formattedOutput = OutputFormatter.formatResult(result, renderOptions.format || 'table', {
+          pretty: renderOptions.pretty,
+          includeHeaders: renderOptions.includeHeaders
+        });
 
-      content += formattedOutput.content;
+        content = formattedOutput.content;
+      }
 
       // Handle chart generation placeholder
       if (renderOptions.format === 'table' && renderOptions.showCharts && result.tables && result.tables.length > 0) {
         logger.debug('Chart generation requested but not yet implemented in Phase 3');
-      }
-
-      // Add metadata info
-      if (result.tables && result.tables.length > 0) {
-        const table = result.tables[0];
-        const rowCount = table.rows ? table.rows.length : 0;
-        const columnCount = table.columns ? table.columns.length : 0;
-        
-        content += '\n' + chalk.dim(`📊 Result: ${rowCount} rows × ${columnCount} columns`);
       }
 
       return {
