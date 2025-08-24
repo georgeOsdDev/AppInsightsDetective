@@ -111,7 +111,9 @@ describe('StepExecutionService', () => {
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
-      expect(mockDataSourceProvider.executeQuery).toHaveBeenCalledWith(mockNLQuery.generatedKQL);
+      expect(mockDataSourceProvider.executeQuery).toHaveBeenCalledWith({
+        query: mockNLQuery.generatedKQL
+      });
       expect(result).toEqual({
         result: mockQueryResult,
         executionTime: expect.any(Number)
@@ -135,15 +137,17 @@ describe('StepExecutionService', () => {
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
-      expect(mockAiProvider.explainQuery).toHaveBeenCalledWith(
-        mockNLQuery.generatedKQL,
-        expect.objectContaining({
+      expect(mockAiProvider.explainQuery).toHaveBeenCalledWith({
+        query: mockNLQuery.generatedKQL,
+        options: expect.objectContaining({
           language: 'auto',
           technicalLevel: 'intermediate',
           includeExamples: true
         })
-      );
-      expect(mockDataSourceProvider.executeQuery).toHaveBeenCalledWith(mockNLQuery.generatedKQL);
+      });
+      expect(mockDataSourceProvider.executeQuery).toHaveBeenCalledWith({
+        query: mockNLQuery.generatedKQL
+      });
       expect(result).toEqual({
         result: mockQueryResult,
         executionTime: expect.any(Number)
@@ -166,14 +170,14 @@ describe('StepExecutionService', () => {
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
-      expect(mockAiProvider.regenerateQuery).toHaveBeenCalledWith(
-        'test question',
-        expect.objectContaining({
+      expect(mockAiProvider.regenerateQuery).toHaveBeenCalledWith({
+        userInput: 'test question',
+        context: expect.objectContaining({
           previousQuery: mockNLQuery.generatedKQL,
           attemptNumber: 2,
         }),
-        undefined
-      );
+        schema: undefined
+      });
       expect(result).toEqual({
         result: mockQueryResult,
         executionTime: expect.any(Number)
@@ -193,7 +197,9 @@ describe('StepExecutionService', () => {
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
-      expect(mockDataSourceProvider.executeQuery).toHaveBeenCalledWith(editedQuery);
+      expect(mockDataSourceProvider.executeQuery).toHaveBeenCalledWith({
+        query: editedQuery
+      });
       expect(result).toEqual({
         result: mockQueryResult,
         executionTime: expect.any(Number)
