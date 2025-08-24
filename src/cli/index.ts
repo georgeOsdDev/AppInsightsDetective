@@ -14,6 +14,7 @@ import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../co
 import { QueryGenerationRequest } from '../core/interfaces/IAIProvider';
 import { QueryExecutionRequest } from '../core/interfaces/IDataSourceProvider';
 import { InteractiveService } from '../services/interactiveService';
+import { InteractiveSessionController } from '../presentation/InteractiveSessionController';
 import { QueryService } from '../services/QueryService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
@@ -217,25 +218,16 @@ program
         }
         const container = bootstrap.getContainer();
 
-        // Get providers from container for interactive mode
-        const aiProvider = container.resolve<IAIProvider>('aiProvider');
-        const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
-        const authProvider = container.resolve<IAuthenticationProvider>('authProvider');
-        const queryService = container.resolve<QueryService>('queryService');
+        // Get interactive session controller from container
+        const interactiveSessionController = container.resolve<InteractiveSessionController>('interactiveSessionController');
+        
+        // Set options from CLI to controller
+        interactiveSessionController.setOptions({
+          language: options.language,
+          defaultMode: options.raw ? 'raw' : 'step'
+        });
 
-        // Use providers directly for interactive mode
-        const interactiveService = new InteractiveService(
-          aiProvider,
-          dataSourceProvider,
-          authProvider,
-          queryService,
-          configManager,
-          {
-            language: options.language,
-            defaultMode: options.raw ? 'raw' : 'step'
-          }
-        );
-        await interactiveService.startSession();
+        await interactiveSessionController.startSession();
       } else {
         program.help();
       }

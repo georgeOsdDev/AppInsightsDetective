@@ -1,0 +1,18 @@
+{
+  "aiProvider": {
+    "type": "openai",
+    "apiKey": "test-key",
+    "model": "gpt-4"
+  },
+  "dataSourceProvider": {
+    "type": "application-insights",
+    "subscriptionId": "test-sub",
+    "resourceGroup": "test-rg",
+    "resourceName": "test-ai",
+    "applicationId": "test-app-id"
+  },
+  "authProvider": {
+    "type": "azure-managed-identity"
+  },
+  "language": "en"
+}

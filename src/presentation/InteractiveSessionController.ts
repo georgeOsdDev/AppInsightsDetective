@@ -49,6 +49,13 @@ export class InteractiveSessionController {
   }
 
   /**
+   * Set controller options
+   */
+  setOptions(options: Partial<InteractiveSessionControllerOptions>): void {
+    this.options = { ...this.options, ...options };
+  }
+
+  /**
    * Map QueryAnalysisResult to AnalysisResult for backward compatibility
    */
   private mapToAnalysisResult(queryAnalysisResult: QueryAnalysisResult): AnalysisResult {
@@ -435,8 +442,52 @@ export class InteractiveSessionController {
    * Update session settings
    */
   private async updateSettings(): Promise<void> {
-    // Implementation for updating settings - similar to existing interactiveService
-    console.log(this.outputRenderer.renderInfo('Settings update feature coming soon...').content);
+    try {
+      const { language, defaultMode } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'language',
+          message: 'Select explanation language:',
+          choices: [
+            { name: '🌐 Auto - Detect best language', value: 'auto' },
+            { name: '🇺🇸 English', value: 'en' },
+            { name: '🇯🇵 Japanese (日本語)', value: 'ja' },
+            { name: '🇰🇷 Korean (한국어)', value: 'ko' },
+            { name: '🇨🇳 Chinese Simplified (简体中文)', value: 'zh' },
+            { name: '🇪🇸 Spanish (Español)', value: 'es' },
+            { name: '🇫🇷 French (Français)', value: 'fr' },
+            { name: '🇩🇪 German (Deutsch)', value: 'de' }
+          ],
+          default: this.currentSession?.options.language || this.options.language || 'auto'
+        },
+        {
+          type: 'list',
+          name: 'defaultMode',
+          message: 'Select default execution mode:',
+          choices: [
+            { name: '👁️  Review Mode (Recommended)', value: 'step' },
+            { name: '🚀 Smart Mode', value: 'direct' },
+            { name: '⚡ Raw KQL Mode', value: 'raw' }
+          ],
+          default: this.currentSession?.options.defaultMode || this.options.defaultMode || 'step'
+        }
+      ]);
+
+      // Update controller options
+      this.options.language = language;
+      this.options.defaultMode = defaultMode;
+
+      // Update current session if exists
+      if (this.currentSession) {
+        this.currentSession.options.language = language;
+        this.currentSession.options.defaultMode = defaultMode;
+      }
+
+      console.log(this.outputRenderer.renderSuccess('Session settings updated!').content);
+    } catch (error) {
+      logger.error('Failed to update settings:', error);
+      console.log(this.outputRenderer.renderError('Failed to update settings').content);
+    }
   }
 
   /**
