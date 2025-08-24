@@ -1,9 +1,5 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import { AuthService } from './authService';
-import { AppInsightsService } from './appInsightsService';
-import { AIService } from './aiService';
-import { AnalysisService } from './analysisService';
 import { StepExecutionService } from './stepExecutionService';
 import { QueryService } from './QueryService';
 import { ConfigManager } from '../utils/config';
@@ -12,9 +8,9 @@ import { OutputFormatter } from '../utils/outputFormatter';
 import { FileOutputManager } from '../utils/fileOutput';
 import { logger } from '../utils/logger';
 import { withLoadingIndicator } from '../utils/loadingIndicator';
-import { QueryResult, SupportedLanguage, OutputFormat, AnalysisType } from '../types';
+import { QueryResult, SupportedLanguage, OutputFormat, AnalysisType, AnalysisResult } from '../types';
+import { IAIProvider, IDataSourceProvider, IAuthenticationProvider, QueryAnalysisResult } from '../core/interfaces';
 import { detectTimeSeriesData } from '../utils/chart';
-import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../core/interfaces';
 
 export interface InteractiveSessionOptions {
   language?: SupportedLanguage;
@@ -27,7 +23,7 @@ export interface InteractiveSessionOptions {
 }
 
 export class InteractiveService {
-  private analysisService: AnalysisService;
+
 
   constructor(
     private aiProvider: IAIProvider,
@@ -36,11 +32,27 @@ export class InteractiveService {
     private queryService: QueryService,
     private configManager: ConfigManager,
     private options: InteractiveSessionOptions = {}
-  ) {
-    // Create legacy services for backward compatibility with AnalysisService
-    const authService = new AuthService();
-    const aiService = new AIService(authService, configManager);
-    this.analysisService = new AnalysisService(aiService, this.configManager, this.aiProvider);
+  ) {}
+
+  /**
+   * Map QueryAnalysisResult to AnalysisResult for backward compatibility
+   */
+  private mapToAnalysisResult(queryAnalysisResult: QueryAnalysisResult): AnalysisResult {
+    return {
+      patterns: queryAnalysisResult.patterns ? {
+        trends: queryAnalysisResult.patterns.trends || [],
+        anomalies: queryAnalysisResult.patterns.anomalies || [],
+        correlations: queryAnalysisResult.patterns.correlations || []
+      } : undefined,
+      insights: queryAnalysisResult.insights ? {
+        dataQuality: queryAnalysisResult.insights.dataQuality,
+        businessInsights: queryAnalysisResult.insights.businessInsights,
+        followUpQueries: queryAnalysisResult.insights.followUpQueries || []
+      } : undefined,
+      aiInsights: queryAnalysisResult.aiInsights,
+      recommendations: queryAnalysisResult.recommendations,
+      followUpQueries: queryAnalysisResult.followUpQueries || []
+    };
   }
 
   /**
@@ -590,14 +602,18 @@ export class InteractiveService {
 
     // Perform analysis
     try {
-      console.log(chalk.dim('\n🔍 Analyzing data... This may take a few seconds.'));
-
-      const analysis = await this.analysisService.analyzeQueryResult(
-        result,
-        originalQuery,
-        analysisType as AnalysisType,
-        { language: language as SupportedLanguage }
+      const queryAnalysisResult = await withLoadingIndicator(
+        'Analyzing query results with AI...',
+        () => this.aiProvider.analyzeQueryResult({
+          result,
+          originalQuery,
+          analysisType: analysisType as 'patterns' | 'anomalies' | 'insights' | 'full',
+          options: { language: language as SupportedLanguage }
+        })
       );
+
+      // Map to legacy AnalysisResult format for backward compatibility
+      const analysis = this.mapToAnalysisResult(queryAnalysisResult);
 
       // Display the analysis results
       Visualizer.displayAnalysisResult(analysis, analysisType);

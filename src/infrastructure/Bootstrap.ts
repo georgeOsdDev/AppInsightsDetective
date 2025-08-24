@@ -21,7 +21,6 @@ import { QueryOrchestrator, SessionManager } from '../services/orchestration';
 import { QueryService } from '../services/QueryService';
 import { TemplateService } from '../services/TemplateService';
 import { ConsoleOutputRenderer } from '../presentation/renderers/ConsoleOutputRenderer';
-import { AnalysisService } from '../services/analysisService';
 
 /**
  * Bootstrap class to configure the dependency injection container
@@ -120,25 +119,6 @@ export class Bootstrap {
     // Register presentation layer
     const outputRenderer = new ConsoleOutputRenderer();
     this.container.register<IOutputRenderer>('outputRenderer', outputRenderer);
-
-    // Register analysis service (existing but now managed by DI)
-    // For now, we need to create AIService as the AnalysisService still depends on it
-    // TODO: Refactor AnalysisService to use IAIProvider directly in future iterations
-    const { AIService } = await import('../services/aiService');
-    const { AuthService } = await import('../services/authService');
-    const { AppInsightsService } = await import('../services/appInsightsService');
-    
-    const authService = new AuthService();
-    const appInsightsService = new AppInsightsService(authService, configManager);
-    const aiService = new AIService(authService, configManager);
-    
-    // Register these services in the container so they can be resolved by template commands
-    this.container.register('authService', authService);
-    this.container.register('appInsightsService', appInsightsService);
-    this.container.register('aiService', aiService);
-    
-    const analysisService = new AnalysisService(aiService, configManager, aiProvider);
-    this.container.register('analysisService', analysisService);
 
     logger.info('Orchestration and business logic services registered successfully');
   }
