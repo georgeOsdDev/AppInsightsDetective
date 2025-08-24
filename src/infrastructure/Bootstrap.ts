@@ -58,8 +58,8 @@ export class Bootstrap {
     // Create and register providers based on configuration
     await this.registerProviders(configManager);
 
-    // Register Phase 3 services
-    await this.registerPhase3Services();
+    // Register orchestration and business logic services
+    await this.registerOrchestrationServices();
 
     logger.info('Application initialization completed');
     return this.container;
@@ -94,9 +94,9 @@ export class Bootstrap {
   }
 
   /**
-   * Register Phase 3 services (orchestration, business logic, presentation)
+   * Register orchestration and business logic services
    */
-  private async registerPhase3Services(): Promise<void> {
+  private async registerOrchestrationServices(): Promise<void> {
     // Get providers from container
     const aiProvider = this.container.resolve<IAIProvider>('aiProvider');
     const dataSourceProvider = this.container.resolve<IDataSourceProvider>('dataSourceProvider');
@@ -140,7 +140,7 @@ export class Bootstrap {
     const analysisService = new AnalysisService(aiService, configManager, aiProvider);
     this.container.register('analysisService', analysisService);
 
-    logger.info('Phase 3 services registered successfully');
+    logger.info('Orchestration and business logic services registered successfully');
   }
 
   /**

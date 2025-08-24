@@ -5,6 +5,7 @@ import { AppInsightsService } from './appInsightsService';
 import { AIService } from './aiService';
 import { AnalysisService } from './analysisService';
 import { StepExecutionService } from './stepExecutionService';
+import { QueryService } from './QueryService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
 import { OutputFormatter } from '../utils/outputFormatter';
@@ -31,6 +32,7 @@ export class InteractiveService {
     private aiProvider: IAIProvider,
     private dataSourceProvider: IDataSourceProvider,
     private authProvider: IAuthenticationProvider,
+    private queryService: QueryService,
     private configManager: ConfigManager,
     private options: InteractiveSessionOptions = {}
   ) {
@@ -228,14 +230,11 @@ export class InteractiveService {
       // Step execution mode
       Visualizer.displayInfo('Starting step-by-step query review...');
 
-      // Create legacy services for StepExecutionService compatibility
-      const authService = new AuthService();
-      const appInsightsService = new AppInsightsService(authService, this.configManager);
-      const aiService = new AIService(authService, this.configManager);
-
       const stepExecutionService = new StepExecutionService(
-        aiService,
-        appInsightsService,
+        this.aiProvider,
+        this.dataSourceProvider,
+        this.authProvider,
+        this.configManager,
         {
           showConfidenceThreshold: 0.7,
           allowEditing: true,
@@ -253,9 +252,8 @@ export class InteractiveService {
       Visualizer.displayInfo('Executing query in direct mode...');
       Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
-      // Validate query using legacy service (for now)
-      const aiService = new AIService(new AuthService(), this.configManager);
-      const validation = await aiService.validateQuery(nlQuery.generatedKQL);
+      // Validate query using QueryService
+      const validation = await this.queryService.validateQuery(nlQuery.generatedKQL);
       if (!validation.isValid) {
         Visualizer.displayError(`Generated query is invalid: ${validation.error || 'Unknown validation error'}`);
         return;

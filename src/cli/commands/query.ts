@@ -181,15 +181,18 @@ export function createQueryCommand(): Command {
 
           if (shouldUseStepMode) {
             // Step execution mode (for low confidence or explicitly specified)
-            // For now, get legacy services from container for step execution
-            const aiService = container.resolve('aiService') as any;
-            const appInsightsService = container.resolve('appInsightsService') as any;
-            
-            const stepExecutionService = new StepExecutionService(aiService, appInsightsService, {
-              showConfidenceThreshold: 0.7,
-              allowEditing: true,
-              maxRegenerationAttempts: 3
-            });
+            // Use providers directly for step execution
+            const stepExecutionService = new StepExecutionService(
+              aiProvider,
+              dataSourceProvider,
+              authProvider,
+              configManager,
+              {
+                showConfidenceThreshold: 0.7,
+                allowEditing: true,
+                maxRegenerationAttempts: 3
+              }
+            );
 
             // Pass language settings
             if (options.language) {

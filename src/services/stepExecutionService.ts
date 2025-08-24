@@ -7,8 +7,7 @@ import { execSync } from 'child_process';
 import { logger } from '../utils/logger';
 import { Visualizer } from '../utils/visualizer';
 import { ConfigManager } from '../utils/config';
-import { AIService } from './aiService';
-import { AppInsightsService } from './appInsightsService';
+import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../core/interfaces';
 import { ExternalExecutionService } from './externalExecutionService';
 import { NLQuery, QueryResult, SupportedLanguage, ExplanationOptions, AzureResourceInfo } from '../types';
 
@@ -37,8 +36,10 @@ export class StepExecutionService {
   private externalExecutionService: ExternalExecutionService | null = null;
 
   constructor(
-    private aiService: AIService,
-    private appInsightsService: AppInsightsService,
+    private aiProvider: IAIProvider,
+    private dataSourceProvider: IDataSourceProvider,
+    private authProvider: IAuthenticationProvider,
+    private configManager: ConfigManager,
     private options: StepExecutionOptions = {}
   ) {
     this.options = {
@@ -59,11 +60,10 @@ export class StepExecutionService {
    */
   private async initializeExternalExecutionService(): Promise<void> {
     try {
-      const configManager = new ConfigManager();
-      const config = await configManager.getEnhancedConfig(); // Use enhanced config
+      const config = await this.configManager.getEnhancedConfig(); // Use enhanced config
       
-      const defaultDataSource = configManager.getDefaultProvider('dataSources');
-      const dataSourceConfig = configManager.getProviderConfig('dataSources', defaultDataSource);
+      const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
+      const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
 
       // Check if required Azure resource information is available
       if (dataSourceConfig?.tenantId && dataSourceConfig.subscriptionId && 
@@ -329,7 +329,10 @@ export class StepExecutionService {
 
       Visualizer.displayInfo(`Generating detailed query explanation in ${this.getLanguageName(selectedLanguage)}...`);
 
-      const explanation = await this.aiService.explainKQLQuery(nlQuery.generatedKQL, explanationOptions);
+      const explanation = await this.aiProvider.explainQuery({
+        query: nlQuery.generatedKQL,
+        options: explanationOptions
+      });
 
       console.log(chalk.green.bold('\n📚 Query Explanation:'));
       console.log(chalk.dim('='.repeat(50)));
@@ -409,12 +412,12 @@ export class StepExecutionService {
         attemptNumber: this.currentAttempt
       };
 
-      const schema = await this.appInsightsService.getSchema();
-      const newQuery = await this.aiService.regenerateKQLQuery(
-        originalQuestion,
-        regenerationContext,
+      const schema = await this.dataSourceProvider.getSchema();
+      const newQuery = await this.aiProvider.regenerateQuery({
+        userInput: originalQuestion,
+        context: regenerationContext,
         schema
-      );
+      });
 
       if (newQuery) {
         this.queryHistory.push(newQuery.generatedKQL);
@@ -526,7 +529,7 @@ export class StepExecutionService {
       Visualizer.displayInfo('Executing query...');
       
       const startTime = Date.now();
-      const result = await this.appInsightsService.executeQuery(query);
+      const result = await this.dataSourceProvider.executeQuery({ query });
       const executionTime = Date.now() - startTime;
       
       Visualizer.displaySuccess('Query executed successfully!');

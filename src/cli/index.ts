@@ -14,6 +14,7 @@ import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../co
 import { QueryGenerationRequest } from '../core/interfaces/IAIProvider';
 import { QueryExecutionRequest } from '../core/interfaces/IDataSourceProvider';
 import { InteractiveService } from '../services/interactiveService';
+import { QueryService } from '../services/QueryService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
 import { OutputFormatter } from '../utils/outputFormatter';
@@ -220,12 +221,14 @@ program
         const aiProvider = container.resolve<IAIProvider>('aiProvider');
         const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
         const authProvider = container.resolve<IAuthenticationProvider>('authProvider');
+        const queryService = container.resolve<QueryService>('queryService');
 
         // Use providers directly for interactive mode
         const interactiveService = new InteractiveService(
           aiProvider,
           dataSourceProvider,
           authProvider,
+          queryService,
           configManager,
           {
             language: options.language,
