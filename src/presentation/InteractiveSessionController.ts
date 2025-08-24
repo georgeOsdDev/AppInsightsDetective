@@ -4,16 +4,18 @@ import {
   IOutputRenderer,
   IQuerySession,
   SessionOptions,
-  ITemplateRepository
+  ITemplateRepository,
+  IAIProvider,
+  QueryAnalysisResult
 } from '../core/interfaces';
 import { QueryService, QueryServiceRequest } from '../services/QueryService';
-import { AnalysisService } from '../services/analysisService';
-import { SupportedLanguage, OutputFormat, QueryResult } from '../types';
+import { SupportedLanguage, OutputFormat, QueryResult, AnalysisResult } from '../types';
 import { detectTimeSeriesData } from '../utils/chart';
 import { FileOutputManager } from '../utils/fileOutput';
 import { OutputFormatter } from '../utils/outputFormatter';
 import { QueryTemplate } from '../core/interfaces/ITemplateRepository';
 import { logger } from '../utils/logger';
+import { withLoadingIndicator } from '../utils/loadingIndicator';
 
 /**
  * Options for interactive session controller
@@ -39,11 +41,32 @@ export class InteractiveSessionController {
   constructor(
     private queryService: QueryService,
     private templateRepository: ITemplateRepository,
-    private analysisService: AnalysisService,
+    private aiProvider: IAIProvider,
     private outputRenderer: IOutputRenderer,
     private options: InteractiveSessionControllerOptions = {}
   ) {
     this.fileOutputManager = new FileOutputManager();
+  }
+
+  /**
+   * Map QueryAnalysisResult to AnalysisResult for backward compatibility
+   */
+  private mapToAnalysisResult(queryAnalysisResult: QueryAnalysisResult): AnalysisResult {
+    return {
+      patterns: queryAnalysisResult.patterns ? {
+        trends: queryAnalysisResult.patterns.trends || [],
+        anomalies: queryAnalysisResult.patterns.anomalies || [],
+        correlations: queryAnalysisResult.patterns.correlations || []
+      } : undefined,
+      insights: queryAnalysisResult.insights ? {
+        dataQuality: queryAnalysisResult.insights.dataQuality,
+        businessInsights: queryAnalysisResult.insights.businessInsights,
+        followUpQueries: queryAnalysisResult.insights.followUpQueries || []
+      } : undefined,
+      aiInsights: queryAnalysisResult.aiInsights,
+      recommendations: queryAnalysisResult.recommendations,
+      followUpQueries: queryAnalysisResult.followUpQueries || []
+    };
   }
 
   /**
@@ -377,9 +400,17 @@ export class InteractiveSessionController {
 
     if (wantAnalysis) {
       try {
-        console.log(this.outputRenderer.renderInfo('Analyzing results...').content);
+        const queryAnalysisResult = await withLoadingIndicator(
+          'Analyzing results...',
+          () => this.aiProvider.analyzeQueryResult({
+            result, 
+            originalQuery: 'dummy_query', 
+            analysisType: 'insights'
+          })
+        );
         
-        const analysis = await this.analysisService.analyzeQueryResult(result, 'dummy_query', 'insights');
+        // Map to legacy AnalysisResult format
+        const analysis = this.mapToAnalysisResult(queryAnalysisResult);
         const analysisOutput = await this.outputRenderer.renderAnalysisResult(analysis, {});
         
         console.log(analysisOutput.content);

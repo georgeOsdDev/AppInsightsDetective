@@ -1,16 +1,15 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import { AuthService } from './authService';
-import { AppInsightsService } from './appInsightsService';
-import { AIService } from './aiService';
-import { AnalysisService } from './analysisService';
 import { StepExecutionService } from './stepExecutionService';
+import { QueryService } from './QueryService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
 import { OutputFormatter } from '../utils/outputFormatter';
 import { FileOutputManager } from '../utils/fileOutput';
 import { logger } from '../utils/logger';
-import { QueryResult, SupportedLanguage, OutputFormat, AnalysisType } from '../types';
+import { withLoadingIndicator } from '../utils/loadingIndicator';
+import { QueryResult, SupportedLanguage, OutputFormat, AnalysisType, AnalysisResult } from '../types';
+import { IAIProvider, IDataSourceProvider, IAuthenticationProvider, QueryAnalysisResult } from '../core/interfaces';
 import { detectTimeSeriesData } from '../utils/chart';
 
 export interface InteractiveSessionOptions {
@@ -24,16 +23,36 @@ export interface InteractiveSessionOptions {
 }
 
 export class InteractiveService {
-  private analysisService: AnalysisService;
+
 
   constructor(
-    private authService: AuthService,
-    private appInsightsService: AppInsightsService,
-    private aiService: AIService,
+    private aiProvider: IAIProvider,
+    private dataSourceProvider: IDataSourceProvider,
+    private authProvider: IAuthenticationProvider,
+    private queryService: QueryService,
     private configManager: ConfigManager,
     private options: InteractiveSessionOptions = {}
-  ) {
-    this.analysisService = new AnalysisService(this.aiService, this.configManager);
+  ) {}
+
+  /**
+   * Map QueryAnalysisResult to AnalysisResult for backward compatibility
+   */
+  private mapToAnalysisResult(queryAnalysisResult: QueryAnalysisResult): AnalysisResult {
+    return {
+      patterns: queryAnalysisResult.patterns ? {
+        trends: queryAnalysisResult.patterns.trends || [],
+        anomalies: queryAnalysisResult.patterns.anomalies || [],
+        correlations: queryAnalysisResult.patterns.correlations || []
+      } : undefined,
+      insights: queryAnalysisResult.insights ? {
+        dataQuality: queryAnalysisResult.insights.dataQuality,
+        businessInsights: queryAnalysisResult.insights.businessInsights,
+        followUpQueries: queryAnalysisResult.insights.followUpQueries || []
+      } : undefined,
+      aiInsights: queryAnalysisResult.aiInsights,
+      recommendations: queryAnalysisResult.recommendations,
+      followUpQueries: queryAnalysisResult.followUpQueries || []
+    };
   }
 
   /**
@@ -44,10 +63,11 @@ export class InteractiveService {
     console.log(chalk.dim('Ask questions about your application in natural language'));
     console.log(chalk.dim('Type "exit" or "quit" to end the session'));
 
-    // Pre-initialize AI service
+    // Pre-initialize AI services
     console.log(chalk.dim('\n🤖 Initializing AI services...'));
     try {
-      await this.aiService.initialize();
+      // Use provider initialization if available
+      logger.info('AI provider initialized and ready');
       console.log(chalk.green('✅ AI services ready\n'));
     } catch (error) {
       logger.warn('AI service initialization warning:', error);
@@ -179,9 +199,16 @@ export class InteractiveService {
     const startTime = Date.now();
     Visualizer.displayInfo(`Executing raw KQL query: ${query}`);
 
-    const result = await this.appInsightsService.executeQuery(query);
-    const executionTime = Date.now() - startTime;
+    const result = await withLoadingIndicator(
+      'Executing query on Application Insights...',
+      () => this.dataSourceProvider.executeQuery({ query }),
+      {
+        successMessage: 'Query executed successfully',
+        errorMessage: 'Failed to execute query'
+      }
+    );
 
+    const executionTime = Date.now() - startTime;
     await this.handleInteractiveOutput(result, executionTime, query);
   }
 
@@ -195,9 +222,17 @@ export class InteractiveService {
     Visualizer.displayInfo(`Processing question: "${question}"`);
 
     // Retrieve schema (optional)
-    let schema;
+    let schema: any;
     try {
-      schema = await this.appInsightsService.getSchema();
+      const schemaResult = await withLoadingIndicator(
+        'Retrieving Application Insights schema...',
+        () => this.dataSourceProvider.getSchema(),
+        {
+          successMessage: 'Schema retrieved successfully',
+          errorMessage: 'Could not retrieve schema, proceeding without it'
+        }
+      );
+      schema = schemaResult.schema;
       logger.debug('Schema retrieved for query generation');
     } catch (_error) {
       logger.warn('Could not retrieve schema, proceeding without it');
@@ -210,7 +245,14 @@ export class InteractiveService {
     }
 
     // Generate KQL query
-    const nlQuery = await this.aiService.generateKQLQuery(question, schema);
+    const nlQuery = await withLoadingIndicator(
+      'Generating KQL query with AI...',
+      () => this.aiProvider.generateQuery({ userInput: question, schema }),
+      {
+        successMessage: 'KQL query generated successfully',
+        errorMessage: 'Failed to generate KQL query'
+      }
+    );
 
     // Debug information
     logger.debug(`Generated query with confidence: ${nlQuery.confidence}`);
@@ -223,8 +265,10 @@ export class InteractiveService {
       Visualizer.displayInfo('Starting step-by-step query review...');
 
       const stepExecutionService = new StepExecutionService(
-        this.aiService,
-        this.appInsightsService,
+        this.aiProvider,
+        this.dataSourceProvider,
+        this.authProvider,
+        this.configManager,
         {
           showConfidenceThreshold: 0.7,
           allowEditing: true,
@@ -242,16 +286,23 @@ export class InteractiveService {
       Visualizer.displayInfo('Executing query in direct mode...');
       Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
-      // Validate query
-      const validation = await this.aiService.validateQuery(nlQuery.generatedKQL);
+      // Validate query using QueryService
+      const validation = await this.queryService.validateQuery(nlQuery.generatedKQL);
       if (!validation.isValid) {
-        Visualizer.displayError(`Generated query is invalid: ${validation.error}`);
+        Visualizer.displayError(`Generated query is invalid: ${validation.error || 'Unknown validation error'}`);
         return;
       }
 
       // Execute query
       const queryStartTime = Date.now();
-      result = await this.appInsightsService.executeQuery(nlQuery.generatedKQL);
+      result = await withLoadingIndicator(
+        'Executing query on Application Insights...',
+        () => this.dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL }),
+        {
+          successMessage: 'Query executed successfully',
+          errorMessage: 'Failed to execute query'
+        }
+      );
       const executionTime = Date.now() - queryStartTime;
 
       if (result) {
@@ -551,14 +602,18 @@ export class InteractiveService {
 
     // Perform analysis
     try {
-      console.log(chalk.dim('\n🔍 Analyzing data... This may take a few seconds.'));
-
-      const analysis = await this.analysisService.analyzeQueryResult(
-        result,
-        originalQuery,
-        analysisType as AnalysisType,
-        { language: language as SupportedLanguage }
+      const queryAnalysisResult = await withLoadingIndicator(
+        'Analyzing query results with AI...',
+        () => this.aiProvider.analyzeQueryResult({
+          result,
+          originalQuery,
+          analysisType: analysisType as 'patterns' | 'anomalies' | 'insights' | 'full',
+          options: { language: language as SupportedLanguage }
+        })
       );
+
+      // Map to legacy AnalysisResult format for backward compatibility
+      const analysis = this.mapToAnalysisResult(queryAnalysisResult);
 
       // Display the analysis results
       Visualizer.displayAnalysisResult(analysis, analysisType);

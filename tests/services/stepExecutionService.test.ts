@@ -1,6 +1,6 @@
 import { StepExecutionService, StepExecutionOptions, QueryAction } from '../../src/services/stepExecutionService';
-import { AIService } from '../../src/services/aiService';
-import { AppInsightsService } from '../../src/services/appInsightsService';
+import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../../src/core/interfaces';
+import { ConfigManager } from '../../src/utils/config';
 import { NLQuery, QueryResult } from '../../src/types';
 import inquirer from 'inquirer';
 
@@ -15,8 +15,10 @@ const mockInquirer = inquirer as jest.Mocked<typeof inquirer>;
 
 describe('StepExecutionService', () => {
   let stepExecutionService: StepExecutionService;
-  let mockAiService: jest.Mocked<AIService>;
-  let mockAppInsightsService: jest.Mocked<AppInsightsService>;
+  let mockAiProvider: jest.Mocked<IAIProvider>;
+  let mockDataSourceProvider: jest.Mocked<IDataSourceProvider>;
+  let mockAuthProvider: jest.Mocked<IAuthenticationProvider>;
+  let mockConfigManager: jest.Mocked<ConfigManager>;
 
   const mockNLQuery: NLQuery = {
     generatedKQL: 'requests | where timestamp > ago(1h) | count',
@@ -38,22 +40,41 @@ describe('StepExecutionService', () => {
     // Reset mocks
     jest.clearAllMocks();
 
-    // Create mock services
-    mockAiService = {
-      generateKQLQuery: jest.fn(),
-      explainKQLQuery: jest.fn(),
-      regenerateKQLQuery: jest.fn(),
+    // Create mock providers
+    mockAiProvider = {
+      generateQuery: jest.fn(),
+      explainQuery: jest.fn(),
+      regenerateQuery: jest.fn(),
       validateQuery: jest.fn(),
       initialize: jest.fn(),
     } as any;
 
-    mockAppInsightsService = {
+    mockDataSourceProvider = {
       executeQuery: jest.fn(),
       validateConnection: jest.fn(),
       getSchema: jest.fn(),
+      getMetadata: jest.fn(),
     } as any;
 
-    stepExecutionService = new StepExecutionService(mockAiService, mockAppInsightsService);
+    mockAuthProvider = {
+      authenticate: jest.fn(),
+      getCredentials: jest.fn(),
+      initialize: jest.fn(),
+    } as any;
+
+    mockConfigManager = {
+      getConfig: jest.fn(),
+      getEnhancedConfig: jest.fn(),
+      getDefaultProvider: jest.fn(),
+      getProviderConfig: jest.fn(),
+    } as any;
+
+    stepExecutionService = new StepExecutionService(
+      mockAiProvider,
+      mockDataSourceProvider,
+      mockAuthProvider,
+      mockConfigManager
+    );
   });
 
   describe('constructor', () => {
@@ -68,7 +89,13 @@ describe('StepExecutionService', () => {
         maxRegenerationAttempts: 5,
       };
 
-      const customService = new StepExecutionService(mockAiService, mockAppInsightsService, customOptions);
+      const customService = new StepExecutionService(
+        mockAiProvider,
+        mockDataSourceProvider,
+        mockAuthProvider,
+        mockConfigManager,
+        customOptions
+      );
       expect(customService).toBeInstanceOf(StepExecutionService);
     });
   });
@@ -80,11 +107,13 @@ describe('StepExecutionService', () => {
         action: 'execute',
       });
 
-      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+      mockDataSourceProvider.executeQuery.mockResolvedValue(mockQueryResult);
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
-      expect(mockAppInsightsService.executeQuery).toHaveBeenCalledWith(mockNLQuery.generatedKQL);
+      expect(mockDataSourceProvider.executeQuery).toHaveBeenCalledWith({
+        query: mockNLQuery.generatedKQL
+      });
       expect(result).toEqual({
         result: mockQueryResult,
         executionTime: expect.any(Number)
@@ -103,20 +132,22 @@ describe('StepExecutionService', () => {
         .mockResolvedValueOnce({ continue: '' }) // Press Enter to continue
         .mockResolvedValueOnce({ action: 'execute' }); // Second choice after explanation
 
-      mockAiService.explainKQLQuery.mockResolvedValue('This query counts requests in the last hour.');
-      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+      mockAiProvider.explainQuery.mockResolvedValue('This query counts requests in the last hour.');
+      mockDataSourceProvider.executeQuery.mockResolvedValue(mockQueryResult);
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
-      expect(mockAiService.explainKQLQuery).toHaveBeenCalledWith(
-        mockNLQuery.generatedKQL,
-        expect.objectContaining({
+      expect(mockAiProvider.explainQuery).toHaveBeenCalledWith({
+        query: mockNLQuery.generatedKQL,
+        options: expect.objectContaining({
           language: 'auto',
           technicalLevel: 'intermediate',
           includeExamples: true
         })
-      );
-      expect(mockAppInsightsService.executeQuery).toHaveBeenCalledWith(mockNLQuery.generatedKQL);
+      });
+      expect(mockDataSourceProvider.executeQuery).toHaveBeenCalledWith({
+        query: mockNLQuery.generatedKQL
+      });
       expect(result).toEqual({
         result: mockQueryResult,
         executionTime: expect.any(Number)
@@ -134,19 +165,19 @@ describe('StepExecutionService', () => {
         .mockResolvedValueOnce({ action: 'regenerate' })
         .mockResolvedValueOnce({ action: 'execute' });
 
-      mockAiService.regenerateKQLQuery.mockResolvedValue(regeneratedQuery);
-      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+      mockAiProvider.regenerateQuery.mockResolvedValue(regeneratedQuery);
+      mockDataSourceProvider.executeQuery.mockResolvedValue(mockQueryResult);
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
-      expect(mockAiService.regenerateKQLQuery).toHaveBeenCalledWith(
-        'test question',
-        expect.objectContaining({
+      expect(mockAiProvider.regenerateQuery).toHaveBeenCalledWith({
+        userInput: 'test question',
+        context: expect.objectContaining({
           previousQuery: mockNLQuery.generatedKQL,
           attemptNumber: 2,
         }),
-        undefined
-      );
+        schema: undefined
+      });
       expect(result).toEqual({
         result: mockQueryResult,
         executionTime: expect.any(Number)
@@ -162,11 +193,13 @@ describe('StepExecutionService', () => {
         .mockResolvedValueOnce({ query: editedQuery }) // Provide edited query
         .mockResolvedValueOnce({ action: 'execute' }); // Execute the edited query
 
-      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+      mockDataSourceProvider.executeQuery.mockResolvedValue(mockQueryResult);
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
-      expect(mockAppInsightsService.executeQuery).toHaveBeenCalledWith(editedQuery);
+      expect(mockDataSourceProvider.executeQuery).toHaveBeenCalledWith({
+        query: editedQuery
+      });
       expect(result).toEqual({
         result: mockQueryResult,
         executionTime: expect.any(Number)
@@ -183,17 +216,17 @@ describe('StepExecutionService', () => {
 
     it('should handle history action', async () => {
       // Create a service instance and add some history first
-      const service = new StepExecutionService(mockAiService, mockAppInsightsService);
+      const service = new StepExecutionService(mockAiProvider, mockDataSourceProvider, mockAuthProvider, mockConfigManager);
 
       // First, execute a query to build history
       mockInquirer.prompt.mockResolvedValueOnce({ action: 'execute' });
-      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+      mockDataSourceProvider.executeQuery.mockResolvedValue(mockQueryResult);
 
       await service.executeStepByStep(mockNLQuery, 'first question');
 
       // Reset mocks for the history test
       mockInquirer.prompt.mockClear();
-      mockAppInsightsService.executeQuery.mockClear();
+      mockDataSourceProvider.executeQuery.mockClear();
 
       // Now test history action - with more than one item in history
       const secondQuery: NLQuery = {
@@ -207,7 +240,7 @@ describe('StepExecutionService', () => {
         .mockResolvedValueOnce({ selectedQuery: mockNLQuery.generatedKQL }) // Select from history
         .mockResolvedValueOnce({ action: 'execute' });
 
-      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+      mockDataSourceProvider.executeQuery.mockResolvedValue(mockQueryResult);
 
       const result = await service.executeStepByStep(secondQuery, 'test question');
 
@@ -219,7 +252,7 @@ describe('StepExecutionService', () => {
   });  describe('error handling', () => {
     it('should handle query execution errors', async () => {
       mockInquirer.prompt.mockResolvedValueOnce({ action: 'execute' });
-      mockAppInsightsService.executeQuery.mockRejectedValue(new Error('Query failed'));
+      mockDataSourceProvider.executeQuery.mockRejectedValue(new Error('Query failed'));
 
       await expect(stepExecutionService.executeStepByStep(mockNLQuery, 'test question'))
         .rejects.toThrow('Query failed');
@@ -235,7 +268,7 @@ describe('StepExecutionService', () => {
         })
         .mockResolvedValueOnce({ action: 'cancel' });
 
-      mockAiService.explainKQLQuery.mockRejectedValue(new Error('Explanation failed'));
+      mockAiProvider.explainQuery.mockRejectedValue(new Error('Explanation failed'));
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
@@ -247,7 +280,7 @@ describe('StepExecutionService', () => {
         .mockResolvedValueOnce({ action: 'regenerate' })
         .mockResolvedValueOnce({ action: 'cancel' });
 
-      mockAiService.regenerateKQLQuery.mockRejectedValue(new Error('Regeneration failed'));
+      mockAiProvider.regenerateQuery.mockRejectedValue(new Error('Regeneration failed'));
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
@@ -258,7 +291,7 @@ describe('StepExecutionService', () => {
   describe('query validation', () => {
     it('should proceed with valid queries', async () => {
       mockInquirer.prompt.mockResolvedValueOnce({ action: 'execute' });
-      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+      mockDataSourceProvider.executeQuery.mockResolvedValue(mockQueryResult);
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 
@@ -280,10 +313,10 @@ describe('StepExecutionService', () => {
         showConfidenceThreshold: 0.7,
       };
 
-      const service = new StepExecutionService(mockAiService, mockAppInsightsService, options);
+      const service = new StepExecutionService(mockAiProvider, mockDataSourceProvider, mockAuthProvider, mockConfigManager, options);
 
       mockInquirer.prompt.mockResolvedValueOnce({ action: 'execute' });
-      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+      mockDataSourceProvider.executeQuery.mockResolvedValue(mockQueryResult);
 
       const result = await service.executeStepByStep(lowConfidenceQuery, 'test question');
 
@@ -300,19 +333,19 @@ describe('StepExecutionService', () => {
         maxRegenerationAttempts: 1,
       };
 
-      const service = new StepExecutionService(mockAiService, mockAppInsightsService, options);
+      const service = new StepExecutionService(mockAiProvider, mockDataSourceProvider, mockAuthProvider, mockConfigManager, options);
 
       // Mock regenerate attempt, then second attempt should not show regenerate option
       mockInquirer.prompt
         .mockResolvedValueOnce({ action: 'regenerate' }) // First regeneration
         .mockResolvedValueOnce({ action: 'cancel' }); // No more regenerate option available
 
-      mockAiService.regenerateKQLQuery.mockResolvedValue(mockNLQuery);
+      mockAiProvider.regenerateQuery.mockResolvedValue(mockNLQuery);
 
       const result = await service.executeStepByStep(mockNLQuery, 'test question');
 
       // Should only allow one regeneration
-      expect(mockAiService.regenerateKQLQuery).toHaveBeenCalledTimes(1);
+      expect(mockAiProvider.regenerateQuery).toHaveBeenCalledTimes(1);
       expect(result).toBeNull();
     });
   });
@@ -322,7 +355,7 @@ describe('StepExecutionService', () => {
       mockInquirer.prompt
         .mockResolvedValueOnce({ action: 'execute' })
         .mockResolvedValueOnce({ action: 'execute' });
-      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+      mockDataSourceProvider.executeQuery.mockResolvedValue(mockQueryResult);
 
       await stepExecutionService.executeStepByStep(mockNLQuery, 'test question 1');
       await stepExecutionService.executeStepByStep(mockNLQuery, 'test question 2');
@@ -363,7 +396,7 @@ describe('StepExecutionService', () => {
         .mockResolvedValueOnce({ continue: '' })
         .mockResolvedValueOnce({ action: 'execute' });
       
-      mockAppInsightsService.executeQuery.mockResolvedValue(mockQueryResult);
+      mockDataSourceProvider.executeQuery.mockResolvedValue(mockQueryResult);
 
       const result = await stepExecutionService.executeStepByStep(mockNLQuery, 'test question');
 

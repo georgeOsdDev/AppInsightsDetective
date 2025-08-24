@@ -3,19 +3,34 @@ import { ServiceContainer } from '../../src/infrastructure/di/ServiceContainer';
 import { ProviderFactory } from '../../src/infrastructure/di/ProviderFactory';
 import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../../src/core/interfaces';
 
-// Mock configuration to avoid initialization issues
+// Mock configuration to use multi-provider format
 jest.mock('../../src/utils/config', () => {
   return {
     ConfigManager: jest.fn().mockImplementation(() => ({
       getConfig: () => ({
-        appInsights: {
-          applicationId: 'test-app-id',
-          tenantId: 'test-tenant-id',
-          endpoint: 'https://api.applicationinsights.io/v1/apps'
-        },
-        openAI: {
-          endpoint: 'https://test.openai.azure.com/',
-          deploymentName: 'gpt-4'
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {
+              type: 'azure-managed-identity'
+            }
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              type: 'azure-openai',
+              endpoint: 'https://test.openai.azure.com/',
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'application-insights',
+            'application-insights': {
+              type: 'application-insights',
+              applicationId: 'test-app-id',
+              endpoint: 'https://api.applicationinsights.io/v1/apps'
+            }
+          }
         }
       }),
       validateConfig: () => true

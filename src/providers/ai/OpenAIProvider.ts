@@ -44,7 +44,7 @@ export class OpenAIProvider implements IAIProvider {
         apiKey: this.config.apiKey,
       });
 
-      logger.info('OpenAI client initialized successfully');
+      logger.debug('OpenAI client initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize OpenAI client:', error);
       throw error;
@@ -62,7 +62,7 @@ export class OpenAIProvider implements IAIProvider {
     }
 
     try {
-      logger.info('Generating KQL query with OpenAI...');
+      logger.debug('Generating KQL query with OpenAI...');
 
       const systemPrompt = buildSystemPrompt(request.schema);
       const userPrompt = `Convert this natural language query to KQL: "${request.userInput}"`;
@@ -94,7 +94,7 @@ export class OpenAIProvider implements IAIProvider {
         reasoning,
       };
 
-      logger.info(`KQL query generated successfully: ${kqlQuery}`);
+      logger.debug(`KQL query generated successfully: ${kqlQuery}`);
       return result;
     } catch (error) {
       logger.error('Failed to generate KQL query:', error);
@@ -113,7 +113,7 @@ export class OpenAIProvider implements IAIProvider {
     }
 
     try {
-      logger.info(`Generating KQL query explanation in language: ${request.options?.language || 'auto'}...`);
+      logger.debug(`Generating KQL query explanation in language: ${request.options?.language || 'auto'}...`);
 
       const systemPrompt = buildExplanationSystemPrompt(
         request.options?.language || 'en',
@@ -151,7 +151,7 @@ export class OpenAIProvider implements IAIProvider {
     }
 
     try {
-      logger.info(`Regenerating KQL query (attempt ${request.context.attemptNumber}) with OpenAI...`);
+      logger.debug(`Regenerating KQL query (attempt ${request.context.attemptNumber}) with OpenAI...`);
 
       const systemPrompt = buildSystemPrompt(request.schema);
       const userPrompt = buildRegenerationPrompt(
@@ -187,7 +187,7 @@ export class OpenAIProvider implements IAIProvider {
         reasoning,
       };
 
-      logger.info(`KQL query regenerated successfully: ${kqlQuery}`);
+      logger.debug(`KQL query regenerated successfully: ${kqlQuery}`);
       return result;
     } catch (error) {
       logger.error('Failed to regenerate KQL query:', error);
@@ -231,7 +231,7 @@ export class OpenAIProvider implements IAIProvider {
     }
 
     try {
-      logger.info(`Starting ${request.analysisType} analysis with OpenAI`);
+      logger.debug(`Starting ${request.analysisType} analysis with OpenAI`);
 
       const result: QueryAnalysisResult = {};
 
@@ -266,7 +266,7 @@ export class OpenAIProvider implements IAIProvider {
       result.recommendations = await this.generateRecommendations(request);
       result.followUpQueries = await this.generateFollowUpQueries(request);
 
-      logger.info(`${request.analysisType} analysis completed successfully`);
+      logger.debug(`${request.analysisType} analysis completed successfully`);
       return result;
 
     } catch (error) {

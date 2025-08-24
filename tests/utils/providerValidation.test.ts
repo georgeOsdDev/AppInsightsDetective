@@ -44,7 +44,7 @@ describe('ProviderConfigValidator', () => {
         expect(result.errors).toContain('Azure OpenAI endpoint must be a valid URL');
       });
 
-      it('should warn about missing API key (relying on managed identity)', () => {
+      it('should not warn about missing API key when using managed identity', () => {
         const config: AIProviderConfig = {
           type: 'azure-openai',
           endpoint: 'https://test.openai.azure.com'
@@ -53,10 +53,10 @@ describe('ProviderConfigValidator', () => {
         const result = ProviderConfigValidator.validateAIProviderConfig(config);
 
         expect(result.isValid).toBe(true);
-        expect(result.warnings).toContain('Azure OpenAI API key not provided, will rely on managed identity');
+        expect(result.warnings).toHaveLength(0);
       });
 
-      it('should warn about missing deployment name', () => {
+      it('should not warn about missing deployment name when using defaults', () => {
         const config: AIProviderConfig = {
           type: 'azure-openai',
           endpoint: 'https://test.openai.azure.com',
@@ -66,7 +66,7 @@ describe('ProviderConfigValidator', () => {
         const result = ProviderConfigValidator.validateAIProviderConfig(config);
 
         expect(result.isValid).toBe(true);
-        expect(result.warnings).toContain('Azure OpenAI deployment name not specified, will use default');
+        expect(result.warnings).toHaveLength(0);
       });
     });
 
@@ -166,7 +166,7 @@ describe('ProviderConfigValidator', () => {
         expect(result.errors).toContain('Application Insights application ID is required');
       });
 
-      it('should warn about missing optional configuration', () => {
+      it('should not warn about missing optional configuration', () => {
         const config: DataSourceConfig = {
           type: 'application-insights',
           applicationId: 'test-app-id'
@@ -175,9 +175,7 @@ describe('ProviderConfigValidator', () => {
         const result = ProviderConfigValidator.validateDataSourceConfig(config);
 
         expect(result.isValid).toBe(true);
-        expect(result.warnings).toContain('Subscription ID not provided, resource discovery may be limited');
-        expect(result.warnings).toContain('Resource group not provided, resource discovery may be limited');
-        expect(result.warnings).toContain('Resource name not provided, resource discovery may be limited');
+        expect(result.warnings).toHaveLength(0);
       });
     });
 
@@ -261,10 +259,10 @@ describe('ProviderConfigValidator', () => {
         const result = ProviderConfigValidator.validateAuthConfig(config);
 
         expect(result.isValid).toBe(true);
-        expect(result.warnings).toContain('Tenant ID not provided, will use default tenant');
+        expect(result.warnings).toHaveLength(0);
       });
 
-      it('should warn about unused service principal parameters', () => {
+      it('should not warn about unused service principal parameters', () => {
         const config: AuthConfig = {
           type: 'azure-managed-identity',
           clientId: 'unused-client-id',
@@ -274,7 +272,7 @@ describe('ProviderConfigValidator', () => {
         const result = ProviderConfigValidator.validateAuthConfig(config);
 
         expect(result.isValid).toBe(true);
-        expect(result.warnings).toContain('Client ID and secret not used for managed identity, will be ignored');
+        expect(result.warnings).toHaveLength(0);
       });
     });
 

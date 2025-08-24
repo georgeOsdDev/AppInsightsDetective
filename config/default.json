@@ -1,13 +1,46 @@
 {
-  "appInsights": {
-    "applicationId": "",
-    "tenantId": "",
-    "endpoint": "https://api.applicationinsights.io/v1/apps"
-  },
-  "openAI": {
-    "endpoint": "",
-    "deploymentName": "gpt-4"
+  "providers": {
+    "ai": {
+      "default": "azure-openai",
+      "azure-openai": {
+        "type": "azure-openai",
+        "endpoint": "",
+        "deploymentName": "gpt-4"
+      },
+      "openai": {
+        "type": "openai",
+        "endpoint": "https://api.openai.com/v1",
+        "apiKey": ""
+      }
+    },
+    "dataSources": {
+      "default": "application-insights",
+      "application-insights": {
+        "type": "application-insights",
+        "applicationId": "",
+        "tenantId": "",
+        "endpoint": "https://api.applicationinsights.io/v1/apps"
+      },
+      "log-analytics": {
+        "type": "log-analytics",
+        "workspaceId": "",
+        "tenantId": "",
+        "endpoint": "https://api.loganalytics.io/v1/workspaces"
+      }
+    },
+    "auth": {
+      "default": "azure-managed-identity",
+      "azure-managed-identity": {
+        "type": "azure-managed-identity",
+        "tenantId": ""
+      }
+    }
   },
   "logLevel": "debug",
-  "language": "auto"
+  "language": "auto",
+  "fallbackBehavior": {
+    "enableProviderFallback": true,
+    "aiProviderOrder": ["azure-openai", "openai"],
+    "dataSourceProviderOrder": ["application-insights", "log-analytics"]
+  }
 }

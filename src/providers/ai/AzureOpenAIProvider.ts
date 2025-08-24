@@ -56,7 +56,7 @@ export class AzureOpenAIProvider extends OpenAIProvider {
         });
       }
 
-      logger.info('Azure OpenAI client initialized successfully');
+      logger.debug('Azure OpenAI client initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize Azure OpenAI client:', error);
       throw new Error('Azure OpenAI initialization failed');

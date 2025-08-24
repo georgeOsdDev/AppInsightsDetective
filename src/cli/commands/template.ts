@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import { Bootstrap } from '../../infrastructure/Bootstrap';
 import { ITemplateRepository, QueryTemplate, TemplateParameters } from '../../core/interfaces/ITemplateRepository';
 import { IQueryOrchestrator } from '../../core/interfaces/IQueryOrchestrator';
+import { IAIProvider, IDataSourceProvider } from '../../core/interfaces';
 import { logger } from '../../utils/logger';
 import { NLQuery, QueryResult, SupportedLanguage, ExplanationOptions } from '../../types';
 import { Visualizer } from '../../utils/visualizer';
@@ -161,10 +162,10 @@ class TemplateExecutionService {
    */
   private async explainQuery(nlQuery: NLQuery): Promise<void> {
     try {
-      // Initialize AI service for explanation
+      // Initialize providers for explanation
       const bootstrap = new Bootstrap();
       const container = await bootstrap.initialize();
-      const aiService = container.resolve<any>('aiService');
+      const aiProvider = container.resolve<IAIProvider>('aiProvider');
 
       // Language selection prompt
       const languageOptions = this.getLanguageOptions();
@@ -203,7 +204,10 @@ class TemplateExecutionService {
 
       Visualizer.displayInfo(`Generating detailed query explanation in ${this.getLanguageName(selectedLanguage)}...`);
 
-      const explanation = await aiService.explainKQLQuery(nlQuery.generatedKQL, explanationOptions);
+      const explanation = await aiProvider.explainQuery({
+        query: nlQuery.generatedKQL,
+        options: explanationOptions
+      });
 
       console.log(chalk.green.bold('\n📚 Query Explanation:'));
       console.log(chalk.dim('='.repeat(50)));
@@ -233,11 +237,11 @@ class TemplateExecutionService {
       this.currentAttempt++;
       Visualizer.displayInfo(`Regenerating query (attempt ${this.currentAttempt})...`);
 
-      // Initialize AI service for regeneration
+      // Initialize providers for regeneration
       const bootstrap = new Bootstrap();
       const container = await bootstrap.initialize();
-      const aiService = container.resolve<any>('aiService');
-      const appInsightsService = container.resolve<any>('appInsightsService');
+      const aiProvider = container.resolve<IAIProvider>('aiProvider');
+      const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
 
       // Use template description as the "original question" for regeneration
       const originalQuestion = this.template.description;
@@ -249,12 +253,12 @@ class TemplateExecutionService {
         attemptNumber: this.currentAttempt
       };
 
-      const schema = await appInsightsService.getSchema();
-      const newQuery = await aiService.regenerateKQLQuery(
-        originalQuestion,
-        regenerationContext,
+      const schema = await dataSourceProvider.getSchema();
+      const newQuery = await aiProvider.regenerateQuery({
+        userInput: originalQuestion,
+        context: regenerationContext,
         schema
-      );
+      });
 
       if (newQuery) {
         this.queryHistory.push(newQuery.generatedKQL);
@@ -329,13 +333,13 @@ class TemplateExecutionService {
     try {
       Visualizer.displayInfo('Executing query...');
       
-      // Initialize services for execution
+      // Initialize providers for execution
       const bootstrap = new Bootstrap();
       const container = await bootstrap.initialize();
-      const appInsightsService = container.resolve<any>('appInsightsService');
+      const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
       
       const startTime = Date.now();
-      const result = await appInsightsService.executeQuery(query);
+      const result = await dataSourceProvider.executeQuery({ query });
       const executionTime = Date.now() - startTime;
       
       Visualizer.displaySuccess('Query executed successfully!');

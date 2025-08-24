@@ -98,13 +98,9 @@ export class ProviderConfigValidator {
       result.isValid = false;
     }
 
-    if (!config.apiKey) {
-      result.warnings.push('Azure OpenAI API key not provided, will rely on managed identity');
-    }
-
-    if (!config.deploymentName) {
-      result.warnings.push('Azure OpenAI deployment name not specified, will use default');
-    }
+    // Only generate warnings for actual configuration issues, not for expected managed identity usage
+    // No longer warn about missing apiKey since managed identity is a valid auth method
+    // No longer warn about missing deploymentName since defaults are acceptable
 
     return result;
   }
@@ -146,16 +142,9 @@ export class ProviderConfigValidator {
       result.isValid = false;
     }
 
-    // Optional but recommended for resource discovery
-    if (!config.subscriptionId) {
-      result.warnings.push('Subscription ID not provided, resource discovery may be limited');
-    }
-    if (!config.resourceGroup) {
-      result.warnings.push('Resource group not provided, resource discovery may be limited');  
-    }
-    if (!config.resourceName) {
-      result.warnings.push('Resource name not provided, resource discovery may be limited');
-    }
+    // Only generate warnings for actual issues, not for optional fields that have reasonable defaults
+    // Resource discovery is optional and many users don't need these fields
+    // No longer warn about missing subscriptionId, resourceGroup, resourceName
 
     return result;
   }
@@ -195,16 +184,9 @@ export class ProviderConfigValidator {
   private static validateAzureManagedIdentityConfig(config: AuthConfig): ValidationResult {
     const result: ValidationResult = { isValid: true, errors: [], warnings: [] };
 
-    // Tenant ID is optional for managed identity
-    if (!config.tenantId) {
-      result.warnings.push('Tenant ID not provided, will use default tenant');
-    }
-
-    // Client ID and secret not used for managed identity
-    if (config.clientId || config.clientSecret) {
-      result.warnings.push('Client ID and secret not used for managed identity, will be ignored');
-    }
-
+    // Tenant ID is optional for managed identity - no need to warn
+    // Client ID and secret are not used for managed identity - no need to warn unless misconfigured
+    
     return result;
   }
 
@@ -228,11 +210,13 @@ export class ProviderConfigValidator {
     if (result.isValid) {
       logger.info(`${providerType} configuration is valid`);
     } else {
-      logger.error(`${providerType} configuration is invalid:`, result.errors);
+      logger.error(`${providerType} configuration is invalid: ${result.errors.join(', ')}`);
     }
 
-    if (result.warnings.length > 0) {
-      logger.warn(`${providerType} configuration warnings:`, result.warnings);
+    // Only log warnings if there are actual meaningful warnings
+    const meaningfulWarnings = result.warnings.filter(warning => warning && warning.trim().length > 0);
+    if (meaningfulWarnings.length > 0) {
+      logger.warn(`${providerType} configuration warnings: ${meaningfulWarnings.join('; ')}`);
     }
   }
 }

@@ -6,6 +6,7 @@ import { createQueryCommand } from './commands/query';
 import { createStatusCommand } from './commands/status';
 import { createTemplateCommand } from './commands/template';
 import { createListProvidersCommand } from './commands/listProviders';
+import { createProvidersCommand } from './commands/providers';
 import { logger } from '../utils/logger';
 import chalk from 'chalk';
 import { Bootstrap } from '../infrastructure/Bootstrap';
@@ -13,6 +14,7 @@ import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../co
 import { QueryGenerationRequest } from '../core/interfaces/IAIProvider';
 import { QueryExecutionRequest } from '../core/interfaces/IDataSourceProvider';
 import { InteractiveService } from '../services/interactiveService';
+import { QueryService } from '../services/QueryService';
 import { ConfigManager } from '../utils/config';
 import { Visualizer } from '../utils/visualizer';
 import { OutputFormatter } from '../utils/outputFormatter';
@@ -180,6 +182,7 @@ program.addCommand(createQueryCommand());
 program.addCommand(createStatusCommand());
 program.addCommand(createTemplateCommand());
 program.addCommand(createListProvidersCommand());
+program.addCommand(createProvidersCommand());
 
 // Default Action
 program
@@ -207,16 +210,25 @@ program
 
         console.log(chalk.dim('🚀 Starting interactive session...'));
 
-        // For interactive mode, use legacy services for now
-        // TODO: Refactor InteractiveService to use providers directly in Phase 3
-        const authService = new (await import('../services/authService')).AuthService();
-        const appInsightsService = new (await import('../services/appInsightsService')).AppInsightsService(authService, configManager);
-        const aiService = new (await import('../services/aiService')).AIService(authService, configManager);
+        // Initialize providers using bootstrap
+        if (!bootstrap) {
+          bootstrap = new Bootstrap();
+          await bootstrap.initialize();
+        }
+        const container = bootstrap.getContainer();
 
+        // Get providers from container for interactive mode
+        const aiProvider = container.resolve<IAIProvider>('aiProvider');
+        const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
+        const authProvider = container.resolve<IAuthenticationProvider>('authProvider');
+        const queryService = container.resolve<QueryService>('queryService');
+
+        // Use providers directly for interactive mode
         const interactiveService = new InteractiveService(
-          authService,
-          appInsightsService,
-          aiService,
+          aiProvider,
+          dataSourceProvider,
+          authProvider,
+          queryService,
           configManager,
           {
             language: options.language,
@@ -335,6 +347,17 @@ function showWelcomeMessage(): void {
   console.log(chalk.cyan('  aidx --language ja "errors"') + chalk.dim('   # Japanese explanations'));
   console.log(chalk.cyan('  aidx --interactive') + chalk.dim('           # Full interactive session'));
   console.log(chalk.cyan('  aidx --raw "requests | take 5"') + chalk.dim(' # Raw KQL query'));
+  console.log('');
+  console.log('Provider management:');
+  console.log(chalk.cyan('  aidx list-providers') + chalk.dim('                     # List available providers'));
+  console.log(chalk.cyan('  aidx providers show') + chalk.dim('                    # Show current provider configuration'));
+  console.log(chalk.cyan('  aidx providers set-default ai openai') + chalk.dim('  # Switch AI provider'));
+  console.log(chalk.cyan('  aidx providers configure ai azure-openai') + chalk.dim(' # Configure specific provider'));
+  console.log('');
+  console.log('Template management:');
+  console.log(chalk.cyan('  aidx template list') + chalk.dim('                     # List available templates'));
+  console.log(chalk.cyan('  aidx template use <templateId>') + chalk.dim('        # Use a template'));
+  console.log(chalk.cyan('  aidx template create') + chalk.dim('                  # Create new template'));
   console.log('');
   console.log('Output formats:');
   console.log(chalk.cyan('  aidx "errors" --format json') + chalk.dim('                          # Display JSON to console'));

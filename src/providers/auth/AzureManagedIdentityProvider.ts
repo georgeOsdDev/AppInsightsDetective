@@ -19,7 +19,7 @@ export class AzureManagedIdentityProvider implements IAuthenticationProvider {
   private initializeCredential(): void {
     try {
       this.credential = new DefaultAzureCredential();
-      logger.info('Azure Managed Identity credential initialized successfully');
+      logger.debug('Azure Managed Identity credential initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize Azure Managed Identity credential:', error);
       throw new Error('Azure authentication failed');
@@ -50,7 +50,7 @@ export class AzureManagedIdentityProvider implements IAuthenticationProvider {
   async validateCredentials(): Promise<boolean> {
     try {
       await this.getAccessToken(['https://management.azure.com/.default']);
-      logger.info('Azure credentials validated successfully');
+      logger.debug('Azure credentials validated successfully');
       return true;
     } catch (error) {
       logger.warn('Azure credential validation failed:', error);

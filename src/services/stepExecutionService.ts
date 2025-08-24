@@ -7,8 +7,8 @@ import { execSync } from 'child_process';
 import { logger } from '../utils/logger';
 import { Visualizer } from '../utils/visualizer';
 import { ConfigManager } from '../utils/config';
-import { AIService } from './aiService';
-import { AppInsightsService } from './appInsightsService';
+import { withLoadingIndicator } from '../utils/loadingIndicator';
+import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../core/interfaces';
 import { ExternalExecutionService } from './externalExecutionService';
 import { NLQuery, QueryResult, SupportedLanguage, ExplanationOptions, AzureResourceInfo } from '../types';
 
@@ -37,8 +37,10 @@ export class StepExecutionService {
   private externalExecutionService: ExternalExecutionService | null = null;
 
   constructor(
-    private aiService: AIService,
-    private appInsightsService: AppInsightsService,
+    private aiProvider: IAIProvider,
+    private dataSourceProvider: IDataSourceProvider,
+    private authProvider: IAuthenticationProvider,
+    private configManager: ConfigManager,
     private options: StepExecutionOptions = {}
   ) {
     this.options = {
@@ -59,19 +61,20 @@ export class StepExecutionService {
    */
   private async initializeExternalExecutionService(): Promise<void> {
     try {
-      const configManager = new ConfigManager();
-      const config = await configManager.getEnhancedConfig(); // Use enhanced config
-      const appInsights = config.appInsights;
+      const config = await this.configManager.getEnhancedConfig(); // Use enhanced config
+      
+      const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
+      const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
 
       // Check if required Azure resource information is available
-      if (appInsights.tenantId && appInsights.subscriptionId && 
-          appInsights.resourceGroup && appInsights.resourceName) {
+      if (dataSourceConfig?.tenantId && dataSourceConfig.subscriptionId && 
+          dataSourceConfig.resourceGroup && dataSourceConfig.resourceName) {
         
         const azureResourceInfo: AzureResourceInfo = {
-          tenantId: appInsights.tenantId,
-          subscriptionId: appInsights.subscriptionId,
-          resourceGroup: appInsights.resourceGroup,
-          resourceName: appInsights.resourceName
+          tenantId: dataSourceConfig.tenantId,
+          subscriptionId: dataSourceConfig.subscriptionId,
+          resourceGroup: dataSourceConfig.resourceGroup,
+          resourceName: dataSourceConfig.resourceName
         };
 
         this.externalExecutionService = new ExternalExecutionService(azureResourceInfo);
@@ -325,9 +328,17 @@ export class StepExecutionService {
         includeExamples
       };
 
-      Visualizer.displayInfo(`Generating detailed query explanation in ${this.getLanguageName(selectedLanguage)}...`);
-
-      const explanation = await this.aiService.explainKQLQuery(nlQuery.generatedKQL, explanationOptions);
+      const explanation = await withLoadingIndicator(
+        `Generating detailed query explanation in ${this.getLanguageName(selectedLanguage)}...`,
+        () => this.aiProvider.explainQuery({
+          query: nlQuery.generatedKQL,
+          options: explanationOptions
+        }),
+        {
+          successMessage: 'Query explanation generated successfully',
+          errorMessage: 'Failed to generate query explanation'
+        }
+      );
 
       console.log(chalk.green.bold('\n📚 Query Explanation:'));
       console.log(chalk.dim('='.repeat(50)));
@@ -407,11 +418,26 @@ export class StepExecutionService {
         attemptNumber: this.currentAttempt
       };
 
-      const schema = await this.appInsightsService.getSchema();
-      const newQuery = await this.aiService.regenerateKQLQuery(
-        originalQuestion,
-        regenerationContext,
-        schema
+      const schema = await withLoadingIndicator(
+        'Retrieving Application Insights schema...',
+        () => this.dataSourceProvider.getSchema(),
+        {
+          successMessage: 'Schema retrieved successfully',
+          errorMessage: 'Failed to retrieve schema'
+        }
+      );
+      
+      const newQuery = await withLoadingIndicator(
+        `Regenerating KQL query (attempt ${this.currentAttempt})...`,
+        () => this.aiProvider.regenerateQuery({
+          userInput: originalQuestion,
+          context: regenerationContext,
+          schema
+        }),
+        {
+          successMessage: 'KQL query regenerated successfully',
+          errorMessage: 'Failed to regenerate KQL query'
+        }
       );
 
       if (newQuery) {
@@ -521,13 +547,17 @@ export class StepExecutionService {
    */
   private async executeQuery(query: string): Promise<{ result: QueryResult; executionTime: number }> {
     try {
-      Visualizer.displayInfo('Executing query...');
-      
       const startTime = Date.now();
-      const result = await this.appInsightsService.executeQuery(query);
+      const result = await withLoadingIndicator(
+        'Executing query on Application Insights...',
+        () => this.dataSourceProvider.executeQuery({ query }),
+        {
+          successMessage: 'Query executed successfully',
+          errorMessage: 'Failed to execute query'
+        }
+      );
       const executionTime = Date.now() - startTime;
       
-      Visualizer.displaySuccess('Query executed successfully!');
       return { result, executionTime };
     } catch (error) {
       logger.error('Query execution failed:', error);

@@ -3,13 +3,11 @@
  * Analysis Feature Demo - AppInsights Detective
  * 
  * This demo showcases the Interactive Query Result Analysis feature
- * with realistic Application Insights data examples.
+ * with realistic Application Insights data examples using the provider-based architecture.
  */
 
-import { AnalysisService } from '../src/services/analysisService';
-import { AIService } from '../src/services/aiService';
-import { AuthService } from '../src/services/authService';
-import { ConfigManager } from '../src/utils/config';
+import { Bootstrap } from '../src/infrastructure/Bootstrap';
+import { IAIProvider, QueryAnalysisRequest } from '../src/core/interfaces';
 import { Visualizer } from '../src/utils/visualizer';
 import { QueryResult, AnalysisType, AnalysisResult } from '../src/types';
 
@@ -224,21 +222,21 @@ const demoScenarios = [
     description: 'Analyzing application errors and exceptions',
     originalQuery: 'exceptions | where timestamp > ago(1h) | summarize count() by operation_Name, severityLevel',
     data: mockQueryResults.errorAnalysis,
-    analysisTypes: ['statistical', 'patterns', 'anomalies', 'insights', 'full'] as AnalysisType[]
+    analysisTypes: ['patterns', 'anomalies', 'insights', 'full'] as const
   },
   {
     title: '⚡ Performance Analysis Demo', 
     description: 'Analyzing request performance and response times',
     originalQuery: 'requests | where timestamp > ago(1h) | project timestamp, name, duration, responseCode, success',
     data: mockQueryResults.performanceAnalysis,
-    analysisTypes: ['statistical', 'anomalies', 'insights'] as AnalysisType[]
+    analysisTypes: ['anomalies', 'insights'] as const
   },
   {
     title: '📈 Traffic Analysis Demo',
     description: 'Analyzing page views and user traffic patterns',
     originalQuery: 'pageViews | where timestamp > ago(4h) | summarize count = sum(itemCount) by name, bin(timestamp, 15m)',
     data: mockQueryResults.trafficAnalysis,
-    analysisTypes: ['statistical', 'patterns', 'full'] as AnalysisType[]
+    analysisTypes: ['patterns', 'full'] as const
   }
 ];
 
@@ -250,76 +248,84 @@ async function runAnalysisDemo() {
   console.log('This demo showcases the Interactive Query Result Analysis feature');
   console.log('with realistic Application Insights data.\n');
 
-  // Initialize services - these will make real API calls to OpenAI
-  const configManager = new ConfigManager();
-  const authService = new AuthService();
-  const aiService = new AIService(authService, configManager);
-  const analysisService = new AnalysisService(aiService, configManager);
-
+  // Initialize services using provider-based architecture
   console.log('🔧 Initializing services...');
-  console.log('📝 Note: This demo will make real calls to Azure OpenAI for analysis\n');
+  const bootstrap = new Bootstrap();
+  
+  try {
+    const container = await bootstrap.initialize();
+    const aiProvider = container.resolve<IAIProvider>('aiProvider');
+    
+    console.log('📝 Note: This demo will make real calls to Azure OpenAI for analysis\n');
 
-  for (const scenario of demoScenarios) {
-    console.log('='.repeat(60));
-    console.log(scenario.title);
-    console.log(scenario.description);
-    console.log('='.repeat(60));
-    console.log(`\n📋 Query: ${scenario.originalQuery}\n`);
+    for (const scenario of demoScenarios) {
+      console.log('='.repeat(60));
+      console.log(scenario.title);
+      console.log(scenario.description);
+      console.log('='.repeat(60));
+      console.log(`\n📋 Query: ${scenario.originalQuery}\n`);
 
-    // Display sample data
-    Visualizer.displayResult(scenario.data);
+      // Display sample data
+      Visualizer.displayResult(scenario.data);
 
-    console.log('\n🧠 Analysis Results:\n');
+      console.log('\n🧠 Analysis Results:\n');
 
-    // Run each analysis type for this scenario
-    for (const analysisType of scenario.analysisTypes) {
-      try {
-        console.log(`\n🔍 Running ${analysisType.toUpperCase()} Analysis...`);
-        console.log('-'.repeat(50));
+      // Run each analysis type for this scenario
+      for (const analysisType of scenario.analysisTypes) {
+        try {
+          console.log(`\n🔍 Running ${analysisType.toUpperCase()} Analysis...`);
+          console.log('-'.repeat(50));
 
-        // Actually call the analysis service with real AI
-        const analysisResult = await analysisService.analyzeQueryResult(
-          scenario.data,
-          scenario.originalQuery,
-          analysisType,
-          { language: 'auto' }  // Let AI auto-detect or use English
-        );
+          // Call the AI provider directly
+          const analysisRequest: QueryAnalysisRequest = {
+            result: scenario.data,
+            originalQuery: scenario.originalQuery,
+            analysisType: analysisType,
+            options: { language: 'auto' }
+          };
 
-        // Display the real analysis results
-        displayAnalysisResult(analysisType, analysisResult);
+          const queryAnalysisResult = await aiProvider.analyzeQueryResult(analysisRequest);
+          
+          // Map to AnalysisResult format for display
+          const analysisResult = mapToAnalysisResult(queryAnalysisResult);
+          
+          // Display the analysis results
+          displayAnalysisResult(analysisType, analysisResult);
 
-      } catch (error) {
-        console.log(`❌ Analysis failed: ${error}`);
-        console.log('This might happen if Azure OpenAI is not configured or available.');
-        
-        // Show what the analysis would look like structurally
-        console.log('\n📋 Expected Analysis Structure:');
-        switch (analysisType) {
-          case 'statistical':
-            console.log('   📊 Statistical summary with means, medians, outliers');
-            break;
-          case 'patterns':
-            console.log('   🔍 AI-detected trends, correlations, and patterns');
-            break;
-          case 'anomalies':
-            console.log('   🚨 AI-identified anomalies with severity ratings');
-            break;
-          case 'insights':
-            console.log('   💡 Business insights and actionable recommendations');
-            break;
-          case 'full':
-            console.log('   📋 Comprehensive report combining all analysis types');
-            break;
+        } catch (error) {
+          console.log(`❌ Analysis failed: ${error}`);
+          console.log('This might happen if Azure OpenAI is not configured or available.');
+          
+          // Show what the analysis would look like structurally
+          console.log('\n📋 Expected Analysis Structure:');
+          switch (analysisType) {
+            case 'patterns':
+              console.log('   🔍 AI-detected trends, correlations, and patterns');
+              break;
+            case 'anomalies':
+              console.log('   🚨 AI-identified anomalies with severity ratings');
+              break;
+            case 'insights':
+              console.log('   💡 Business insights and actionable recommendations');
+              break;
+            case 'full':
+              console.log('   📋 Comprehensive report combining all analysis types');
+              break;
+          }
         }
+
+        console.log(''); // Add spacing
       }
 
-      console.log(''); // Add spacing
+      console.log('\n✅ Scenario analysis completed!\n');
     }
 
-    console.log('\n✅ Scenario analysis completed!\n');
+    console.log('🎉 Demo completed successfully!');
+  } catch (error) {
+    console.error('❌ Failed to initialize services:', error);
+    console.log('Make sure your configuration file is properly set up with provider configurations.');
   }
 
-  console.log('🎉 Demo completed successfully!');
   console.log('\nThis demonstration showed how the Interactive Query Result Analysis');
   console.log('feature provides intelligent insights on Application Insights data using real AI analysis.');
   console.log('\nTo use this feature in the real application:');
@@ -328,6 +334,19 @@ async function runAnalysisDemo() {
   console.log('3. Select your preferred analysis type and language');
   console.log('4. Review the AI-generated insights and follow-up queries');
   console.log('5. Execute suggested queries directly from the interface');
+}
+
+/**
+ * Map QueryAnalysisResult to AnalysisResult for backward compatibility
+ */
+function mapToAnalysisResult(queryAnalysisResult: any): AnalysisResult {
+  return {
+    statistical: queryAnalysisResult.statistical,
+    patterns: queryAnalysisResult.patterns,
+    insights: queryAnalysisResult.insights,
+    aiInsights: queryAnalysisResult.aiInsights,
+    recommendations: queryAnalysisResult.recommendations
+  };
 }
 
 /**

@@ -29,6 +29,7 @@ jest.mock('@azure/identity', () => ({
 jest.mock('../../src/utils/logger', () => ({
   logger: {
     info: jest.fn(),
+    debug: jest.fn(),
     error: jest.fn()
   }
 }));
