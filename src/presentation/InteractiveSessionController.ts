@@ -13,6 +13,7 @@ import { SupportedLanguage, OutputFormat, QueryResult, AnalysisResult } from '..
 import { detectTimeSeriesData } from '../utils/chart';
 import { FileOutputManager } from '../utils/fileOutput';
 import { OutputFormatter } from '../utils/outputFormatter';
+import { Visualizer } from '../utils/visualizer';
 import { QueryTemplate } from '../core/interfaces/ITemplateRepository';
 import { logger } from '../utils/logger';
 import { withLoadingIndicator } from '../utils/loadingIndicator';
@@ -420,6 +421,9 @@ export class InteractiveSessionController {
     });
 
     console.log(output.content);
+
+    // Show chart for numeric data (experimental feature)
+    await this.showChartIfApplicable(result.result);
 
     // Handle file output if specified
     if (this.options.outputFile) {
@@ -1205,6 +1209,57 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
     ]);
 
     return retry;
+  }
+
+  /**
+   * Show chart for numeric data if applicable (experimental feature)
+   */
+  private async showChartIfApplicable(result: QueryResult): Promise<void> {
+    if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
+      const firstTable = result.tables[0];
+      if (firstTable.columns.length >= 2) {
+        const hasNumericData = firstTable.rows.some(row =>
+          typeof row[1] === 'number' || !isNaN(Number(row[1]))
+        );
+
+        if (hasNumericData) {
+          const { showChart } = await inquirer.prompt([
+            {
+              type: 'confirm',
+              name: 'showChart',
+              message: '📈 Would you like to see a simple chart of this data? (Experimental)',
+              default: false
+            }
+          ]);
+
+          if (showChart) {
+            const chartData = firstTable.rows.slice(0, 10).map(row => ({
+              label: String(row[0] || ''),
+              value: Number(row[1]) || 0,
+            }));
+
+            // Auto-detect best chart type, but allow user to choose
+            const isTimeSeries = detectTimeSeriesData(chartData);
+            const defaultChartType = isTimeSeries ? 'line' : 'bar';
+
+            const { chartType } = await inquirer.prompt([
+              {
+                type: 'list',
+                name: 'chartType',
+                message: 'Which chart type would you prefer?',
+                choices: [
+                  { name: `📈 Line Chart${isTimeSeries ? ' (recommended for time-series)' : ''}`, value: 'line' },
+                  { name: '📊 Bar Chart', value: 'bar' }
+                ],
+                default: defaultChartType
+              }
+            ]);
+
+            Visualizer.displayChart(chartData, chartType);
+          }
+        }
+      }
+    }
   }
 
   /**
