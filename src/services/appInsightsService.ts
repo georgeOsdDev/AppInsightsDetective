@@ -3,7 +3,6 @@ import { QueryResult } from '../types';
 import { AuthService } from './authService';
 import { ConfigManager } from '../utils/config';
 import { logger } from '../utils/logger';
-import { withLoadingIndicator } from '../utils/loadingIndicator';
 import { IDataSourceProvider } from '../core/interfaces/IDataSourceProvider';
 
 /**
@@ -93,29 +92,20 @@ export class AppInsightsService {
     // Fallback to legacy implementation
     logger.info(`Executing KQL query:\n ${kqlQuery}`);
     
-    return withLoadingIndicator(
-      'Executing query on Application Insights...',
-      async () => {
-        const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
-        const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
-        
-        if (!dataSourceConfig) {
-          throw new Error(`Data source provider '${defaultDataSource}' configuration not found`);
-        }
-        
-        const url = `/${dataSourceConfig.applicationId}/query`;
+    const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
+    const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
+    
+    if (!dataSourceConfig) {
+      throw new Error(`Data source provider '${defaultDataSource}' configuration not found`);
+    }
+    
+    const url = `/${dataSourceConfig.applicationId}/query`;
 
-        const response = await this.httpClient.post(url, {
-          query: kqlQuery,
-        });
+    const response = await this.httpClient.post(url, {
+      query: kqlQuery,
+    });
 
-        return response.data;
-      },
-      {
-        successMessage: 'Query executed successfully',
-        errorMessage: 'Failed to execute query'
-      }
-    );
+    return response.data;
   }
 
   public async validateConnection(): Promise<boolean> {
@@ -126,30 +116,23 @@ export class AppInsightsService {
     }
 
     // Fallback to legacy implementation
-    return withLoadingIndicator(
-      'Validating Application Insights connection...',
-      async () => {
-        const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
-        const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
-        
-        if (!dataSourceConfig) {
-          throw new Error(`Data source provider '${defaultDataSource}' configuration not found`);
-        }
-        
-        // Test connection with a simple query
-        await this.httpClient.post(`/${dataSourceConfig.applicationId}/query`, {
-          query: 'requests | take 1',
-        });
-        return true;
-      },
-      {
-        successMessage: 'Connection validated successfully',
-        errorMessage: 'Connection validation failed'
+    try {
+      const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
+      const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
+      
+      if (!dataSourceConfig) {
+        throw new Error(`Data source provider '${defaultDataSource}' configuration not found`);
       }
-    ).catch(() => {
+      
+      // Test connection with a simple query
+      await this.httpClient.post(`/${dataSourceConfig.applicationId}/query`, {
+        query: 'requests | take 1',
+      });
+      return true;
+    } catch (error) {
       logger.error('Application Insights connection validation failed');
       return false;
-    });
+    }
   }
 
   public async getSchema(): Promise<any> {
@@ -160,25 +143,16 @@ export class AppInsightsService {
     }
 
     // Fallback to legacy implementation
-    return withLoadingIndicator(
-      'Retrieving Application Insights schema...',
-      async () => {
-        const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
-        const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
-        
-        if (!dataSourceConfig) {
-          throw new Error(`Data source provider '${defaultDataSource}' configuration not found`);
-        }
-        
-        const url = `/${dataSourceConfig.applicationId}/metadata`;
+    const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
+    const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
+    
+    if (!dataSourceConfig) {
+      throw new Error(`Data source provider '${defaultDataSource}' configuration not found`);
+    }
+    
+    const url = `/${dataSourceConfig.applicationId}/metadata`;
 
-        const response = await this.httpClient.get(url);
-        return response.data;
-      },
-      {
-        successMessage: 'Schema retrieved successfully',
-        errorMessage: 'Failed to retrieve schema'
-      }
-    );
+    const response = await this.httpClient.get(url);
+    return response.data;
   }
 }

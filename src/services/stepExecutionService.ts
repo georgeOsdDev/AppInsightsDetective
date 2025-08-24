@@ -7,6 +7,7 @@ import { execSync } from 'child_process';
 import { logger } from '../utils/logger';
 import { Visualizer } from '../utils/visualizer';
 import { ConfigManager } from '../utils/config';
+import { withLoadingIndicator } from '../utils/loadingIndicator';
 import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../core/interfaces';
 import { ExternalExecutionService } from './externalExecutionService';
 import { NLQuery, QueryResult, SupportedLanguage, ExplanationOptions, AzureResourceInfo } from '../types';
@@ -327,12 +328,17 @@ export class StepExecutionService {
         includeExamples
       };
 
-      Visualizer.displayInfo(`Generating detailed query explanation in ${this.getLanguageName(selectedLanguage)}...`);
-
-      const explanation = await this.aiProvider.explainQuery({
-        query: nlQuery.generatedKQL,
-        options: explanationOptions
-      });
+      const explanation = await withLoadingIndicator(
+        `Generating detailed query explanation in ${this.getLanguageName(selectedLanguage)}...`,
+        () => this.aiProvider.explainQuery({
+          query: nlQuery.generatedKQL,
+          options: explanationOptions
+        }),
+        {
+          successMessage: 'Query explanation generated successfully',
+          errorMessage: 'Failed to generate query explanation'
+        }
+      );
 
       console.log(chalk.green.bold('\n📚 Query Explanation:'));
       console.log(chalk.dim('='.repeat(50)));
@@ -412,12 +418,27 @@ export class StepExecutionService {
         attemptNumber: this.currentAttempt
       };
 
-      const schema = await this.dataSourceProvider.getSchema();
-      const newQuery = await this.aiProvider.regenerateQuery({
-        userInput: originalQuestion,
-        context: regenerationContext,
-        schema
-      });
+      const schema = await withLoadingIndicator(
+        'Retrieving Application Insights schema...',
+        () => this.dataSourceProvider.getSchema(),
+        {
+          successMessage: 'Schema retrieved successfully',
+          errorMessage: 'Failed to retrieve schema'
+        }
+      );
+      
+      const newQuery = await withLoadingIndicator(
+        `Regenerating KQL query (attempt ${this.currentAttempt})...`,
+        () => this.aiProvider.regenerateQuery({
+          userInput: originalQuestion,
+          context: regenerationContext,
+          schema
+        }),
+        {
+          successMessage: 'KQL query regenerated successfully',
+          errorMessage: 'Failed to regenerate KQL query'
+        }
+      );
 
       if (newQuery) {
         this.queryHistory.push(newQuery.generatedKQL);
@@ -526,13 +547,17 @@ export class StepExecutionService {
    */
   private async executeQuery(query: string): Promise<{ result: QueryResult; executionTime: number }> {
     try {
-      Visualizer.displayInfo('Executing query...');
-      
       const startTime = Date.now();
-      const result = await this.dataSourceProvider.executeQuery({ query });
+      const result = await withLoadingIndicator(
+        'Executing query on Application Insights...',
+        () => this.dataSourceProvider.executeQuery({ query }),
+        {
+          successMessage: 'Query executed successfully',
+          errorMessage: 'Failed to execute query'
+        }
+      );
       const executionTime = Date.now() - startTime;
       
-      Visualizer.displaySuccess('Query executed successfully!');
       return { result, executionTime };
     } catch (error) {
       logger.error('Query execution failed:', error);

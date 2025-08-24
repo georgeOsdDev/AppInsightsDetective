@@ -11,6 +11,7 @@ import { Visualizer } from '../utils/visualizer';
 import { OutputFormatter } from '../utils/outputFormatter';
 import { FileOutputManager } from '../utils/fileOutput';
 import { logger } from '../utils/logger';
+import { withLoadingIndicator } from '../utils/loadingIndicator';
 import { QueryResult, SupportedLanguage, OutputFormat, AnalysisType } from '../types';
 import { detectTimeSeriesData } from '../utils/chart';
 import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../core/interfaces';
@@ -186,9 +187,16 @@ export class InteractiveService {
     const startTime = Date.now();
     Visualizer.displayInfo(`Executing raw KQL query: ${query}`);
 
-    const result = await this.dataSourceProvider.executeQuery({ query });
-    const executionTime = Date.now() - startTime;
+    const result = await withLoadingIndicator(
+      'Executing query on Application Insights...',
+      () => this.dataSourceProvider.executeQuery({ query }),
+      {
+        successMessage: 'Query executed successfully',
+        errorMessage: 'Failed to execute query'
+      }
+    );
 
+    const executionTime = Date.now() - startTime;
     await this.handleInteractiveOutput(result, executionTime, query);
   }
 
@@ -202,9 +210,16 @@ export class InteractiveService {
     Visualizer.displayInfo(`Processing question: "${question}"`);
 
     // Retrieve schema (optional)
-    let schema;
+    let schema: any;
     try {
-      const schemaResult = await this.dataSourceProvider.getSchema();
+      const schemaResult = await withLoadingIndicator(
+        'Retrieving Application Insights schema...',
+        () => this.dataSourceProvider.getSchema(),
+        {
+          successMessage: 'Schema retrieved successfully',
+          errorMessage: 'Could not retrieve schema, proceeding without it'
+        }
+      );
       schema = schemaResult.schema;
       logger.debug('Schema retrieved for query generation');
     } catch (_error) {
@@ -218,7 +233,14 @@ export class InteractiveService {
     }
 
     // Generate KQL query
-    const nlQuery = await this.aiProvider.generateQuery({ userInput: question, schema });
+    const nlQuery = await withLoadingIndicator(
+      'Generating KQL query with AI...',
+      () => this.aiProvider.generateQuery({ userInput: question, schema }),
+      {
+        successMessage: 'KQL query generated successfully',
+        errorMessage: 'Failed to generate KQL query'
+      }
+    );
 
     // Debug information
     logger.debug(`Generated query with confidence: ${nlQuery.confidence}`);
@@ -261,7 +283,14 @@ export class InteractiveService {
 
       // Execute query
       const queryStartTime = Date.now();
-      result = await this.dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
+      result = await withLoadingIndicator(
+        'Executing query on Application Insights...',
+        () => this.dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL }),
+        {
+          successMessage: 'Query executed successfully',
+          errorMessage: 'Failed to execute query'
+        }
+      );
       const executionTime = Date.now() - queryStartTime;
 
       if (result) {
