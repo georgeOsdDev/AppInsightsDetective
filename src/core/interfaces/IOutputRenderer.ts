@@ -10,6 +10,7 @@ export interface RenderOptions {
   showCharts?: boolean;
   maxColumns?: number;
   language?: string;
+  hideEmptyColumns?: boolean;
 }
 
 /**

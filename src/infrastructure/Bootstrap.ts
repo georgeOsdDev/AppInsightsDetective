@@ -21,6 +21,7 @@ import { QueryOrchestrator, SessionManager } from '../services/orchestration';
 import { QueryService } from '../services/QueryService';
 import { TemplateService } from '../services/TemplateService';
 import { ConsoleOutputRenderer } from '../presentation/renderers/ConsoleOutputRenderer';
+import { InteractiveSessionController } from '../presentation/InteractiveSessionController';
 
 /**
  * Bootstrap class to configure the dependency injection container
@@ -119,6 +120,15 @@ export class Bootstrap {
     // Register presentation layer
     const outputRenderer = new ConsoleOutputRenderer();
     this.container.register<IOutputRenderer>('outputRenderer', outputRenderer);
+
+    // Register interactive session controller
+    const interactiveSessionController = new InteractiveSessionController(
+      queryService,
+      templateService,
+      aiProvider,
+      outputRenderer
+    );
+    this.container.register('interactiveSessionController', interactiveSessionController);
 
     logger.info('Orchestration and business logic services registered successfully');
   }
