@@ -168,6 +168,16 @@ export class InteractiveSessionController {
         // Handle query input
         await this.handleQueryInput(trimmedInput);
 
+        // Ask if user wants to continue (like original InteractiveService)
+        const shouldContinue = await this.askToContinue();
+        if (!shouldContinue) {
+          await this.endSession();
+          break;
+        }
+
+        // Add separator line like original
+        console.log(chalk.dim('\n' + '='.repeat(60) + '\n'));
+
       } catch (error) {
         if ((error as any)?.message === 'User force closed the prompt') {
           console.log(chalk.yellow('\n👋 Session interrupted by user'));
@@ -177,6 +187,13 @@ export class InteractiveSessionController {
         
         logger.error('Error in interaction loop:', error);
         console.log(this.outputRenderer.renderError(`An error occurred: ${error}`).content);
+
+        // Ask if user wants to retry (like original InteractiveService)
+        const shouldRetry = await this.askToRetry();
+        if (!shouldRetry) {
+          await this.endSession();
+          break;
+        }
       }
     }
   }
@@ -304,8 +321,41 @@ export class InteractiveSessionController {
       }
     }
 
-    // Return session default or ask user
-    return this.currentSession?.options.defaultMode || 'step';
+    // Always ask user to select execution mode for each query (like original InteractiveService)
+    return await this.selectExecutionMode();
+  }
+
+  /**
+   * Select execution mode for each query (restored from original InteractiveService)
+   */
+  private async selectExecutionMode(): Promise<'direct' | 'step' | 'raw'> {
+    const { mode } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'mode',
+        message: 'How would you like to execute this query?',
+        choices: [
+          {
+            name: '🚀 Smart Mode - AI generates and executes KQL automatically',
+            value: 'direct',
+            short: 'Smart'
+          },
+          {
+            name: '👁️  Review Mode - Step-by-step query review and execution',
+            value: 'step',
+            short: 'Review'
+          },
+          {
+            name: '⚡ Raw KQL - Execute as raw KQL query (for experts)',
+            value: 'raw',
+            short: 'Raw'
+          }
+        ],
+        default: this.currentSession?.options.defaultMode || 'step' // Default is step mode
+      }
+    ]);
+
+    return mode;
   }
 
   /**
@@ -770,6 +820,42 @@ export class InteractiveSessionController {
     } catch (error) {
       console.log(this.outputRenderer.renderError(`Failed to save file: ${error}`).content);
     }
+  }
+
+  /**
+   * Ask user if they want to continue the session (restored from original InteractiveService)
+   */
+  private async askToContinue(): Promise<boolean> {
+    const { continueSession } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'continueSession',
+        message: 'Would you like to ask another question?',
+        default: true
+      }
+    ]);
+
+    if (!continueSession) {
+      console.log(chalk.green('👋 Thanks for using AppInsights Detective!'));
+    }
+
+    return continueSession;
+  }
+
+  /**
+   * Ask user if they want to retry after an error (restored from original InteractiveService)
+   */
+  private async askToRetry(): Promise<boolean> {
+    const { retry } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'retry',
+        message: 'Would you like to try again?',
+        default: true
+      }
+    ]);
+
+    return retry;
   }
 
   /**
