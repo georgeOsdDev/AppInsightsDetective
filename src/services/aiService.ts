@@ -8,23 +8,56 @@ import { logger } from '../utils/logger';
 import { getLanguageInstructions } from '../utils/languageUtils';
 import { withLoadingIndicator } from '../utils/loadingIndicator';
 
+/**
+ * Legacy AIService that implements IAIProvider interface
+ * @deprecated Use IAIProvider directly from dependency injection where possible.
+ * This service is maintained for backward compatibility with existing dependent services.
+ */
 export class AIService implements IAIProvider {
   private openAIClient: OpenAI | null = null;
   private authService: AuthService;
   private configManager: ConfigManager;
   private initializationPromise: Promise<void> | null = null;
+  private aiProvider: IAIProvider | null = null;
 
   constructor(authService: AuthService, configManager: ConfigManager) {
     this.authService = authService;
     this.configManager = configManager;
+    this.initializeProvider();
     this.initializationPromise = this.initializeOpenAI();
+  }
+
+  private initializeProvider(): void {
+    try {
+      // Attempt to use the provider architecture when available
+      const config = this.configManager.getConfig();
+      const defaultAIProvider = config.providers.ai.default;
+      const aiConfig = config.providers.ai[defaultAIProvider];
+
+      if (defaultAIProvider === 'azure-openai') {
+        const { AzureOpenAIProvider } = require('../providers/ai/AzureOpenAIProvider');
+        this.aiProvider = new AzureOpenAIProvider(aiConfig);
+      } else if (defaultAIProvider === 'openai') {
+        const { OpenAIProvider } = require('../providers/ai/OpenAIProvider');
+        this.aiProvider = new OpenAIProvider(aiConfig);
+      }
+      
+      if (this.aiProvider) {
+        logger.info('Legacy AIService initialized with provider delegation');
+      }
+    } catch (error) {
+      logger.error('Failed to initialize AI provider in legacy service:', error);
+      logger.warn('Falling back to direct OpenAI client implementation');
+    }
   }
 
   /**
    * Wait for OpenAI client initialization completion
    */
   async initialize(): Promise<void> {
-    if (this.initializationPromise) {
+    if (this.aiProvider) {
+      await this.aiProvider.initialize();
+    } else if (this.initializationPromise) {
       await this.initializationPromise;
     }
   }
@@ -71,6 +104,12 @@ export class AIService implements IAIProvider {
   }
 
   public async generateKQLQuery(naturalLanguageQuery: string, schema?: any): Promise<NLQuery> {
+    // Use provider if available
+    if (this.aiProvider) {
+      return this.aiProvider.generateQuery({ userInput: naturalLanguageQuery, schema });
+    }
+
+    // Fallback to legacy implementation
     // 初期化完了を待つ
     await this.initialize();
 
@@ -595,14 +634,23 @@ Respond with only the new KQL query, no explanations.`;
 
   // IAIProvider interface implementation methods
   async generateQuery(request: QueryGenerationRequest): Promise<NLQuery> {
+    if (this.aiProvider) {
+      return this.aiProvider.generateQuery(request);
+    }
     return this.generateKQLQuery(request.userInput, request.schema);
   }
 
   async explainQuery(request: QueryExplanationRequest): Promise<string> {
+    if (this.aiProvider) {
+      return this.aiProvider.explainQuery(request);
+    }
     return this.explainKQLQuery(request.query, request.options);
   }
 
   async regenerateQuery(request: RegenerationRequest): Promise<NLQuery> {
+    if (this.aiProvider) {
+      return this.aiProvider.regenerateQuery(request);
+    }
     const result = await this.regenerateKQLQuery(request.userInput, request.context, request.schema);
     if (!result) {
       throw new Error('Failed to regenerate query');
@@ -614,6 +662,10 @@ Respond with only the new KQL query, no explanations.`;
    * Analyze query results (delegates to legacy analysis for now)
    */
   async analyzeQueryResult(request: QueryAnalysisRequest): Promise<QueryAnalysisResult> {
+    if (this.aiProvider) {
+      return this.aiProvider.analyzeQueryResult(request);
+    }
+    
     try {
       logger.info(`Analyzing query result with type: ${request.analysisType} (legacy fallback)`);
 

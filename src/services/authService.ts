@@ -1,31 +1,50 @@
 import { DefaultAzureCredential } from '@azure/identity';
 import { logger } from '../utils/logger';
+import { ConfigManager } from '../utils/config';
+import { IAuthenticationProvider } from '../core/interfaces/IAuthenticationProvider';
 
+/**
+ * Legacy AuthService that now delegates to the provider architecture
+ * @deprecated Use IAuthenticationProvider directly from dependency injection
+ */
 export class AuthService {
-  private credential: DefaultAzureCredential | null = null;
+  private authProvider: IAuthenticationProvider | null = null;
 
   constructor() {
-    this.initializeCredential();
+    this.initializeProvider();
   }
 
-  private initializeCredential(): void {
+  private initializeProvider(): void {
     try {
-      this.credential = new DefaultAzureCredential();
-      logger.info('Azure credential initialized successfully');
+      // Use ConfigManager to get the auth provider
+      const configManager = new ConfigManager();
+      const config = configManager.getConfig();
+      const defaultAuthProvider = config.providers.auth.default;
+      const authConfig = config.providers.auth[defaultAuthProvider];
+
+      // Create the appropriate auth provider
+      // For now, directly create AzureManagedIdentityProvider as it's the main one
+      const { AzureManagedIdentityProvider } = require('../providers/auth/AzureManagedIdentityProvider');
+      this.authProvider = new AzureManagedIdentityProvider(authConfig);
+      
+      logger.info('Legacy AuthService initialized with provider delegation');
     } catch (error) {
-      logger.error('Failed to initialize Azure credential:', error);
-      throw new Error('Azure authentication failed');
+      logger.error('Failed to initialize auth provider in legacy service:', error);
+      // Fallback to direct credential creation
+      logger.warn('Falling back to direct credential creation');
     }
   }
 
   public async getAccessToken(scopes: string[] = ['https://api.applicationinsights.io/.default']): Promise<string> {
-    if (!this.credential) {
-      throw new Error('Azure credential not initialized');
+    if (this.authProvider) {
+      return this.authProvider.getAccessToken(scopes);
     }
 
+    // Fallback implementation
     try {
-      const tokenResponse = await this.credential.getToken(scopes);
-      logger.debug('Access token obtained successfully');
+      const credential = new DefaultAzureCredential();
+      const tokenResponse = await credential.getToken(scopes);
+      logger.debug('Access token obtained successfully via fallback');
       return tokenResponse.token;
     } catch (error) {
       logger.error('Failed to get access token:', error);

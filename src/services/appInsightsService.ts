@@ -4,8 +4,14 @@ import { AuthService } from './authService';
 import { ConfigManager } from '../utils/config';
 import { logger } from '../utils/logger';
 import { withLoadingIndicator } from '../utils/loadingIndicator';
+import { IDataSourceProvider } from '../core/interfaces/IDataSourceProvider';
 
+/**
+ * Legacy AppInsightsService that now delegates to the provider architecture
+ * @deprecated Use IDataSourceProvider directly from dependency injection
+ */
 export class AppInsightsService {
+  private dataSourceProvider: IDataSourceProvider | null = null;
   private httpClient: AxiosInstance;
   private authService: AuthService;
   private configManager: ConfigManager;
@@ -14,6 +20,9 @@ export class AppInsightsService {
     this.authService = authService;
     this.configManager = configManager;
 
+    this.initializeProvider();
+    
+    // Keep fallback HTTP client for backward compatibility
     const defaultDataSource = this.configManager.getDefaultProvider('dataSources');
     const dataSourceConfig = this.configManager.getProviderConfig('dataSources', defaultDataSource);
     
@@ -29,6 +38,29 @@ export class AppInsightsService {
     });
 
     this.setupInterceptors();
+  }
+
+  private initializeProvider(): void {
+    try {
+      // Get the data source provider configuration
+      const config = this.configManager.getConfig();
+      const defaultDataSourceProvider = config.providers.dataSources.default;
+      const dataSourceConfig = config.providers.dataSources[defaultDataSourceProvider];
+
+      // Create the appropriate data source provider
+      if (defaultDataSourceProvider === 'application-insights') {
+        const { ApplicationInsightsProvider } = require('../providers/datasource/ApplicationInsightsProvider');
+        this.dataSourceProvider = new ApplicationInsightsProvider(dataSourceConfig);
+      } else if (defaultDataSourceProvider === 'log-analytics') {
+        const { LogAnalyticsProvider } = require('../providers/datasource/LogAnalyticsProvider');
+        this.dataSourceProvider = new LogAnalyticsProvider(dataSourceConfig);
+      }
+      
+      logger.info('Legacy AppInsightsService initialized with provider delegation');
+    } catch (error) {
+      logger.error('Failed to initialize data source provider in legacy service:', error);
+      logger.warn('Falling back to direct HTTP client implementation');
+    }
   }
 
   private setupInterceptors(): void {
@@ -53,6 +85,12 @@ export class AppInsightsService {
   }
 
   public async executeQuery(kqlQuery: string): Promise<QueryResult> {
+    if (this.dataSourceProvider) {
+      // Use provider if available
+      return this.dataSourceProvider.executeQuery({ query: kqlQuery });
+    }
+
+    // Fallback to legacy implementation
     logger.info(`Executing KQL query:\n ${kqlQuery}`);
     
     return withLoadingIndicator(
@@ -81,6 +119,13 @@ export class AppInsightsService {
   }
 
   public async validateConnection(): Promise<boolean> {
+    if (this.dataSourceProvider) {
+      // Use provider if available
+      const result = await this.dataSourceProvider.validateConnection();
+      return result.isValid;
+    }
+
+    // Fallback to legacy implementation
     return withLoadingIndicator(
       'Validating Application Insights connection...',
       async () => {
@@ -108,6 +153,13 @@ export class AppInsightsService {
   }
 
   public async getSchema(): Promise<any> {
+    if (this.dataSourceProvider) {
+      // Use provider if available
+      const result = await this.dataSourceProvider.getSchema();
+      return result.schema;
+    }
+
+    // Fallback to legacy implementation
     return withLoadingIndicator(
       'Retrieving Application Insights schema...',
       async () => {

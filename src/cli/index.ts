@@ -209,11 +209,23 @@ program
 
         console.log(chalk.dim('🚀 Starting interactive session...'));
 
-        // For interactive mode, use legacy services for now
-        // TODO: Refactor InteractiveService to use providers directly in Phase 3
-        const authService = new (await import('../services/authService')).AuthService();
-        const appInsightsService = new (await import('../services/appInsightsService')).AppInsightsService(authService, configManager);
-        const aiService = new (await import('../services/aiService')).AIService(authService, configManager);
+        // Initialize providers using bootstrap
+        if (!bootstrap) {
+          bootstrap = new Bootstrap();
+          await bootstrap.initialize();
+        }
+        const container = bootstrap.getContainer();
+
+        // Get providers from container for interactive mode
+        const aiProvider = container.resolve<IAIProvider>('aiProvider');
+        const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
+        const authProvider = container.resolve<IAuthenticationProvider>('authProvider');
+
+        // For now, create InteractiveService with legacy parameters but get services from container
+        // TODO: Refactor InteractiveService constructor to use providers directly
+        const authService = container.resolve('authService') as any;
+        const appInsightsService = container.resolve('appInsightsService') as any;
+        const aiService = container.resolve('aiService') as any;
 
         const interactiveService = new InteractiveService(
           authService,

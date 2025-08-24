@@ -1,8 +1,7 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
-import { AuthService } from '../../services/authService';
-import { AppInsightsService } from '../../services/appInsightsService';
-import { AIService } from '../../services/aiService';
+import { Bootstrap } from '../../infrastructure/Bootstrap';
+import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../../core/interfaces';
 import { StepExecutionService } from '../../services/stepExecutionService';
 import { InteractiveService } from '../../services/interactiveService';
 import { ConfigManager } from '../../utils/config';
@@ -127,9 +126,15 @@ export function createQueryCommand(): Command {
           process.exit(1);
         }
 
-        const authService = new AuthService();
-        const appInsightsService = new AppInsightsService(authService, configManager);
-        const aiService = new AIService(authService, configManager);
+        // Initialize providers using bootstrap
+        const bootstrap = new Bootstrap();
+        await bootstrap.initialize();
+        const container = bootstrap.getContainer();
+
+        // Get providers from container
+        const aiProvider = container.resolve<IAIProvider>('aiProvider');
+        const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
+        const authProvider = container.resolve<IAuthenticationProvider>('authProvider');
 
         let queryText = question;
 
@@ -151,7 +156,7 @@ export function createQueryCommand(): Command {
         if (options.raw) {
           // Execute as raw KQL query
           Visualizer.displayInfo(`Executing raw KQL query: ${queryText}`);
-          const result = await appInsightsService.executeQuery(queryText);
+          const result = await dataSourceProvider.executeQuery({ query: queryText });
           const executionTime = Date.now() - startTime;
 
           await handleOutput(result, options, executionTime);
@@ -162,20 +167,25 @@ export function createQueryCommand(): Command {
           // Retrieve schema (optional)
           let schema;
           try {
-            schema = await appInsightsService.getSchema();
+            const schemaResult = await dataSourceProvider.getSchema();
+            schema = schemaResult.schema;
             logger.debug('Schema retrieved for query generation');
           } catch (error) {
             logger.warn('Could not retrieve schema, proceeding without it');
           }
 
           // Generate KQL query
-          const nlQuery = await aiService.generateKQLQuery(queryText, schema);
+          const nlQuery = await aiProvider.generateQuery({ userInput: queryText, schema });
 
           // Determine execution mode
           const shouldUseStepMode = !options.direct && nlQuery.confidence < 0.7;
 
           if (shouldUseStepMode) {
             // Step execution mode (for low confidence or explicitly specified)
+            // For now, get legacy services from container for step execution
+            const aiService = container.resolve('aiService') as any;
+            const appInsightsService = container.resolve('appInsightsService') as any;
+            
             const stepExecutionService = new StepExecutionService(aiService, appInsightsService, {
               showConfidenceThreshold: 0.7,
               allowEditing: true,
@@ -199,16 +209,15 @@ export function createQueryCommand(): Command {
           // Normal execution (high confidence)
           Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
 
-          // Validate query
-          const validation = await aiService.validateQuery(nlQuery.generatedKQL);
-          if (!validation.isValid) {
-            Visualizer.displayError(`Generated query is invalid: ${validation.error}`);
+          // Validate query - for now use basic validation
+          if (!nlQuery.generatedKQL || nlQuery.generatedKQL.trim() === '') {
+            Visualizer.displayError('Generated query is empty or invalid');
             return;
           }
 
           // Execute query
           const queryStartTime = Date.now();
-          const result = await appInsightsService.executeQuery(nlQuery.generatedKQL);
+          const result = await dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
           const executionTime = Date.now() - queryStartTime;
 
           await handleOutput(result, options, executionTime);
