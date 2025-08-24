@@ -426,14 +426,17 @@ export class InteractiveSessionController {
       await this.saveToFile(result.result, query);
     }
 
-    // Offer analysis
-    await this.offerAnalysis(result.result);
+    // Offer file save option (restored from original InteractiveService)
+    await this.promptForFileSave(result.result, query);
+
+    // Offer analysis with the original query
+    await this.offerAnalysis(result.result, query);
   }
 
   /**
-   * Offer analysis of results
+   * Offer comprehensive analysis of results (restored from original InteractiveService)
    */
-  private async offerAnalysis(result: QueryResult): Promise<void> {
+  private async offerAnalysis(result: QueryResult, originalQuery?: string): Promise<void> {
     if (!result.tables || result.tables.length === 0 || !result.tables[0].rows || result.tables[0].rows.length === 0) {
       return;
     }
@@ -442,31 +445,149 @@ export class InteractiveSessionController {
       {
         type: 'confirm',
         name: 'wantAnalysis',
-        message: '🔍 Would you like AI analysis of these results?',
+        message: '🧠 Would you like to analyze these results for patterns and insights?',
         default: false
       }
     ]);
 
-    if (wantAnalysis) {
-      try {
-        const queryAnalysisResult = await withLoadingIndicator(
-          'Analyzing results...',
-          () => this.aiProvider.analyzeQueryResult({
-            result, 
-            originalQuery: 'dummy_query', 
-            analysisType: 'insights'
-          })
-        );
-        
-        // Map to legacy AnalysisResult format
-        const analysis = this.mapToAnalysisResult(queryAnalysisResult);
-        const analysisOutput = await this.outputRenderer.renderAnalysisResult(analysis, {});
-        
-        console.log(analysisOutput.content);
-        
-      } catch (error) {
-        console.log(this.outputRenderer.renderError(`Analysis failed: ${error}`).content);
+    if (!wantAnalysis) {
+      return;
+    }
+
+    // Show analysis options (restored from original InteractiveService)
+    const { analysisType, language } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'analysisType',
+        message: 'What type of analysis would you like to perform?',
+        choices: [
+          {
+            name: '📈 Statistical Summary - Basic statistics and data distributions',
+            value: 'statistical',
+            short: 'Stats'
+          },
+          {
+            name: '🔍 Pattern Detection - Identify trends and correlations',
+            value: 'patterns',
+            short: 'Patterns'
+          },
+          {
+            name: '🚨 Anomaly Detection - Find outliers and unusual data points',
+            value: 'anomalies',
+            short: 'Anomalies'
+          },
+          {
+            name: '💡 Smart Insights - AI-powered recommendations and insights',
+            value: 'insights',
+            short: 'Insights'
+          },
+          {
+            name: '📋 Full Analysis Report - Comprehensive analysis of all aspects',
+            value: 'full',
+            short: 'Full Report'
+          }
+        ],
+        pageSize: 8
+      },
+      {
+        type: 'list',
+        name: 'language',
+        message: 'Select analysis language:',
+        choices: [
+          { name: '🌐 Auto - Detect best language', value: 'auto' },
+          { name: '🇺🇸 English', value: 'en' },
+          { name: '🇯🇵 Japanese (日本語)', value: 'ja' },
+          { name: '🇰🇷 Korean (한국어)', value: 'ko' },
+          { name: '🇨🇳 Chinese Simplified (简体中文)', value: 'zh' },
+          { name: '🇹🇼 Chinese Traditional (繁體中文)', value: 'zh-TW' },
+          { name: '🇪🇸 Spanish (Español)', value: 'es' },
+          { name: '🇫🇷 French (Français)', value: 'fr' },
+          { name: '🇩🇪 German (Deutsch)', value: 'de' },
+          { name: '🇮🇹 Italian (Italiano)', value: 'it' },
+          { name: '🇵🇹 Portuguese (Português)', value: 'pt' },
+          { name: '🇷🇺 Russian (Русский)', value: 'ru' },
+          { name: '🇸🇦 Arabic (العربية)', value: 'ar' }
+        ],
+        default: this.options.language || 'auto',
+        when: (answers) => answers.analysisType !== 'statistical' // Statistical analysis doesn't need AI, so no language selection needed
       }
+    ]);
+
+    // Perform analysis
+    try {
+      const queryAnalysisResult = await withLoadingIndicator(
+        'Analyzing query results with AI...',
+        () => this.aiProvider.analyzeQueryResult({
+          result,
+          originalQuery: originalQuery || 'unknown query',
+          analysisType: analysisType as 'patterns' | 'anomalies' | 'insights' | 'full',
+          options: { language: language as SupportedLanguage }
+        })
+      );
+
+      // Map to legacy AnalysisResult format for backward compatibility
+      const analysis = this.mapToAnalysisResult(queryAnalysisResult);
+
+      // Display the analysis results
+      const analysisOutput = await this.outputRenderer.renderAnalysisResult(analysis, {});
+      console.log(analysisOutput.content);
+
+      // Offer to execute follow-up queries if available (restored from original InteractiveService)
+      if (analysis.followUpQueries && analysis.followUpQueries.length > 0) {
+        await this.promptForFollowUpQuery(analysis.followUpQueries);
+      }
+
+    } catch (error) {
+      logger.error('Analysis failed:', error);
+      console.log(this.outputRenderer.renderError(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`).content);
+    }
+  }
+
+  /**
+   * Prompt user for follow-up query execution (restored from original InteractiveService)
+   */
+  private async promptForFollowUpQuery(followUpQueries: Array<{ query: string; purpose: string; priority: 'high' | 'medium' | 'low' }>): Promise<void> {
+    const { executeFollowUp } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'executeFollowUp',
+        message: '🔄 Would you like to execute one of the suggested follow-up queries?',
+        default: false
+      }
+    ]);
+
+    if (!executeFollowUp) {
+      return;
+    }
+
+    const choices = followUpQueries.map((query, index) => {
+      const priorityIcon = query.priority === 'high' ? '🔴' : query.priority === 'medium' ? '🟡' : '🔵';
+      return {
+        name: `${priorityIcon} ${query.purpose}\n    ${chalk.dim(query.query)}`,
+        value: query.query,
+        short: `Query ${index + 1}`
+      };
+    });
+
+    choices.push({
+      name: chalk.cyan('🔙 Skip - Continue to other options'),
+      value: '__SKIP__',
+      short: 'Skip'
+    });
+
+    const { selectedQuery } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedQuery',
+        message: 'Select a follow-up query to execute:',
+        choices,
+        pageSize: Math.min(followUpQueries.length + 1, 10)
+      }
+    ]);
+
+    if (selectedQuery !== '__SKIP__') {
+      console.log(chalk.dim('\n🔄 Executing follow-up query...'));
+      await this.handleQueryInput(selectedQuery);
     }
   }
 
@@ -547,7 +668,7 @@ export class InteractiveSessionController {
   }
 
   /**
-   * Show query history
+   * Show query history and optionally allow selection
    */
   private async showHistory(): Promise<void> {
     if (!this.currentSession) {
@@ -566,6 +687,112 @@ export class InteractiveSessionController {
       console.log(chalk.dim(`${index + 1}. [${item.timestamp.toLocaleTimeString()}] ${item.action}`));
       console.log(chalk.white(`   ${item.query.substring(0, 100)}${item.query.length > 100 ? '...' : ''}`));
     });
+
+    // Ask if user wants to select a query from history
+    const { selectFromHistory } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'selectFromHistory',
+        message: '🔍 Would you like to execute a query from history?',
+        default: false
+      }
+    ]);
+
+    if (selectFromHistory) {
+      const selectedQuery = await this.selectFromHistory(history.detailed);
+      if (selectedQuery) {
+        await this.handleQueryInput(selectedQuery);
+      }
+    }
+  }
+
+  /**
+   * Select a query from history
+   */
+  private async selectFromHistory(historyItems: Array<any>): Promise<string | null> {
+    if (historyItems.length === 0) {
+      console.log(this.outputRenderer.renderInfo('No query history available.').content);
+      return null;
+    }
+
+    console.log(chalk.blue.bold('\n📜 Select Query from History'));
+    console.log(chalk.dim('='.repeat(60)));
+
+    // Create choices from history items (reverse to show most recent first)
+    const historyChoices = historyItems
+      .slice()
+      .reverse()
+      .map((item, index) => {
+        const timeAgo = this.getTimeAgo(item.timestamp);
+        const actionIcon = this.getActionIcon(item.action);
+        
+        return {
+          name: `${actionIcon} ${timeAgo} - ${item.action}
+${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
+          value: item.query,
+          short: `Query ${historyItems.length - index}`
+        };
+      });
+
+    // Add cancel option
+    historyChoices.push({
+      name: chalk.cyan('🔙 Cancel - Return to main menu'),
+      value: null,
+      short: 'Cancel'
+    });
+
+    const { selectedQuery } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedQuery',
+        message: 'Select a query to execute:',
+        choices: historyChoices,
+        pageSize: Math.min(historyChoices.length, 10)
+      }
+    ]);
+
+    return selectedQuery;
+  }
+
+  /**
+   * Get time ago string for a timestamp
+   */
+  private getTimeAgo(timestamp: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - timestamp.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  }
+
+  /**
+   * Get action icon for history display
+   */
+  private getActionIcon(action: string): string {
+    const icons: { [key: string]: string } = {
+      'generated': '🤖',
+      'edited': '✏️',
+      'regenerated': '🔄',
+      'executed': '🚀',
+      'explained': '📖',
+      'template': '📋'
+    };
+    return icons[action] || '📝';
+  }
+
+  /**
+   * Truncate query for display
+   */
+  private truncateQuery(query: string, maxLength: number): string {
+    if (query.length <= maxLength) {
+      return query;
+    }
+    return query.substring(0, maxLength - 3) + '...';
   }
 
   /**
@@ -802,7 +1029,129 @@ export class InteractiveSessionController {
   }
 
   /**
-   * Save results to file
+   * Prompt for file save option (restored from original InteractiveService)
+   */
+  private async promptForFileSave(result: QueryResult, query?: string): Promise<void> {
+    // Skip if outputFile is already specified in options (already saved above)
+    if (this.options.outputFile) {
+      return;
+    }
+
+    const { saveToFile } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'saveToFile',
+        message: '💾 Would you like to save these results to a file?',
+        default: false
+      }
+    ]);
+
+    if (!saveToFile) {
+      return;
+    }
+
+    // Get save options
+    const { format, includeHeaders, pretty, filePath } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'format',
+        message: 'Select output format:',
+        choices: [
+          { name: '📋 JSON - JavaScript Object Notation', value: 'json' },
+          { name: '📊 CSV - Comma Separated Values', value: 'csv' },
+          { name: '📄 TSV - Tab Separated Values', value: 'tsv' },
+          { name: '📝 Table - Formatted table view', value: 'table' }
+        ],
+        default: 'json'
+      },
+      {
+        type: 'confirm',
+        name: 'includeHeaders',
+        message: 'Include column headers?',
+        default: true,
+        when: (answers) => ['csv', 'tsv', 'table'].includes(answers.format)
+      },
+      {
+        type: 'confirm',
+        name: 'pretty',
+        message: 'Use pretty formatting?',
+        default: true,
+        when: (answers) => answers.format === 'json'
+      },
+      {
+        type: 'input',
+        name: 'filePath',
+        message: 'Enter file path (leave empty for auto-generated):',
+        default: '',
+        validate: (input: string) => {
+          if (!input.trim()) return true; // Empty is valid (auto-generate)
+          // Basic path validation - more detailed validation in FileOutputManager
+          return true;
+        }
+      }
+    ]);
+
+    try {
+      await this.saveResultToFile(result, {
+        format,
+        filePath: filePath.trim() || undefined,
+        pretty,
+        includeHeaders: includeHeaders !== false,
+        encoding: 'utf8'
+      }, query);
+
+    } catch (error) {
+      logger.error('Failed to save results to file:', error);
+      console.log(this.outputRenderer.renderError(`Failed to save file: ${error}`).content);
+    }
+  }
+
+  /**
+   * Save results to file with comprehensive options (restored from original InteractiveService)
+   */
+  private async saveResultToFile(result: QueryResult, options: {
+    format: OutputFormat;
+    filePath?: string;
+    pretty?: boolean;
+    includeHeaders?: boolean;
+    encoding?: BufferEncoding;
+  }, query?: string): Promise<void> {
+    // Generate filename if not provided
+    const outputPath = options.filePath || FileOutputManager.generateFileName({
+      format: options.format,
+      destination: 'file'
+    });
+
+    // Resolve and check path
+    const resolvedPath = FileOutputManager.resolveOutputPath(outputPath, options.format);
+
+    if (!FileOutputManager.checkWritePermission(resolvedPath)) {
+      throw new Error(`Cannot write to file: ${resolvedPath}`);
+    }
+
+    // Format the output
+    const formattedOutput = OutputFormatter.formatResult(result, options.format, {
+      pretty: options.pretty,
+      includeHeaders: options.includeHeaders
+    });
+
+    // Create backup if file exists
+    FileOutputManager.createBackup(resolvedPath);
+
+    // Write to file
+    await FileOutputManager.writeToFile(formattedOutput, resolvedPath, options.encoding || 'utf8');
+
+    // Show success message with details
+    const totalRows = result.tables ? result.tables.reduce((sum, table) => sum + (table.rows?.length || 0), 0) : 0;
+    console.log(chalk.green(`✅ Successfully saved ${totalRows} rows to ${resolvedPath}`));
+    
+    if (query) {
+      console.log(chalk.dim(`   Query: ${this.truncateQuery(query, 60)}`));
+    }
+  }
+
+  /**
+   * Save results to file (simple version for when outputFile is specified in options)
    */
   private async saveToFile(result: QueryResult, query?: string): Promise<void> {
     try {
