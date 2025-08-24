@@ -152,8 +152,29 @@ describe('ConfigManager', () => {
   describe('validateConfig', () => {
     it('should return true for valid config', () => {
       const mockConfig = {
-        appInsights: { applicationId: 'test-id', tenantId: 'test-tenant' },
-        openAI: { endpoint: 'test-endpoint' },
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {
+              tenantId: 'test-tenant-id'
+            }
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              endpoint: 'https://test.openai.azure.com/',
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'application-insights',
+            'application-insights': {
+              applicationId: 'test-app-id',
+              endpoint: 'https://api.applicationinsights.io/v1/apps',
+              tenantId: 'test-tenant-id'
+            }
+          }
+        },
         logLevel: 'info' as const
       };
 
@@ -167,8 +188,29 @@ describe('ConfigManager', () => {
 
     it('should return false for invalid Application Insights config', () => {
       const mockConfig = {
-        appInsights: { applicationId: '', tenantId: 'test-tenant' },
-        openAI: { endpoint: 'test-endpoint' },
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {
+              tenantId: 'test-tenant-id'
+            }
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              endpoint: 'https://test.openai.azure.com/',
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'application-insights',
+            'application-insights': {
+              applicationId: '',  // Invalid empty applicationId
+              endpoint: 'https://api.applicationinsights.io/v1/apps',
+              tenantId: 'test-tenant-id'
+            }
+          }
+        },
         logLevel: 'info' as const
       };
 
@@ -182,8 +224,29 @@ describe('ConfigManager', () => {
 
     it('should return false for invalid OpenAI config', () => {
       const mockConfig = {
-        appInsights: { applicationId: 'test-id', tenantId: 'test-tenant' },
-        openAI: { endpoint: '' },
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {
+              tenantId: 'test-tenant-id'
+            }
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              endpoint: '',  // Invalid empty endpoint
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'application-insights',
+            'application-insights': {
+              applicationId: 'test-app-id',
+              endpoint: 'https://api.applicationinsights.io/v1/apps',
+              tenantId: 'test-tenant-id'
+            }
+          }
+        },
         logLevel: 'info' as const
       };
 
@@ -219,8 +282,26 @@ describe('ConfigManager', () => {
 
     it('should skip auto-enhancement when Application ID is not configured', async () => {
       const configWithoutAppId = {
-        appInsights: { tenantId: 'test-tenant' },
-        openAI: { endpoint: 'test-endpoint' },
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {}
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              endpoint: 'https://test.openai.azure.com/',
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'application-insights',
+            'application-insights': {
+              // Missing applicationId
+              endpoint: 'https://api.applicationinsights.io/v1/apps'
+            }
+          }
+        },
         logLevel: 'info' as const
       };
 
@@ -236,14 +317,29 @@ describe('ConfigManager', () => {
 
     it('should skip auto-enhancement when resource info is already complete', async () => {
       const completeConfig = {
-        appInsights: { 
-          applicationId: 'test-app-id', 
-          tenantId: 'test-tenant',
-          subscriptionId: 'existing-sub',
-          resourceGroup: 'existing-rg',
-          resourceName: 'existing-resource'
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {}
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              endpoint: 'https://test.openai.azure.com/',
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'application-insights',
+            'application-insights': {
+              applicationId: 'test-app-id',
+              endpoint: 'https://api.applicationinsights.io/v1/apps',
+              subscriptionId: 'existing-sub',
+              resourceGroup: 'existing-rg',
+              resourceName: 'existing-resource'
+            }
+          }
         },
-        openAI: { endpoint: 'test-endpoint' },
         logLevel: 'info' as const
       };
 
@@ -259,11 +355,26 @@ describe('ConfigManager', () => {
 
     it('should handle Resource Graph errors gracefully', async () => {
       const initialConfig = {
-        appInsights: { 
-          applicationId: 'test-app-id', 
-          tenantId: 'test-tenant' 
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {}
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              endpoint: 'https://test.openai.azure.com/',
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'application-insights',
+            'application-insights': {
+              applicationId: 'test-app-id',
+              endpoint: 'https://api.applicationinsights.io/v1/apps'
+            }
+          }
         },
-        openAI: { endpoint: 'test-endpoint' },
         logLevel: 'info' as const
       };
 
@@ -286,11 +397,26 @@ describe('ConfigManager', () => {
   describe('getEnhancedConfig', () => {
     it('should return enhanced config when auto-enhancement succeeds', async () => {
       const initialConfig = {
-        appInsights: { 
-          applicationId: 'test-app-id', 
-          tenantId: 'test-tenant' 
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {}
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              endpoint: 'https://test.openai.azure.com/',
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'application-insights',
+            'application-insights': {
+              applicationId: 'test-app-id',
+              endpoint: 'https://api.applicationinsights.io/v1/apps'
+            }
+          }
         },
-        openAI: { endpoint: 'test-endpoint' },
         logLevel: 'info' as const
       };
 
@@ -319,14 +445,29 @@ describe('ConfigManager', () => {
 
     it('should return original config when auto-enhancement is not needed', async () => {
       const completeConfig = {
-        appInsights: { 
-          applicationId: 'test-app-id', 
-          tenantId: 'test-tenant',
-          subscriptionId: 'existing-sub',
-          resourceGroup: 'existing-rg',
-          resourceName: 'existing-resource'
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {}
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              endpoint: 'https://test.openai.azure.com/',
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'application-insights',
+            'application-insights': {
+              applicationId: 'test-app-id',
+              endpoint: 'https://api.applicationinsights.io/v1/apps',
+              subscriptionId: 'existing-sub',
+              resourceGroup: 'existing-rg',
+              resourceName: 'existing-resource'
+            }
+          }
         },
-        openAI: { endpoint: 'test-endpoint' },
         logLevel: 'info' as const
       };
 
