@@ -68,7 +68,7 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
    */
   async executeQuery(request: QueryExecutionRequest): Promise<QueryResult> {
     try {
-      logger.info('Executing query on Application Insights...');
+      logger.debug('Executing query on Application Insights...');
 
       const url = `/${this.config.applicationId}/query`;
 
@@ -83,7 +83,7 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
 
       const response = await this.httpClient.post(url, requestBody);
 
-      logger.info(`Application Insights query executed successfully, returned ${response.data?.tables?.[0]?.rows?.length || 0} rows`);
+      logger.debug(`Application Insights query executed successfully, returned ${response.data?.tables?.[0]?.rows?.length || 0} rows`);
       return response.data;
     } catch (error) {
       logger.error('Failed to execute Application Insights query:', error);
@@ -96,7 +96,7 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
    */
   async validateConnection(): Promise<ValidationResult> {
     try {
-      logger.info('Validating Application Insights connection...');
+      logger.debug('Validating Application Insights connection...');
 
       // Test connection with a simple query
       const url = `/${this.config.applicationId}/query`;
@@ -105,7 +105,7 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
         query: 'requests | take 1',
       });
 
-      logger.info('Application Insights connection validated successfully');
+      logger.debug('Application Insights connection validated successfully');
       return { isValid: true };
     } catch (error) {
       logger.error('Application Insights connection validation failed:', error);
@@ -121,13 +121,13 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
    */
   async getSchema(): Promise<SchemaResult> {
     try {
-      logger.info('Retrieving Application Insights schema...');
+      logger.debug('Retrieving Application Insights schema...');
 
       const url = `/${this.config.applicationId}/metadata`;
 
       const response = await this.httpClient.get(url);
 
-      logger.info('Application Insights schema retrieved successfully');
+      logger.debug('Application Insights schema retrieved successfully');
       
       // Extract tables from the schema response if available
       let tables: string[] = [];
@@ -160,7 +160,7 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
    */
   async getMetadata(): Promise<MetadataResult> {
     try {
-      logger.info('Retrieving Application Insights metadata...');
+      logger.debug('Retrieving Application Insights metadata...');
 
       // Get application info
       const infoUrl = `/${this.config.applicationId}`;
@@ -180,7 +180,7 @@ export class ApplicationInsightsProvider implements IDataSourceProvider {
         requestSource: response.data?.properties?.requestSource
       };
 
-      logger.info('Application Insights metadata retrieved successfully');
+      logger.debug('Application Insights metadata retrieved successfully');
       return { metadata };
     } catch (error) {
       logger.error('Failed to retrieve Application Insights metadata:', error);

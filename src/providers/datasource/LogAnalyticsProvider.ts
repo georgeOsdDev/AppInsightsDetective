@@ -60,7 +60,7 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
    */
   async executeQuery(request: QueryExecutionRequest): Promise<QueryResult> {
     try {
-      logger.info('Executing query on Log Analytics...');
+      logger.debug('Executing query on Log Analytics...');
 
       const queryUrl = `/subscriptions/${this.config.subscriptionId}/resourceGroups/${this.config.resourceGroup}/providers/Microsoft.OperationalInsights/workspaces/${this.config.resourceName}/api/query`;
 
@@ -72,7 +72,7 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
       // Transform Log Analytics response to Application Insights format
       const result = this.transformLogAnalyticsResponse(response.data);
       
-      logger.info(`Log Analytics query executed successfully, returned ${result.tables[0]?.rows?.length || 0} rows`);
+      logger.debug(`Log Analytics query executed successfully, returned ${result.tables[0]?.rows?.length || 0} rows`);
       return result;
     } catch (error) {
       logger.error('Failed to execute Log Analytics query:', error);
@@ -85,7 +85,7 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
    */
   async validateConnection(): Promise<ValidationResult> {
     try {
-      logger.info('Validating Log Analytics connection...');
+      logger.debug('Validating Log Analytics connection...');
 
       // Test connection with a simple query
       const queryUrl = `/subscriptions/${this.config.subscriptionId}/resourceGroups/${this.config.resourceGroup}/providers/Microsoft.OperationalInsights/workspaces/${this.config.resourceName}/api/query`;
@@ -95,7 +95,7 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
         timespan: 'PT1H'
       });
 
-      logger.info('Log Analytics connection validated successfully');
+      logger.debug('Log Analytics connection validated successfully');
       return { isValid: true };
     } catch (error) {
       logger.error('Log Analytics connection validation failed:', error);
@@ -111,7 +111,7 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
    */
   async getSchema(): Promise<SchemaResult> {
     try {
-      logger.info('Retrieving Log Analytics schema...');
+      logger.debug('Retrieving Log Analytics schema...');
 
       const queryUrl = `/subscriptions/${this.config.subscriptionId}/resourceGroups/${this.config.resourceGroup}/providers/Microsoft.OperationalInsights/workspaces/${this.config.resourceName}/api/query`;
 
@@ -134,7 +134,7 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
 
       const result = this.transformLogAnalyticsResponse(response.data);
       
-      logger.info('Log Analytics schema retrieved successfully');
+      logger.debug('Log Analytics schema retrieved successfully');
       return { schema: result };
     } catch (error) {
       logger.error('Failed to retrieve Log Analytics schema:', error);
@@ -147,7 +147,7 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
    */
   async getMetadata(): Promise<MetadataResult> {
     try {
-      logger.info('Retrieving Log Analytics metadata...');
+      logger.debug('Retrieving Log Analytics metadata...');
 
       const workspaceUrl = `/subscriptions/${this.config.subscriptionId}/resourceGroups/${this.config.resourceGroup}/providers/Microsoft.OperationalInsights/workspaces/${this.config.resourceName}`;
 
@@ -164,7 +164,7 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
         sku: response.data.properties?.sku?.name
       };
 
-      logger.info('Log Analytics metadata retrieved successfully');
+      logger.debug('Log Analytics metadata retrieved successfully');
       return { metadata };
     } catch (error) {
       logger.error('Failed to retrieve Log Analytics metadata:', error);
