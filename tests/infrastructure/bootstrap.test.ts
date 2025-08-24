@@ -11,11 +11,14 @@ jest.mock('../../src/utils/config', () => {
         providers: {
           auth: {
             default: 'azure-managed-identity',
-            'azure-managed-identity': {}
+            'azure-managed-identity': {
+              type: 'azure-managed-identity'
+            }
           },
           ai: {
             default: 'azure-openai',
             'azure-openai': {
+              type: 'azure-openai',
               endpoint: 'https://test.openai.azure.com/',
               deploymentName: 'gpt-4'
             }
@@ -23,6 +26,7 @@ jest.mock('../../src/utils/config', () => {
           dataSources: {
             default: 'application-insights',
             'application-insights': {
+              type: 'application-insights',
               applicationId: 'test-app-id',
               endpoint: 'https://api.applicationinsights.io/v1/apps'
             }

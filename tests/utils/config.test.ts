@@ -156,12 +156,14 @@ describe('ConfigManager', () => {
           auth: {
             default: 'azure-managed-identity',
             'azure-managed-identity': {
+              type: 'azure-managed-identity',
               tenantId: 'test-tenant-id'
             }
           },
           ai: {
             default: 'azure-openai',
             'azure-openai': {
+              type: 'azure-openai',
               endpoint: 'https://test.openai.azure.com/',
               deploymentName: 'gpt-4'
             }
@@ -169,6 +171,7 @@ describe('ConfigManager', () => {
           dataSources: {
             default: 'application-insights',
             'application-insights': {
+              type: 'application-insights',
               applicationId: 'test-app-id',
               endpoint: 'https://api.applicationinsights.io/v1/apps',
               tenantId: 'test-tenant-id'
@@ -192,12 +195,14 @@ describe('ConfigManager', () => {
           auth: {
             default: 'azure-managed-identity',
             'azure-managed-identity': {
+              type: 'azure-managed-identity',
               tenantId: 'test-tenant-id'
             }
           },
           ai: {
             default: 'azure-openai',
             'azure-openai': {
+              type: 'azure-openai',
               endpoint: 'https://test.openai.azure.com/',
               deploymentName: 'gpt-4'
             }
@@ -205,6 +210,7 @@ describe('ConfigManager', () => {
           dataSources: {
             default: 'application-insights',
             'application-insights': {
+              type: 'application-insights',
               applicationId: '',  // Invalid empty applicationId
               endpoint: 'https://api.applicationinsights.io/v1/apps',
               tenantId: 'test-tenant-id'
@@ -228,12 +234,14 @@ describe('ConfigManager', () => {
           auth: {
             default: 'azure-managed-identity',
             'azure-managed-identity': {
+              type: 'azure-managed-identity',
               tenantId: 'test-tenant-id'
             }
           },
           ai: {
             default: 'azure-openai',
             'azure-openai': {
+              type: 'azure-openai',
               endpoint: '',  // Invalid empty endpoint
               deploymentName: 'gpt-4'
             }
@@ -241,6 +249,7 @@ describe('ConfigManager', () => {
           dataSources: {
             default: 'application-insights',
             'application-insights': {
+              type: 'application-insights',
               applicationId: 'test-app-id',
               endpoint: 'https://api.applicationinsights.io/v1/apps',
               tenantId: 'test-tenant-id'
@@ -285,11 +294,14 @@ describe('ConfigManager', () => {
         providers: {
           auth: {
             default: 'azure-managed-identity',
-            'azure-managed-identity': {}
+            'azure-managed-identity': {
+              type: 'azure-managed-identity'
+            }
           },
           ai: {
             default: 'azure-openai',
             'azure-openai': {
+              type: 'azure-openai',
               endpoint: 'https://test.openai.azure.com/',
               deploymentName: 'gpt-4'
             }
@@ -297,6 +309,7 @@ describe('ConfigManager', () => {
           dataSources: {
             default: 'application-insights',
             'application-insights': {
+              type: 'application-insights',
               // Missing applicationId
               endpoint: 'https://api.applicationinsights.io/v1/apps'
             }
@@ -320,11 +333,14 @@ describe('ConfigManager', () => {
         providers: {
           auth: {
             default: 'azure-managed-identity',
-            'azure-managed-identity': {}
+            'azure-managed-identity': {
+              type: 'azure-managed-identity'
+            }
           },
           ai: {
             default: 'azure-openai',
             'azure-openai': {
+              type: 'azure-openai',
               endpoint: 'https://test.openai.azure.com/',
               deploymentName: 'gpt-4'
             }
@@ -332,6 +348,7 @@ describe('ConfigManager', () => {
           dataSources: {
             default: 'application-insights',
             'application-insights': {
+              type: 'application-insights',
               applicationId: 'test-app-id',
               endpoint: 'https://api.applicationinsights.io/v1/apps',
               subscriptionId: 'existing-sub',
@@ -358,11 +375,14 @@ describe('ConfigManager', () => {
         providers: {
           auth: {
             default: 'azure-managed-identity',
-            'azure-managed-identity': {}
+            'azure-managed-identity': {
+              type: 'azure-managed-identity'
+            }
           },
           ai: {
             default: 'azure-openai',
             'azure-openai': {
+              type: 'azure-openai',
               endpoint: 'https://test.openai.azure.com/',
               deploymentName: 'gpt-4'
             }
@@ -370,6 +390,7 @@ describe('ConfigManager', () => {
           dataSources: {
             default: 'application-insights',
             'application-insights': {
+              type: 'application-insights',
               applicationId: 'test-app-id',
               endpoint: 'https://api.applicationinsights.io/v1/apps'
             }
@@ -400,11 +421,14 @@ describe('ConfigManager', () => {
         providers: {
           auth: {
             default: 'azure-managed-identity',
-            'azure-managed-identity': {}
+            'azure-managed-identity': {
+              type: 'azure-managed-identity'
+            }
           },
           ai: {
             default: 'azure-openai',
             'azure-openai': {
+              type: 'azure-openai',
               endpoint: 'https://test.openai.azure.com/',
               deploymentName: 'gpt-4'
             }
@@ -412,6 +436,7 @@ describe('ConfigManager', () => {
           dataSources: {
             default: 'application-insights',
             'application-insights': {
+              type: 'application-insights',
               applicationId: 'test-app-id',
               endpoint: 'https://api.applicationinsights.io/v1/apps'
             }
@@ -448,11 +473,14 @@ describe('ConfigManager', () => {
         providers: {
           auth: {
             default: 'azure-managed-identity',
-            'azure-managed-identity': {}
+            'azure-managed-identity': {
+              type: 'azure-managed-identity'
+            }
           },
           ai: {
             default: 'azure-openai',
             'azure-openai': {
+              type: 'azure-openai',
               endpoint: 'https://test.openai.azure.com/',
               deploymentName: 'gpt-4'
             }
@@ -460,6 +488,7 @@ describe('ConfigManager', () => {
           dataSources: {
             default: 'application-insights',
             'application-insights': {
+              type: 'application-insights',
               applicationId: 'test-app-id',
               endpoint: 'https://api.applicationinsights.io/v1/apps',
               subscriptionId: 'existing-sub',
