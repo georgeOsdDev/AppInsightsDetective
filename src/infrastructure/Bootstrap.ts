@@ -126,21 +126,25 @@ export class Bootstrap {
 
     // Register external execution service (initialized with configuration later)
     this.container.registerFactory('externalExecutionService', () => {
-      const config = configManager.getConfig();
-      const defaultDataSource = configManager.getDefaultProvider('dataSources');
-      const dataSourceConfig = configManager.getProviderConfig('dataSources', defaultDataSource);
+      try {
+        const config = configManager.getConfig();
+        const defaultDataSource = configManager.getDefaultProvider('dataSources');
+        const dataSourceConfig = configManager.getProviderConfig('dataSources', defaultDataSource);
 
-      if (dataSourceConfig?.tenantId && dataSourceConfig.subscriptionId && 
-          dataSourceConfig.resourceGroup && dataSourceConfig.resourceName) {
-        const azureResourceInfo = {
-          tenantId: dataSourceConfig.tenantId,
-          subscriptionId: dataSourceConfig.subscriptionId,
-          resourceGroup: dataSourceConfig.resourceGroup,
-          resourceName: dataSourceConfig.resourceName
-        };
-        return new ExternalExecutionService(azureResourceInfo);
+        if (dataSourceConfig?.tenantId && dataSourceConfig.subscriptionId && 
+            dataSourceConfig.resourceGroup && dataSourceConfig.resourceName) {
+          const azureResourceInfo = {
+            tenantId: dataSourceConfig.tenantId,
+            subscriptionId: dataSourceConfig.subscriptionId,
+            resourceGroup: dataSourceConfig.resourceGroup,
+            resourceName: dataSourceConfig.resourceName
+          };
+          return new ExternalExecutionService(azureResourceInfo);
+        }
+      } catch (error) {
+        logger.debug('External execution service configuration not available or incomplete:', error);
       }
-      return null; // Return null if configuration is incomplete
+      return null; // Return null if configuration is incomplete or unavailable
     });
 
     // Register presentation layer
@@ -148,12 +152,14 @@ export class Bootstrap {
     this.container.register<IOutputRenderer>('outputRenderer', outputRenderer);
 
     // Register interactive session controller with all required dependencies
+    const externalExecutionService = this.container.resolve<ExternalExecutionService | null>('externalExecutionService');
     const interactiveSessionController = new InteractiveSessionController(
       queryService,
       templateService,
       aiProvider,
       outputRenderer,
       queryEditorService,
+      externalExecutionService,
       {} // options parameter
     );
     this.container.register('interactiveSessionController', interactiveSessionController);

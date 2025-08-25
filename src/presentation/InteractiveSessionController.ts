@@ -16,6 +16,7 @@ import { OutputFormatter } from '../utils/outputFormatter';
 import { Visualizer } from '../utils/visualizer';
 import { QueryTemplate } from '../core/interfaces/ITemplateRepository';
 import { IQueryEditorService } from '../core/interfaces/IQueryEditorService';
+import { ExternalExecutionService } from '../services/externalExecutionService';
 import { logger } from '../utils/logger';
 import { withLoadingIndicator } from '../utils/loadingIndicator';
 
@@ -46,6 +47,7 @@ export class InteractiveSessionController {
     private aiProvider: IAIProvider,
     private outputRenderer: IOutputRenderer,
     private queryEditorService: IQueryEditorService,
+    private externalExecutionService: ExternalExecutionService | null,
     private options: InteractiveSessionControllerOptions = {}
   ) {
     this.fileOutputManager = new FileOutputManager();
@@ -264,6 +266,10 @@ export class InteractiveSessionController {
           await this.explainQuery(nlQuery.generatedKQL);
           continue;
 
+        case 'portal':
+          await this.openInAzurePortal(nlQuery.generatedKQL);
+          return;
+
         case 'regenerate':
           const newQuery = await this.regenerateQuery(originalInput, nlQuery);
           if (newQuery) {
@@ -365,19 +371,29 @@ export class InteractiveSessionController {
    * Get user action for step mode
    */
   private async getUserAction(): Promise<string> {
+    const choices = [
+      { name: '🚀 Execute Query', value: 'execute' },
+      { name: '📖 Explain Query', value: 'explain' },
+      { name: '🔄 Regenerate Query', value: 'regenerate' },
+      { name: '✏️  Edit Query', value: 'edit' },
+      { name: '📜 View History', value: 'history' },
+      { name: '❌ Cancel', value: 'cancel' }
+    ];
+
+    // Add Azure Portal option if external execution service is available
+    if (this.externalExecutionService) {
+      const validation = this.externalExecutionService.validateConfiguration();
+      if (validation.isValid) {
+        choices.splice(5, 0, { name: '🌐 Open in Azure Portal', value: 'portal' });
+      }
+    }
+
     const { action } = await inquirer.prompt([
       {
         type: 'list',
         name: 'action',
         message: 'What would you like to do with this query?',
-        choices: [
-          { name: '🚀 Execute Query', value: 'execute' },
-          { name: '📖 Explain Query', value: 'explain' },
-          { name: '🔄 Regenerate Query', value: 'regenerate' },
-          { name: '✏️  Edit Query', value: 'edit' },
-          { name: '📜 View History', value: 'history' },
-          { name: '❌ Cancel', value: 'cancel' }
-        ]
+        choices
       }
     ]);
 
@@ -950,6 +966,62 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
     } catch (error) {
       logger.error('Failed to use template:', error);
       console.log(this.outputRenderer.renderError(`Failed to use template: ${error}`).content);
+    }
+  }
+
+  /**
+   * Open query in Azure Portal
+   */
+  private async openInAzurePortal(query: string): Promise<void> {
+    try {
+      if (!this.externalExecutionService) {
+        console.log(this.outputRenderer.renderError(
+          'Azure Portal integration is not available. Please check your configuration.'
+        ).content);
+        return;
+      }
+
+      // Validate configuration
+      const validation = this.externalExecutionService.validateConfiguration();
+      if (!validation.isValid) {
+        console.log(this.outputRenderer.renderError(
+          `Azure Portal integration requires the following configuration: ${validation.missingFields.join(', ')}`
+        ).content);
+        return;
+      }
+
+      // Execute external command to open in portal
+      const result = await this.externalExecutionService.executeExternal('portal', query, true);
+      
+      if (result.launched) {
+        console.log(this.outputRenderer.renderSuccess(
+          'Query opened in Azure Portal successfully! Check your browser.'
+        ).content);
+        
+        // Ask if user wants to continue with another action
+        const { continueSession } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'continueSession',
+            message: '🔄 Would you like to perform another action with this query?',
+            default: false
+          }
+        ]);
+
+        if (continueSession) {
+          // Continue with the same query for additional actions
+          return;
+        }
+      } else {
+        console.log(this.outputRenderer.renderError(
+          result.error || 'Failed to open query in Azure Portal'
+        ).content);
+      }
+    } catch (error) {
+      logger.error('Failed to open in Azure Portal:', error);
+      console.log(this.outputRenderer.renderError(
+        `Failed to open in Azure Portal: ${error}`
+      ).content);
     }
   }
 
