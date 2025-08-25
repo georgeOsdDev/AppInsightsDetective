@@ -15,6 +15,7 @@ import { FileOutputManager } from '../utils/fileOutput';
 import { OutputFormatter } from '../utils/outputFormatter';
 import { Visualizer } from '../utils/visualizer';
 import { QueryTemplate } from '../core/interfaces/ITemplateRepository';
+import { IQueryEditorService } from '../core/interfaces/IQueryEditorService';
 import { logger } from '../utils/logger';
 import { withLoadingIndicator } from '../utils/loadingIndicator';
 
@@ -44,6 +45,7 @@ export class InteractiveSessionController {
     private templateRepository: ITemplateRepository,
     private aiProvider: IAIProvider,
     private outputRenderer: IOutputRenderer,
+    private queryEditorService: IQueryEditorService,
     private options: InteractiveSessionControllerOptions = {}
   ) {
     this.fileOutputManager = new FileOutputManager();
@@ -998,34 +1000,11 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
   }
 
   /**
-   * Edit query
+   * Edit query using QueryEditorService
    */
   private async editQuery(currentQuery: string): Promise<string | null> {
     try {
-      const { editedQuery } = await inquirer.prompt([
-        {
-          type: 'editor',
-          name: 'editedQuery',
-          message: 'Edit the KQL query:',
-          default: currentQuery
-        }
-      ]);
-
-      const trimmed = editedQuery.trim();
-      
-      if (trimmed === currentQuery.trim()) {
-        console.log(this.outputRenderer.renderInfo('No changes made to the query').content);
-        return null;
-      }
-
-      if (!trimmed) {
-        console.log(this.outputRenderer.renderError('Empty query is not allowed').content);
-        return null;
-      }
-
-      console.log(this.outputRenderer.renderSuccess('Query edited successfully!').content);
-      return trimmed;
-      
+      return await this.queryEditorService.editQuery(currentQuery);
     } catch (error) {
       console.log(this.outputRenderer.renderError(`Failed to edit query: ${error}`).content);
       return null;

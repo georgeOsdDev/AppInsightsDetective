@@ -30,13 +30,13 @@ graph TB
     subgraph "Business Logic Layer"
         QS[QueryService]
         TS[TemplateService]
+        QES[QueryEditorService]
         ES[ExternalExecutionService]
     end
     
     subgraph "Orchestration Layer"
         QO[QueryOrchestrator]
         SM[SessionManager]
-        SES[StepExecutionService]
     end
     
     subgraph "Provider Layer"
@@ -95,6 +95,7 @@ The CLI layer handles user interface and command parsing using Commander.js.
 - Parse command line arguments
 - Validate user input
 - Route commands to appropriate handlers
+- Use dependency injection container for service resolution
 - Handle global CLI options and configuration
 
 ### 2. Presentation Layer
@@ -103,7 +104,7 @@ The CLI layer handles user interface and command parsing using Commander.js.
 Manages user interactions and output formatting.
 
 **Key Components:**
-- **InteractiveSessionController**: Handles interactive query sessions
+- **InteractiveSessionController**: Handles interactive query sessions with integrated query editing
 - **Output Renderers** (`renderers/`): Format and display results
   - Console output with colors and charts
   - JSON/CSV/TSV export formats
@@ -112,7 +113,7 @@ Manages user interactions and output formatting.
 **Responsibilities:**
 - Interactive session management
 - Result visualization and formatting
-- User prompt handling
+- User prompt handling and unified query editing
 - Chart generation and display
 
 ### 3. Business Logic Layer
@@ -123,11 +124,13 @@ Contains core business logic and service implementations.
 **Key Components:**
 - **QueryService**: High-level query operations and session management
 - **TemplateService**: Reusable query template operations
+- **QueryEditorService**: Unified query editing with multiple editing methods
 - **ExternalExecutionService**: External system integrations (Azure Portal)
 
 **Responsibilities:**
 - Query validation and processing
 - Template management and execution
+- Unified query editing experience
 - Business rule enforcement
 - Integration with external systems
 
@@ -139,7 +142,6 @@ Coordinates between different providers and manages execution flow.
 **Key Components:**
 - **QueryOrchestrator**: Orchestrates query execution across providers
 - **SessionManager**: Manages query sessions and context
-- **StepExecutionService**: Handles multi-step query operations
 
 **Responsibilities:**
 - Provider coordination
@@ -258,12 +260,23 @@ const container = new ServiceContainer();
 container.register('configManager', configManager);
 container.register('providerFactory', providerFactory);
 container.register<IAIProvider>('aiProvider', aiProvider);
+container.register<IQueryEditorService>('queryEditorService', queryEditorService);
 
 // Resolution
 const queryService = new QueryService(
   container.resolve<IQueryOrchestrator>('queryOrchestrator'),
   container.resolve<ISessionManager>('sessionManager'),
   container.resolve<IAIProvider>('aiProvider')
+);
+
+// InteractiveSessionController with QueryEditorService integration
+const interactiveSessionController = new InteractiveSessionController(
+  queryService,
+  templateService,
+  aiProvider,
+  outputRenderer,
+  container.resolve<IQueryEditorService>('queryEditorService'),
+  {}
 );
 ```
 
@@ -407,8 +420,8 @@ Application initialization and dependency injection setup.
 1. Register provider constructors
 2. Load configuration
 3. Create and validate providers
-4. Register services in DI container
-5. Setup orchestration services
+4. Register services in DI container (including QueryEditorService)
+5. Setup orchestration services with proper dependency injection
 
 ### QueryOrchestrator (`/src/services/orchestration/QueryOrchestrator.ts`)
 
@@ -419,5 +432,26 @@ Coordinates query execution across multiple providers.
 - Query execution coordination
 - Template query processing
 - Error handling and recovery
+
+### QueryEditorService (`/src/services/QueryEditorService.ts`)
+
+Provides unified query editing capabilities across the application.
+
+**Key Features:**
+- **Multiple Editing Methods**: Support for both file-based editing (nano/vim/etc.) and inline editing
+- **Editor Selection**: Interactive prompt for users to choose their preferred editing method
+- **Robust Error Handling**: Comprehensive validation and user-friendly error messages
+- **File Management**: Proper cleanup of temporary files and validation of edited queries
+- **Integration Ready**: Designed to be injected into any component requiring query editing
+
+**Key Methods:**
+- `editQuery(currentQuery: string)`: Main entry point with editor method selection
+- `editQueryInFile(currentQuery: string)`: File-based editing with external editors
+- `editQueryInline(currentQuery: string)`: Inline editing within terminal
+
+**Integration Points:**
+- Used by `InteractiveSessionController` for consistent editing experience
+- Available through DI container for any service requiring query editing capabilities
+- Replaces duplicate editing logic across different components
 
 This architecture provides a solid foundation for building extensible, maintainable applications with clear separation of concerns and well-defined extension points.

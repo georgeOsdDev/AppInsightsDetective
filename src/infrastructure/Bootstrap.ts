@@ -22,6 +22,9 @@ import { QueryService } from '../services/QueryService';
 import { TemplateService } from '../services/TemplateService';
 import { ConsoleOutputRenderer } from '../presentation/renderers/ConsoleOutputRenderer';
 import { InteractiveSessionController } from '../presentation/InteractiveSessionController';
+import { QueryEditorService } from '../services/QueryEditorService';
+import { ExternalExecutionService } from '../services/externalExecutionService';
+import { IQueryEditorService } from '../core/interfaces/IQueryEditorService';
 
 /**
  * Bootstrap class to configure the dependency injection container
@@ -117,16 +120,41 @@ export class Bootstrap {
     const queryService = new QueryService(queryOrchestrator, sessionManager, aiProvider);
     this.container.register('queryService', queryService);
 
+    // Register query editor service
+    const queryEditorService = new QueryEditorService();
+    this.container.register<IQueryEditorService>('queryEditorService', queryEditorService);
+
+    // Register external execution service (initialized with configuration later)
+    this.container.registerFactory('externalExecutionService', () => {
+      const config = configManager.getConfig();
+      const defaultDataSource = configManager.getDefaultProvider('dataSources');
+      const dataSourceConfig = configManager.getProviderConfig('dataSources', defaultDataSource);
+
+      if (dataSourceConfig?.tenantId && dataSourceConfig.subscriptionId && 
+          dataSourceConfig.resourceGroup && dataSourceConfig.resourceName) {
+        const azureResourceInfo = {
+          tenantId: dataSourceConfig.tenantId,
+          subscriptionId: dataSourceConfig.subscriptionId,
+          resourceGroup: dataSourceConfig.resourceGroup,
+          resourceName: dataSourceConfig.resourceName
+        };
+        return new ExternalExecutionService(azureResourceInfo);
+      }
+      return null; // Return null if configuration is incomplete
+    });
+
     // Register presentation layer
     const outputRenderer = new ConsoleOutputRenderer();
     this.container.register<IOutputRenderer>('outputRenderer', outputRenderer);
 
-    // Register interactive session controller
+    // Register interactive session controller with all required dependencies
     const interactiveSessionController = new InteractiveSessionController(
       queryService,
       templateService,
       aiProvider,
-      outputRenderer
+      outputRenderer,
+      queryEditorService,
+      {} // options parameter
     );
     this.container.register('interactiveSessionController', interactiveSessionController);
 
