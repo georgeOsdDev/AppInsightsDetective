@@ -7,6 +7,7 @@ import {
 import { logger } from '../utils/logger';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import * as os from 'os';
 
 /**
  * Template service for managing query templates
@@ -88,7 +89,7 @@ export class TemplateService implements ITemplateRepository {
     // Save to file (user templates only - don't overwrite built-in templates)
     if (template.metadata.author !== 'System') {
       try {
-        const userTemplatesDir = path.join(process.cwd(), 'templates', 'user');
+        const userTemplatesDir = await this.getUserTemplatesDirectory();
         
         // Ensure directory exists
         await fs.mkdir(userTemplatesDir, { recursive: true });
@@ -164,8 +165,31 @@ export class TemplateService implements ITemplateRepository {
   async deleteTemplate(id: string): Promise<boolean> {
     await this.initialize();
     
+    const template = this.templates.get(id);
+    if (!template) {
+      logger.warn(`TemplateService: Template not found for deletion: ${id}`);
+      return false;
+    }
+
+    // Don't allow deleting system templates
+    if (template.metadata.author === 'System') {
+      logger.warn(`TemplateService: Cannot delete system template: ${id}`);
+      return false;
+    }
+
     const existed = this.templates.delete(id);
     if (existed) {
+      // Also delete the file if it exists
+      try {
+        const userTemplatesDir = await this.getUserTemplatesDirectory();
+        const filePath = path.join(userTemplatesDir, `${id}.json`);
+        await fs.unlink(filePath);
+        logger.debug(`TemplateService: Template file deleted: ${filePath}`);
+      } catch (error) {
+        // File might not exist, that's okay
+        logger.debug(`TemplateService: Template file not found for deletion: ${id}.json`);
+      }
+
       logger.info(`TemplateService: Template deleted: ${id}`);
     } else {
       logger.warn(`TemplateService: Template not found for deletion: ${id}`);
@@ -364,10 +388,30 @@ by bin(timestamp, {{binSize}}), type, target
   }
 
   /**
+   * Get the user templates directory, preferring ~/.aidx/templates/user with fallback to project directory
+   */
+   private async getUserTemplatesDirectory(): Promise<string> {
+    const homeDir = os.homedir();
+    const aidxTemplatesDir = path.join(homeDir, '.aidx', 'templates', 'user');
+    
+    try {
+      // Check if we can access the home directory
+      await fs.access(homeDir);
+      
+      // Always prefer ~/.aidx/templates/user if home directory is accessible
+      // The mkdir call in save/load will create the full path as needed
+      return aidxTemplatesDir;
+    } catch {
+      // If home directory is not accessible, fall back to project directory
+      return path.join(process.cwd(), 'templates', 'user');
+    }
+  }
+
+  /**
    * Load user templates from the templates/user directory
    */
   private async loadUserTemplates(): Promise<void> {
-    const userTemplatesDir = path.join(process.cwd(), 'templates', 'user');
+    const userTemplatesDir = await this.getUserTemplatesDirectory();
     
     try {
       // Check if user templates directory exists
