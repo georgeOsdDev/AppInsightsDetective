@@ -18,6 +18,8 @@ import { QueryTemplate } from '../core/interfaces/ITemplateRepository';
 import { IQueryEditorService } from '../core/interfaces/IQueryEditorService';
 import { logger } from '../utils/logger';
 import { withLoadingIndicator } from '../utils/loadingIndicator';
+import { promptForExplanationOptions } from '../utils/explanationPrompts';
+import { getLanguageName } from '../utils/languageUtils';
 
 /**
  * Options for interactive session controller
@@ -958,18 +960,26 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
    */
   private async explainQuery(query: string): Promise<void> {
     try {
-      console.log(this.outputRenderer.renderInfo('Generating query explanation...').content);
+      // Prompt user for explanation options
+      const explanationOptions = await promptForExplanationOptions();
       
-      const explanation = await this.queryService.explainQuery(query, {
-        language: this.currentSession?.options.language as string || 'en',
-        technicalLevel: 'intermediate',
-        includeExamples: true
-      });
+      console.log(this.outputRenderer.renderInfo(`Generating detailed query explanation in ${getLanguageName(explanationOptions.language || 'en')}...`).content);
+      
+      const explanation = await this.queryService.explainQuery(query, explanationOptions);
 
       console.log(chalk.green.bold('\n📚 Query Explanation:'));
       console.log(chalk.dim('='.repeat(50)));
       console.log(chalk.white(explanation));
       console.log(chalk.dim('='.repeat(50)));
+
+      // Continuation confirmation
+      await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+        }
+      ]);
       
     } catch (error) {
       console.log(this.outputRenderer.renderError(`Explanation failed: ${error}`).content);
