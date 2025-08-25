@@ -48,36 +48,52 @@ Shows all available templates with basic information:
 # List all templates
 aidx template list
 
-# List only system templates
-aidx template list --type system
+# Filter by category
+aidx template list --category Performance
 
-# List only user templates  
-aidx template list --type user
+# Filter by tags
+aidx template list --tags "monitoring,performance"
+
+# Search by name or description
+aidx template list --search "error"
+
+# Combine filters
+aidx template list --category Performance --tags monitoring
 ```
 
 **Example output:**
 ```
-📋 Available Query Templates
+📋 Available Templates:
+==================================================
+1. Requests Overview
+   ID: requests-overview
+   Category: Performance
+   Description: Get an overview of web requests over a time period
+   Tags: requests, performance, overview
+   Parameters: 2
 
-System Templates:
-┌─────────────────────────┬──────────────────────────────────────┬────────────┐
-│         ID              │              Description             │ Parameters │
-├─────────────────────────┼──────────────────────────────────────┼────────────┤
-│ performance-overview    │ Application performance summary      │ hours      │
-│ error-analysis         │ Comprehensive error investigation     │ hours, type│
-│ user-behavior          │ User activity and engagement metrics │ days       │
-│ dependency-health      │ External dependency monitoring       │ hours      │
-└─────────────────────────┴──────────────────────────────────────┴────────────┘
+2. Error Analysis
+   ID: errors-analysis
+   Category: Troubleshooting
+   Description: Analyze application exceptions and failures over time
+   Tags: exceptions, errors, troubleshooting
+   Parameters: 2
 
-User Templates:
-┌─────────────────────────┬──────────────────────────────────────┬────────────┐
-│         ID              │              Description             │ Parameters │
-├─────────────────────────┼──────────────────────────────────────┼────────────┤
-│ daily-report           │ Daily operations summary              │ date       │
-│ slow-queries-custom    │ Custom slow query analysis           │ threshold  │
-└─────────────────────────┴──────────────────────────────────────┴────────────┘
+3. Performance Insights
+   ID: performance-insights
+   Category: Performance
+   Description: Analyze application performance metrics and trends
+   Tags: performance, counters, metrics
+   Parameters: 3
 
-Total: 4 system templates, 2 user templates
+4. Dependency Analysis
+   ID: dependency-analysis
+   Category: Dependencies
+   Description: Analyze external dependency calls and their performance
+   Tags: dependencies, external, performance
+   Parameters: 2
+
+Total: 4 template(s)
 ```
 
 ### Show Template Details
@@ -85,41 +101,45 @@ Total: 4 system templates, 2 user templates
 Displays comprehensive template information:
 
 ```bash
-aidx template show performance-overview
+aidx template show requests-overview
 ```
 
 **Example output:**
 ```
-📋 Template: performance-overview
+📋 Template: Requests Overview
+==================================================
+ID: requests-overview
+Category: Performance
+Description: Get an overview of web requests over a time period
+Author: System
+Version: 1.0.0
+Created: 2025-08-25
+Tags: requests, performance, overview
 
-Description: Application performance summary with key metrics
-Category: Performance Monitoring
-Type: System Template
-Created: Built-in
-Last Modified: N/A
-
-Parameters:
-┌───────────┬──────────┬─────────┬─────────────────────────────────────┐
-│    Name   │   Type   │ Default │              Description            │
-├───────────┼──────────┼─────────┼─────────────────────────────────────┤
-│ hours     │ integer  │ 24      │ Time range in hours (1-168)        │
-│ threshold │ integer  │ 1000    │ Response time threshold in ms       │
-└───────────┴──────────┴─────────┴─────────────────────────────────────┘
-
-Usage Examples:
-  aidx template use performance-overview
-  aidx template use performance-overview --param hours=12
-  aidx template use performance-overview --param hours=48 --param threshold=500
-
-Generated KQL Preview:
+🔍 KQL Template:
+------------------------------
 requests
-| where timestamp > ago({{hours}}h)
+| where timestamp > ago({{timespan}})
 | summarize 
-    TotalRequests = count(),
+    RequestCount = count(),
     AvgDuration = avg(duration),
-    SlowRequests = countif(duration > {{threshold}})
-    by bin(timestamp, 1h)
+    SuccessRate = round(100.0 * countif(success == true) / count(), 2)
+by bin(timestamp, {{binSize}})
 | order by timestamp desc
+------------------------------
+
+⚙️ Parameters:
+1. timespan (timespan)
+   Description: Time period to analyze
+   Required: Yes
+   Default: 1h
+   Valid values: 15m, 1h, 6h, 1d, 7d
+
+2. binSize (timespan)
+   Description: Aggregation bin size
+   Required: Yes
+   Default: 5m
+   Valid values: 1m, 5m, 15m, 1h
 ```
 
 ### Create New Template
@@ -190,26 +210,57 @@ Executes a template with specified parameters:
 
 ```bash
 # Use template with default parameters
-aidx template use performance-overview
+aidx template use requests-overview
 
-# Use template with custom parameters
-aidx template use performance-overview --param hours=12 --param threshold=500
+# Use template with custom parameters  
+aidx template use requests-overview --params '{"timespan":"2h","binSize":"10m"}'
 
-# Use template with multiple parameters
-aidx template use error-analysis --param hours=6 --param type=exception
+# Use template with JSON parameters
+aidx template use performance-insights --params '{"timespan":"6h","category":"Memory"}'
+
+# Use template with output options
+aidx template use errors-analysis --params '{"timespan":"1d"}' --format json --output errors.json
+
+# Execute directly without interactive confirmation
+aidx template use dependency-analysis --params '{"timespan":"4h"}' --auto-execute
 ```
 
 **Parameter specification:**
 ```bash
-# Single parameter
---param name=value
+# JSON format for multiple parameters
+--params '{"param1":"value1","param2":"value2"}'
 
-# Multiple parameters  
---param param1=value1 --param param2=value2
+# Output options
+--format table|json|csv|tsv    # Output format (default: table)
+--output filename              # Save results to file
 
-# Boolean parameters
---param includeTests=true
---param excludeInternal=false
+# Execution options  
+--auto-execute                 # Skip interactive confirmation
+```
+
+### Template Categories
+
+Lists all available template categories:
+
+```bash
+aidx template categories
+```
+
+**Example output:**
+```
+📂 Template Categories:
+1. Dependencies
+2. Performance
+3. Troubleshooting
+```
+
+Use categories to filter templates:
+```bash
+# List templates in Performance category
+aidx template list --category Performance
+
+# List templates in Troubleshooting category  
+aidx template list --category Troubleshooting
 ```
 
 ### Delete Template
@@ -238,68 +289,29 @@ Note: System templates cannot be deleted
 
 Built-in templates provided with AppInsights Detective:
 
-#### Performance Monitoring Templates
+**requests-overview**
+- **Purpose**: Get an overview of web requests over a time period
+- **Parameters**: timespan (default: 1h), binSize (default: 5m)
+- **Category**: Performance
+- **Use case**: Request performance analysis, monitoring web request trends
 
-**performance-overview**
-- **Purpose**: Complete application performance summary
-- **Parameters**: hours (default: 24), threshold (default: 1000ms)
-- **Use case**: Daily performance reviews, trend analysis
+**errors-analysis**
+- **Purpose**: Analyze application exceptions and failures over time
+- **Parameters**: timespan (default: 1h), binSize (default: 5m)
+- **Category**: Troubleshooting
+- **Use case**: Error investigation, exception analysis
 
-**slow-requests**
-- **Purpose**: Identify slowest requests by endpoint
-- **Parameters**: hours (default: 24), limit (default: 20)
-- **Use case**: Performance bottleneck identification
+**performance-insights**
+- **Purpose**: Analyze application performance metrics and trends
+- **Parameters**: timespan (default: 1h), category (default: Process), binSize (default: 5m)
+- **Category**: Performance
+- **Use case**: Performance counter monitoring, system metrics analysis
 
-**response-time-trends** 
-- **Purpose**: Response time trends over time periods
-- **Parameters**: hours (default: 24), interval (default: 1h)
-- **Use case**: Performance trend analysis, capacity planning
-
-#### Error Investigation Templates
-
-**error-analysis**
-- **Purpose**: Comprehensive error analysis with grouping
-- **Parameters**: hours (default: 24), errorType (optional)
-- **Use case**: Error investigation, incident response
-
-**exception-details**
-- **Purpose**: Detailed exception information with stack traces
-- **Parameters**: hours (default: 6), exceptionType (optional)
-- **Use case**: Debugging, root cause analysis
-
-**failed-requests**
-- **Purpose**: Failed requests analysis by status code
-- **Parameters**: hours (default: 24), statusCode (optional)
-- **Use case**: HTTP error investigation
-
-#### User Behavior Templates
-
-**user-behavior**
-- **Purpose**: User activity patterns and engagement
-- **Parameters**: days (default: 7)
-- **Use case**: User analytics, engagement analysis
-
-**popular-pages**
-- **Purpose**: Most visited pages and user flows
-- **Parameters**: days (default: 7), limit (default: 20)
-- **Use case**: Content optimization, user journey analysis
-
-**session-analysis**
-- **Purpose**: User session duration and patterns
-- **Parameters**: days (default: 7)
-- **Use case**: User engagement, session quality analysis
-
-#### Infrastructure Templates
-
-**dependency-health**
-- **Purpose**: External dependency performance and failures
-- **Parameters**: hours (default: 24)
-- **Use case**: Dependency monitoring, integration health
-
-**server-metrics**
-- **Purpose**: Server-side performance metrics
-- **Parameters**: hours (default: 24)
-- **Use case**: Infrastructure monitoring
+**dependency-analysis**
+- **Purpose**: Analyze external dependency calls and their performance
+- **Parameters**: timespan (default: 1h), binSize (default: 5m)
+- **Category**: Dependencies
+- **Use case**: External dependency monitoring, integration performance analysis
 
 ### User Templates
 
@@ -314,6 +326,9 @@ Custom templates created by users and stored in `templates/user/` directory:
 
 ### Template Directory Structure
 
+User templates are stored in the following directory structure:
+
+**Primary location** (preferred):
 ```
 ~/.aidx/
 ├── config.json
@@ -323,6 +338,21 @@ Custom templates created by users and stored in `templates/user/` directory:
         ├── slow-api-calls.json
         └── custom-analysis.json
 ```
+
+**Fallback location** (for development):
+```
+<project-directory>/
+└── templates/
+    └── user/
+        ├── daily-report.json
+        └── custom-analysis.json
+```
+
+**Behavior:**
+- AppInsights Detective automatically creates the `~/.aidx/templates/user/` directory when saving templates
+- If the home directory is not accessible, it falls back to the project directory
+- Templates are loaded from whichever directory is available
+- All template operations (create, save, delete) use the same directory consistently
 
 ### Template File Format
 
@@ -406,45 +436,42 @@ aidx template use performance-overview --param hours=48
 
 ```bash
 # Daily performance review
-aidx template use performance-overview --param hours=24
+aidx template use requests-overview --params '{"timespan":"1d","binSize":"1h"}'
 
-# Compare with previous day
-aidx template use performance-overview --param hours=48
+# Analyze performance metrics
+aidx template use performance-insights --params '{"timespan":"6h","category":"Process","binSize":"15m"}'
 
-# Focus on slow requests
-aidx template use slow-requests --param hours=12 --param limit=10
+# Check dependency performance
+aidx template use dependency-analysis --params '{"timespan":"2h","binSize":"5m"}'
 
 # Export for reporting
-aidx template use performance-overview --param hours=24 --format csv --output daily-perf.csv
+aidx template use requests-overview --params '{"timespan":"1d","binSize":"1h"}' --format csv --output daily-perf.csv
 ```
 
 ### Error Investigation Workflow
 
 ```bash
-# Start with error overview
-aidx template use error-analysis --param hours=6
+# Start with error analysis
+aidx template use errors-analysis --params '{"timespan":"6h","binSize":"10m"}'
 
-# Focus on specific error type
-aidx template use error-analysis --param hours=6 --param errorType=exception
+# Detailed error investigation
+aidx template use errors-analysis --params '{"timespan":"1h","binSize":"1m"}'
 
-# Get detailed exception information
-aidx template use exception-details --param hours=6 --param exceptionType=NullReference
-
-# Analyze failed requests
-aidx template use failed-requests --param hours=6 --param statusCode=500
+# Compare with requests to see correlation
+aidx template use requests-overview --params '{"timespan":"6h","binSize":"10m"}'
 ```
 
-### User Behavior Analysis Workflow
+### Dependency Analysis Workflow
 
 ```bash
-# Weekly user behavior summary
-aidx template use user-behavior --param days=7
+# Check dependency health
+aidx template use dependency-analysis --params '{"timespan":"2h","binSize":"5m"}'
 
-# Popular content analysis
-aidx template use popular-pages --param days=30 --param limit=50
+# Long-term dependency trends
+aidx template use dependency-analysis --params '{"timespan":"1d","binSize":"1h"}'
 
-# Session quality analysis
-aidx template use session-analysis --param days=14
+# Focus on recent dependency issues
+aidx template use dependency-analysis --params '{"timespan":"30m","binSize":"1m"}'
 ```
 
 ## Template Creation Best Practices
