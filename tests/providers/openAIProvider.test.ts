@@ -229,6 +229,41 @@ describe('OpenAIProvider', () => {
       expect(result.generatedKQL).toBe('invalid json response');
       expect(result.confidence).toBe(0.5); // Lower confidence for non-JSON
     });
+
+    it('should handle JSON responses wrapped in markdown code blocks', async () => {
+      const mockOpenAI = require('openai').default;
+      const jsonContent = `\`\`\`json
+{
+  "kql": "exceptions | where timestamp > ago(7d) | take 10",
+  "confidence": 0.85,
+  "reasoning": "The query filters exceptions from the last week and retrieves the top 10 records."
+}
+\`\`\``;
+      
+      const mockCreateCompletion = jest.fn().mockResolvedValueOnce({
+        choices: [{
+          message: { content: jsonContent },
+          finish_reason: 'stop'
+        }]
+      });
+      
+      // Override the mock for this test
+      mockOpenAI.mockImplementation(() => ({
+        models: { list: jest.fn().mockResolvedValue({ data: [] }) },
+        chat: { completions: { create: mockCreateCompletion } }
+      }));
+
+      // Create a fresh provider instance for this test
+      const provider = new OpenAIProvider(mockOpenAIConfig);
+      const request: QueryGenerationRequest = {
+        userInput: 'show me last week exceptions'
+      };
+
+      const result = await provider.generateQuery(request);
+      expect(result.generatedKQL).toBe('exceptions | where timestamp > ago(7d) | take 10');
+      expect(result.reasoning).toBe('The query filters exceptions from the last week and retrieves the top 10 records.');
+      expect(result.confidence).toBe(0.85); // Should recognize as valid JSON and use normal confidence
+    });
   });
 
   describe('analyzeQueryResult', () => {
