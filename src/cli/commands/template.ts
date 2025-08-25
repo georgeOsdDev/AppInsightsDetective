@@ -898,22 +898,10 @@ export function createTemplateCommand(): Command {
           }
         }
 
-        // Delete template
+        // Delete template (service now handles both memory and file deletion)
         const deleted = await templateRepository.deleteTemplate(templateId);
         
         if (deleted) {
-          // Also delete the file if it exists
-          try {
-            const fs = await import('fs/promises');
-            const path = await import('path');
-            const filePath = path.join(process.cwd(), 'templates', 'user', `${templateId}.json`);
-            await fs.unlink(filePath);
-            logger.debug(`Template file deleted: ${filePath}`);
-          } catch (error) {
-            // File might not exist, that's okay
-            logger.debug(`Template file not found for deletion: ${templateId}.json`);
-          }
-
           console.log(chalk.green(`✅ Template deleted: ${template.name}`));
         } else {
           console.log(chalk.red(`Failed to delete template: ${templateId}`));
