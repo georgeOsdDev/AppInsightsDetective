@@ -21,18 +21,6 @@ These options are available for all commands:
 |--------|-------------|---------|---------|
 | `-V, --version` | Display version number | - | `aidx --version` |
 | `-h, --help` | Show help information | - | `aidx --help` |
-| `-l, --language <lang>` | Language for explanations | `en` | `aidx --language ja` |
-
-### Supported Languages
-
-- `en` - English (default)
-- `ja` - Japanese  
-- `ko` - Korean
-- `zh` - Chinese
-- `es` - Spanish
-- `fr` - French
-- `de` - German
-- And more ISO language codes
 
 ## Query Command
 
@@ -48,9 +36,6 @@ aidx "what are the slowest requests?"
 # Raw KQL query
 aidx --raw "requests | take 10"
 
-# Direct execution (skip confidence checking)
-aidx --direct "show me performance data"
-
 # Interactive mode
 aidx --interactive
 ```
@@ -60,7 +45,6 @@ aidx --interactive
 | Option | Description | Default | Example |
 |--------|-------------|---------|---------|
 | `-r, --raw` | Execute as raw KQL query | `false` | `aidx --raw "requests \| take 5"` |
-| `--direct` | Execute directly without confirmation | `false` | `aidx --direct "show errors"` |
 | `-i, --interactive` | Start interactive session | `false` | `aidx -i` |
 | `-f, --format <format>` | Output format | `table` | `aidx "errors" --format json` |
 | `-o, --output <file>` | Save to file | - | `aidx "data" --output results.csv` |
@@ -264,9 +248,6 @@ Special execution mode providing guided query experience.
 # Start interactive session
 aidx --interactive
 aidx -i
-
-# Start with specific language
-aidx --interactive --language ja
 ```
 
 ### Interactive Features

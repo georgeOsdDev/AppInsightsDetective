@@ -31,14 +31,6 @@ aidx --raw "exceptions | where timestamp > ago(1h) | count"
 
 ### Direct Execution
 
-```bash
-# Skip confidence checking and execute immediately
-aidx --direct "show me performance data"
-aidx --direct "errors in the last 24 hours"
-
-# Best for queries you're confident about
-```
-
 ## Command Syntax
 
 ```bash
@@ -53,7 +45,6 @@ aidx [global-options] query [query-options] [question]
 | Option | Short | Description | Default | Example |
 |--------|-------|-------------|---------|---------|
 | `--raw` | `-r` | Execute as raw KQL query | `false` | `aidx --raw "requests \| take 5"` |
-| `--direct` | - | Execute without confidence confirmation | `false` | `aidx --direct "show errors"` |
 | `--interactive` | `-i` | Start interactive session | `false` | `aidx -i` |
 
 ### Output Format Options
@@ -66,12 +57,6 @@ aidx [global-options] query [query-options] [question]
 | `--no-headers` | - | Exclude headers in CSV/TSV | `false` | - |
 | `--encoding` | - | File encoding | `utf8` | `utf8`, `utf16le`, `ascii`, etc. |
 | `--show-empty-columns` | - | Show all columns including empty | `false` | - |
-
-### Language Options
-
-| Option | Short | Description | Default | Example |
-|--------|-------|-------------|---------|---------|
-| `--language` | `-l` | Language for explanations | `en` | `aidx --language ja "errors"` |
 
 ## Execution Modes
 
@@ -89,20 +74,7 @@ aidx "show me recent errors"
 - Low confidence (<0.7): Enters step-by-step review mode
 - Shows generated query before execution for transparency
 
-### 2. Direct Mode
-
-Bypasses confidence checking and executes immediately:
-
-```bash
-aidx --direct "show me request counts"
-```
-
-**Best for:**
-- Simple, well-understood queries
-- Repeated queries you've verified before
-- Automated scripts where interaction isn't desired
-
-### 3. Raw KQL Mode
+### 2. Raw KQL Mode
 
 Executes KQL directly without AI generation:
 
@@ -115,7 +87,7 @@ aidx --raw "requests | summarize count() by bin(timestamp, 1h)"
 - Complex queries that are hard to express in natural language
 - Learning and experimentation with KQL
 
-### 4. Interactive Mode
+### 3. Interactive Mode
 
 Provides comprehensive guided experience:
 
@@ -368,7 +340,6 @@ aidx "performance data"
 ### Mode Selection
 
 - **Smart mode**: Default choice for most queries
-- **Direct mode**: When you're confident about the query intent
 - **Raw KQL**: For precise control or complex analysis
 - **Interactive mode**: For exploratory analysis and learning
 
@@ -386,7 +357,6 @@ aidx "performance data"
 
 - Use specific time ranges to limit data volume
 - Export large datasets to files rather than displaying in console
-- Use direct mode for frequently repeated queries
 - Consider using templates for complex recurring queries
 
 ## Error Handling
@@ -471,13 +441,13 @@ aidx providers set-default ai openai
 echo "Generating daily performance report..."
 
 # Get slow requests
-aidx "slowest requests from last 24 hours" --format csv --output slow-requests.csv --direct
+aidx "slowest requests from last 24 hours" --format csv --output slow-requests.csv
 
 # Get error summary  
-aidx "exception count by type from last 24 hours" --format json --output errors.json --direct
+aidx "exception count by type from last 24 hours" --format json --output errors.json
 
 # Generate usage statistics
-aidx "request count by hour from last 24 hours" --format tsv --output usage-stats.tsv --direct
+aidx "request count by hour from last 24 hours" --format tsv --output usage-stats.tsv
 
 echo "Report generated: slow-requests.csv, errors.json, usage-stats.tsv"
 ```
@@ -486,13 +456,13 @@ echo "Report generated: slow-requests.csv, errors.json, usage-stats.tsv"
 
 ```bash
 # Export data for further analysis
-aidx "request telemetry from last hour" --format json --output telemetry.json --direct
+aidx "request telemetry from last hour" --format json --output telemetry.json
 
 # Process with jq
 cat telemetry.json | jq '.rows[] | select(.[3] > 1000)' > slow-requests.json
 
 # Import into other tools
-aidx "metrics data" --format csv --output metrics.csv --direct
+aidx "metrics data" --format csv --output metrics.csv
 python analyze_metrics.py metrics.csv
 ```
 

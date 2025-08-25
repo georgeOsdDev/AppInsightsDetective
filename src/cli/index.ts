@@ -188,9 +188,7 @@ program.addCommand(createProvidersCommand());
 program
   .argument('[question]', 'Natural language question to ask')
   .option('-i, --interactive', 'Run in interactive mode with step-by-step guidance')
-  .option('-l, --language <language>', 'Language for explanations (en, ja, ko, zh, es, fr, de, etc.)')
   .option('-r, --raw', 'Execute raw KQL query')
-  .option('--direct', 'Execute query directly without confirmation')
   .option('-f, --format <format>', 'Output format (table, json, csv, tsv, raw)', 'table')
   .option('-o, --output <file>', 'Output file path')
   .option('--pretty', 'Pretty print JSON output')
@@ -222,7 +220,6 @@ program
         
         // Set options from CLI to controller
         interactiveSessionController.setOptions({
-          language: options.language,
           defaultMode: options.raw ? 'raw' : 'step'
         });
 
@@ -289,7 +286,7 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       });
 
       // Step execution mode for low confidence
-      const shouldUseStepMode = !options.direct && nlQuery.confidence < 0.7;
+      const shouldUseStepMode = nlQuery.confidence < 0.7;
 
       if (shouldUseStepMode) {
         // For now, fall back to legacy services for step execution
@@ -334,8 +331,6 @@ function showWelcomeMessage(): void {
   console.log(chalk.cyan('  aidx setup') + chalk.dim('                    # Configure your settings'));
   console.log(chalk.cyan('  aidx status') + chalk.dim('                   # Check configuration status'));
   console.log(chalk.cyan('  aidx "show me errors"') + chalk.dim('        # Ask a question (auto step-mode for low confidence)'));
-  console.log(chalk.cyan('  aidx --direct "show me errors"') + chalk.dim(' # Direct execution (bypass step-mode)'));
-  console.log(chalk.cyan('  aidx --language ja "errors"') + chalk.dim('   # Japanese explanations'));
   console.log(chalk.cyan('  aidx --interactive') + chalk.dim('           # Full interactive session'));
   console.log(chalk.cyan('  aidx --raw "requests | take 5"') + chalk.dim(' # Raw KQL query'));
   console.log('');
