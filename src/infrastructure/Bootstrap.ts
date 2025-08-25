@@ -153,6 +153,7 @@ export class Bootstrap {
       templateService,
       aiProvider,
       outputRenderer,
+      queryEditorService,
       {} // options parameter
     );
     this.container.register('interactiveSessionController', interactiveSessionController);
