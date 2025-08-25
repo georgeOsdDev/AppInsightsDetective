@@ -18,7 +18,7 @@ import { QueryTemplate } from '../core/interfaces/ITemplateRepository';
 import { IQueryEditorService } from '../core/interfaces/IQueryEditorService';
 import { ExternalExecutionService } from '../services/externalExecutionService';
 import { logger } from '../utils/logger';
-import { withLoadingIndicator } from '../utils/loadingIndicator';
+import { LoadingIndicator, globalLoadingIndicator } from '../utils/loadingIndicator';
 
 /**
  * Options for interactive session controller
@@ -217,33 +217,34 @@ export class InteractiveSessionController {
       
       if (mode === 'step') {
         // Step mode: Generate query first, then show for review
-        const result = await withLoadingIndicator(
-          'Generating KQL query with AI...',
-          () => this.queryService.generateQuery({
+        globalLoadingIndicator.start('Generating KQL query with AI...');
+        try {
+          const result = await this.queryService.generateQuery({
             userInput: input,
             sessionId: this.currentSession!.sessionId
-          }),
-          {
-            successMessage: 'Query generated successfully',
-            errorMessage: 'Failed to generate query'
-          }
-        );
-        await this.handleStepMode(result.nlQuery, input);
+          });
+          globalLoadingIndicator.succeed('Query generated successfully');
+          await this.handleStepMode(result.nlQuery, input);
+        } catch (error) {
+          globalLoadingIndicator.fail('Failed to generate query');
+          throw error;
+        }
       } else {
         // Direct or raw mode: Execute query immediately
-        const result = await withLoadingIndicator(
-          mode === 'raw' ? 'Executing KQL query...' : 'Generating and executing query with AI...',
-          () => this.queryService.executeQuery({
+        const loadingMessage = mode === 'raw' ? 'Executing KQL query...' : 'Generating and executing query with AI...';
+        globalLoadingIndicator.start(loadingMessage);
+        try {
+          const result = await this.queryService.executeQuery({
             userInput: input,
             sessionId: this.currentSession!.sessionId,
             mode
-          }),
-          {
-            successMessage: 'Query executed successfully',
-            errorMessage: 'Failed to execute query'
-          }
-        );
-        await this.handleDirectMode(result);
+          });
+          globalLoadingIndicator.succeed('Query executed successfully');
+          await this.handleDirectMode(result);
+        } catch (error) {
+          globalLoadingIndicator.fail('Failed to execute query');
+          throw error;
+        }
       }
 
     } catch (error) {
@@ -423,22 +424,18 @@ export class InteractiveSessionController {
         throw new Error('No active session');
       }
 
-      const result = await withLoadingIndicator(
-        'Executing KQL query...',
-        () => this.queryService.executeQuery({
-          userInput: query,
-          sessionId: this.currentSession!.sessionId,
-          mode: 'raw'
-        }),
-        {
-          successMessage: 'Query executed successfully',
-          errorMessage: 'Failed to execute query'
-        }
-      );
+      globalLoadingIndicator.start('Executing KQL query...');
+      const result = await this.queryService.executeQuery({
+        userInput: query,
+        sessionId: this.currentSession!.sessionId,
+        mode: 'raw'
+      });
+      globalLoadingIndicator.succeed('Query executed successfully');
 
       await this.displayResults(result.result, query);
 
     } catch (error) {
+      globalLoadingIndicator.fail('Failed to execute query');
       console.log(this.outputRenderer.renderError(error as Error).content);
     }
   }
@@ -558,15 +555,14 @@ export class InteractiveSessionController {
 
     // Perform analysis
     try {
-      const queryAnalysisResult = await withLoadingIndicator(
-        'Analyzing query results with AI...',
-        () => this.aiProvider.analyzeQueryResult({
-          result,
-          originalQuery: originalQuery || 'unknown query',
-          analysisType: analysisType as 'patterns' | 'anomalies' | 'insights' | 'full',
-          options: { language: language as SupportedLanguage }
-        })
-      );
+      globalLoadingIndicator.start('Analyzing query results with AI...');
+      const queryAnalysisResult = await this.aiProvider.analyzeQueryResult({
+        result,
+        originalQuery: originalQuery || 'unknown query',
+        analysisType: analysisType as 'patterns' | 'anomalies' | 'insights' | 'full',
+        options: { language: language as SupportedLanguage }
+      });
+      globalLoadingIndicator.succeed('Analysis completed successfully');
 
       // Map to legacy AnalysisResult format for backward compatibility
       const analysis = this.mapToAnalysisResult(queryAnalysisResult);
@@ -581,6 +577,7 @@ export class InteractiveSessionController {
       }
 
     } catch (error) {
+      globalLoadingIndicator.fail('Analysis failed');
       logger.error('Analysis failed:', error);
       console.log(this.outputRenderer.renderError(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`).content);
     }
@@ -973,25 +970,21 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
       ]);
 
       if (shouldExecute && this.currentSession && template) {
-        const result = await withLoadingIndicator(
-          'Executing template query...',
-          () => this.queryService.executeQuery({
-            userInput: '', // Empty since we're using template mode
-            templateId: template!.id,
-            parameters,
-            sessionId: this.currentSession!.sessionId,
-            mode: 'template'
-          }),
-          {
-            successMessage: 'Template query executed successfully',
-            errorMessage: 'Failed to execute template query'
-          }
-        );
+        globalLoadingIndicator.start('Executing template query...');
+        const result = await this.queryService.executeQuery({
+          userInput: '', // Empty since we're using template mode
+          templateId: template!.id,
+          parameters,
+          sessionId: this.currentSession!.sessionId,
+          mode: 'template'
+        });
+        globalLoadingIndicator.succeed('Template query executed successfully');
 
         await this.displayResults(result.result, query);
       }
 
     } catch (error) {
+      globalLoadingIndicator.fail('Failed to execute template query');
       logger.error('Failed to use template:', error);
       console.log(this.outputRenderer.renderError(`Failed to use template: ${error}`).content);
     }
@@ -1058,18 +1051,13 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
    */
   private async explainQuery(query: string): Promise<void> {
     try {
-      const explanation = await withLoadingIndicator(
-        'Generating query explanation with AI...',
-        () => this.queryService.explainQuery(query, {
-          language: this.currentSession?.options.language as string || 'en',
-          technicalLevel: 'intermediate',
-          includeExamples: true
-        }),
-        {
-          successMessage: 'Query explanation generated successfully',
-          errorMessage: 'Failed to generate query explanation'
-        }
-      );
+      globalLoadingIndicator.start('Generating query explanation with AI...');
+      const explanation = await this.queryService.explainQuery(query, {
+        language: this.currentSession?.options.language as string || 'en',
+        technicalLevel: 'intermediate',
+        includeExamples: true
+      });
+      globalLoadingIndicator.succeed('Query explanation generated successfully');
 
       console.log(chalk.green.bold('\n📚 Query Explanation:'));
       console.log(chalk.dim('='.repeat(50)));
@@ -1077,6 +1065,7 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
       console.log(chalk.dim('='.repeat(50)));
       
     } catch (error) {
+      globalLoadingIndicator.fail('Failed to generate query explanation');
       console.log(this.outputRenderer.renderError(`Explanation failed: ${error}`).content);
     }
   }
@@ -1086,23 +1075,19 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
    */
   private async regenerateQuery(originalQuestion: string, previousQuery: any): Promise<any> {
     try {
-      const result = await withLoadingIndicator(
-        'Regenerating query with AI...',
-        () => this.queryService.regenerateQuery(
-          originalQuestion,
-          previousQuery,
-          this.currentSession!.sessionId,
-          2
-        ),
-        {
-          successMessage: 'New query generated successfully',
-          errorMessage: 'Failed to regenerate query'
-        }
+      globalLoadingIndicator.start('Regenerating query with AI...');
+      const result = await this.queryService.regenerateQuery(
+        originalQuestion,
+        previousQuery,
+        this.currentSession!.sessionId,
+        2
       );
+      globalLoadingIndicator.succeed('New query generated successfully');
 
       return result.nlQuery;
       
     } catch (error) {
+      globalLoadingIndicator.fail('Failed to regenerate query');
       console.log(this.outputRenderer.renderError(`Regeneration failed: ${error}`).content);
       return null;
     }
