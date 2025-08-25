@@ -8,3 +8,4 @@ export * from './IQueryOrchestrator';
 export * from './ISessionManager';
 export * from './IOutputRenderer';
 export * from './ITemplateRepository';
+export * from './IQueryEditorService';
