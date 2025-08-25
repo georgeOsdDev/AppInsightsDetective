@@ -1,6 +1,49 @@
 import { SupportedLanguage } from '../types';
 
 /**
+ * Get language options for prompts
+ */
+export function getLanguageOptions() {
+  return [
+    { name: '🌐 Auto - Detect best language', value: 'auto' },
+    { name: '🇺🇸 English', value: 'en' },
+    { name: '🇯🇵 Japanese (日本語)', value: 'ja' },
+    { name: '🇰🇷 Korean (한국어)', value: 'ko' },
+    { name: '🇨🇳 Chinese Simplified (简体中文)', value: 'zh' },
+    { name: '🇹🇼 Chinese Traditional (繁體中文)', value: 'zh-TW' },
+    { name: '🇪🇸 Spanish (Español)', value: 'es' },
+    { name: '🇫🇷 French (Français)', value: 'fr' },
+    { name: '🇩🇪 German (Deutsch)', value: 'de' },
+    { name: '🇮🇹 Italian (Italiano)', value: 'it' },
+    { name: '🇵🇹 Portuguese (Português)', value: 'pt' },
+    { name: '🇷🇺 Russian (Русский)', value: 'ru' },
+    { name: '🇸🇦 Arabic (العربية)', value: 'ar' }
+  ];
+}
+
+/**
+ * Get language name from code
+ */
+export function getLanguageName(languageCode: SupportedLanguage): string {
+  const languageMap: Record<SupportedLanguage, string> = {
+    'auto': 'Auto-detect',
+    'en': 'English',
+    'ja': 'Japanese',
+    'ko': 'Korean',
+    'zh': 'Chinese (Simplified)',
+    'zh-TW': 'Chinese (Traditional)',
+    'es': 'Spanish',
+    'fr': 'French',
+    'de': 'German',
+    'it': 'Italian',
+    'pt': 'Portuguese',
+    'ru': 'Russian',
+    'ar': 'Arabic'
+  };
+  return languageMap[languageCode] || 'Unknown';
+}
+
+/**
  * Get language-specific instructions for AI prompts
  */
 export function getLanguageInstructions(language: SupportedLanguage): string {

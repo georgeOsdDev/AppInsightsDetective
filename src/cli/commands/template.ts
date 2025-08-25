@@ -8,6 +8,8 @@ import { IAIProvider, IDataSourceProvider } from '../../core/interfaces';
 import { logger } from '../../utils/logger';
 import { NLQuery, QueryResult, SupportedLanguage, ExplanationOptions } from '../../types';
 import { Visualizer } from '../../utils/visualizer';
+import { promptForExplanationOptions } from '../../utils/explanationPrompts';
+import { getLanguageName } from '../../utils/languageUtils';
 
 /**
  * Template execution service for interactive flow
@@ -167,42 +169,10 @@ class TemplateExecutionService {
       const container = await bootstrap.initialize();
       const aiProvider = container.resolve<IAIProvider>('aiProvider');
 
-      // Language selection prompt
-      const languageOptions = this.getLanguageOptions();
-      const { selectedLanguage, technicalLevel, includeExamples } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'selectedLanguage',
-          message: 'Select explanation language:',
-          choices: languageOptions,
-          default: 'auto'
-        },
-        {
-          type: 'list',
-          name: 'technicalLevel',
-          message: 'Select technical level:',
-          choices: [
-            { name: '🟢 Beginner - Simple explanations with basic concepts', value: 'beginner' },
-            { name: '🟡 Intermediate - Balanced technical explanations', value: 'intermediate' },
-            { name: '🔴 Advanced - Detailed technical insights', value: 'advanced' }
-          ],
-          default: 'intermediate'
-        },
-        {
-          type: 'confirm',
-          name: 'includeExamples',
-          message: 'Include practical examples?',
-          default: true
-        }
-      ]);
+      // Get explanation options using shared prompting
+      const explanationOptions = await promptForExplanationOptions();
 
-      const explanationOptions: ExplanationOptions = {
-        language: selectedLanguage,
-        technicalLevel,
-        includeExamples
-      };
-
-      Visualizer.displayInfo(`Generating detailed query explanation in ${this.getLanguageName(selectedLanguage)}...`);
+      Visualizer.displayInfo(`Generating detailed query explanation in ${getLanguageName(explanationOptions.language || 'en')}...`);
 
       const explanation = await aiProvider.explainQuery({
         query: nlQuery.generatedKQL,
@@ -348,49 +318,6 @@ class TemplateExecutionService {
       logger.error('Query execution failed:', error);
       throw new Error(`Query execution failed: ${error}`);
     }
-  }
-
-  /**
-   * Get language options
-   */
-  private getLanguageOptions() {
-    return [
-      { name: '🌐 Auto - Detect best language', value: 'auto' },
-      { name: '🇺🇸 English', value: 'en' },
-      { name: '🇯🇵 Japanese (日本語)', value: 'ja' },
-      { name: '🇰🇷 Korean (한국어)', value: 'ko' },
-      { name: '🇨🇳 Chinese Simplified (简体中文)', value: 'zh' },
-      { name: '🇹🇼 Chinese Traditional (繁體中文)', value: 'zh-TW' },
-      { name: '🇪🇸 Spanish (Español)', value: 'es' },
-      { name: '🇫🇷 French (Français)', value: 'fr' },
-      { name: '🇩🇪 German (Deutsch)', value: 'de' },
-      { name: '🇮🇹 Italian (Italiano)', value: 'it' },
-      { name: '🇵🇹 Portuguese (Português)', value: 'pt' },
-      { name: '🇷🇺 Russian (Русский)', value: 'ru' },
-      { name: '🇸🇦 Arabic (العربية)', value: 'ar' }
-    ];
-  }
-
-  /**
-   * Get language name from code
-   */
-  private getLanguageName(languageCode: SupportedLanguage): string {
-    const languageMap: Record<SupportedLanguage, string> = {
-      'auto': 'Auto-detect',
-      'en': 'English',
-      'ja': 'Japanese',
-      'ko': 'Korean',
-      'zh': 'Chinese (Simplified)',
-      'zh-TW': 'Chinese (Traditional)',
-      'es': 'Spanish',
-      'fr': 'French',
-      'de': 'German',
-      'it': 'Italian',
-      'pt': 'Portuguese',
-      'ru': 'Russian',
-      'ar': 'Arabic'
-    };
-    return languageMap[languageCode] || 'Unknown';
   }
 }
 
