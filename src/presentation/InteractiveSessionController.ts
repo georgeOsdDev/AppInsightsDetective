@@ -217,18 +217,32 @@ export class InteractiveSessionController {
       
       if (mode === 'step') {
         // Step mode: Generate query first, then show for review
-        const result = await this.queryService.generateQuery({
-          userInput: input,
-          sessionId: this.currentSession.sessionId
-        });
+        const result = await withLoadingIndicator(
+          'Generating KQL query with AI...',
+          () => this.queryService.generateQuery({
+            userInput: input,
+            sessionId: this.currentSession!.sessionId
+          }),
+          {
+            successMessage: 'Query generated successfully',
+            errorMessage: 'Failed to generate query'
+          }
+        );
         await this.handleStepMode(result.nlQuery, input);
       } else {
         // Direct or raw mode: Execute query immediately
-        const result = await this.queryService.executeQuery({
-          userInput: input,
-          sessionId: this.currentSession.sessionId,
-          mode
-        });
+        const result = await withLoadingIndicator(
+          mode === 'raw' ? 'Executing KQL query...' : 'Generating and executing query with AI...',
+          () => this.queryService.executeQuery({
+            userInput: input,
+            sessionId: this.currentSession!.sessionId,
+            mode
+          }),
+          {
+            successMessage: 'Query executed successfully',
+            errorMessage: 'Failed to execute query'
+          }
+        );
         await this.handleDirectMode(result);
       }
 
@@ -409,11 +423,18 @@ export class InteractiveSessionController {
         throw new Error('No active session');
       }
 
-      const result = await this.queryService.executeQuery({
-        userInput: query,
-        sessionId: this.currentSession.sessionId,
-        mode: 'raw'
-      });
+      const result = await withLoadingIndicator(
+        'Executing KQL query...',
+        () => this.queryService.executeQuery({
+          userInput: query,
+          sessionId: this.currentSession!.sessionId,
+          mode: 'raw'
+        }),
+        {
+          successMessage: 'Query executed successfully',
+          errorMessage: 'Failed to execute query'
+        }
+      );
 
       await this.displayResults(result.result, query);
 
@@ -951,14 +972,21 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
         }
       ]);
 
-      if (shouldExecute && this.currentSession) {
-        const result = await this.queryService.executeQuery({
-          userInput: '', // Empty since we're using template mode
-          templateId: template.id,
-          parameters,
-          sessionId: this.currentSession.sessionId,
-          mode: 'template'
-        });
+      if (shouldExecute && this.currentSession && template) {
+        const result = await withLoadingIndicator(
+          'Executing template query...',
+          () => this.queryService.executeQuery({
+            userInput: '', // Empty since we're using template mode
+            templateId: template!.id,
+            parameters,
+            sessionId: this.currentSession!.sessionId,
+            mode: 'template'
+          }),
+          {
+            successMessage: 'Template query executed successfully',
+            errorMessage: 'Failed to execute template query'
+          }
+        );
 
         await this.displayResults(result.result, query);
       }
@@ -1030,13 +1058,18 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
    */
   private async explainQuery(query: string): Promise<void> {
     try {
-      console.log(this.outputRenderer.renderInfo('Generating query explanation...').content);
-      
-      const explanation = await this.queryService.explainQuery(query, {
-        language: this.currentSession?.options.language as string || 'en',
-        technicalLevel: 'intermediate',
-        includeExamples: true
-      });
+      const explanation = await withLoadingIndicator(
+        'Generating query explanation with AI...',
+        () => this.queryService.explainQuery(query, {
+          language: this.currentSession?.options.language as string || 'en',
+          technicalLevel: 'intermediate',
+          includeExamples: true
+        }),
+        {
+          successMessage: 'Query explanation generated successfully',
+          errorMessage: 'Failed to generate query explanation'
+        }
+      );
 
       console.log(chalk.green.bold('\n📚 Query Explanation:'));
       console.log(chalk.dim('='.repeat(50)));
@@ -1053,16 +1086,20 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
    */
   private async regenerateQuery(originalQuestion: string, previousQuery: any): Promise<any> {
     try {
-      console.log(this.outputRenderer.renderInfo('Regenerating query with different approach...').content);
-      
-      const result = await this.queryService.regenerateQuery(
-        originalQuestion,
-        previousQuery,
-        this.currentSession!.sessionId,
-        2
+      const result = await withLoadingIndicator(
+        'Regenerating query with AI...',
+        () => this.queryService.regenerateQuery(
+          originalQuestion,
+          previousQuery,
+          this.currentSession!.sessionId,
+          2
+        ),
+        {
+          successMessage: 'New query generated successfully',
+          errorMessage: 'Failed to regenerate query'
+        }
       );
 
-      console.log(this.outputRenderer.renderSuccess('New query generated successfully!').content);
       return result.nlQuery;
       
     } catch (error) {
