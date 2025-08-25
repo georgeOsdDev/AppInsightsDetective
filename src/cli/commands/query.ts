@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import inquirer from 'inquirer';
 import { Bootstrap } from '../../infrastructure/Bootstrap';
 import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../../core/interfaces';
-import { StepExecutionService } from '../../services/stepExecutionService';
 import { ConfigManager } from '../../utils/config';
 import { Visualizer } from '../../utils/visualizer';
 import { OutputFormatter } from '../../utils/outputFormatter';
@@ -181,30 +180,78 @@ export function createQueryCommand(): Command {
 
           if (shouldUseStepMode) {
             // Step execution mode (for low confidence or explicitly specified)
-            // Use providers directly for step execution
-            const stepExecutionService = new StepExecutionService(
-              aiProvider,
-              dataSourceProvider,
-              authProvider,
-              configManager,
-              {
-                showConfidenceThreshold: 0.7,
-                allowEditing: true,
-                maxRegenerationAttempts: 3
-              }
-            );
-
-            // Pass language settings
+            // Use InteractiveSessionController through DI container
+            const interactiveController = container.resolve<any>('interactiveSessionController');
+            
+            // Set language options if specified
             if (options.language) {
-              const config = configManager.getConfig();
-              config.language = options.language;
+              interactiveController.setOptions({ language: options.language });
             }
 
-            const stepResult = await stepExecutionService.executeStepByStep(nlQuery, queryText);
+            // Create a session and execute in step mode
+            const session = await interactiveController.createSession({
+              mode: 'step',
+              language: options.language || 'auto'
+            });
 
-            if (stepResult) {
-              await handleOutput(stepResult.result, options, stepResult.executionTime);
+            console.log(chalk.blue.bold('\n🔍 Generated Query Review'));
+            console.log(chalk.dim('='.repeat(50)));
+
+            // Display the generated query
+            console.log(chalk.cyan.bold('\n📝 Original Question:'));
+            console.log(chalk.white(`  "${queryText}"`));
+
+            Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
+
+            if (nlQuery.reasoning) {
+              console.log(chalk.cyan.bold('\n💭 AI Reasoning:'));
+              console.log(chalk.dim(`  ${nlQuery.reasoning}`));
             }
+
+            // Show confidence warning
+            if (nlQuery.confidence < 0.7) {
+              console.log(chalk.yellow.bold('\n⚠️  Low Confidence Warning:'));
+              console.log(chalk.yellow('  This query has low confidence. Consider reviewing or regenerating it.'));
+            }
+
+            // Ask user what to do
+            const { action } = await inquirer.prompt([
+              {
+                type: 'list',
+                name: 'action',
+                message: 'What would you like to do with this query?',
+                choices: [
+                  { name: '🚀 Execute Query - Run this KQL query', value: 'execute' },
+                  { name: '📖 Explain Query - Get detailed explanation', value: 'explain' },
+                  { name: '🔄 Regenerate Query - Generate a different approach', value: 'regenerate' },
+                  { name: '✏️  Edit Query - Manually modify the query', value: 'edit' },
+                  { name: '❌ Cancel - Stop execution', value: 'cancel' }
+                ]
+              }
+            ]);
+
+            if (action === 'cancel') {
+              console.log(chalk.yellow('Query execution cancelled.'));
+              return;
+            }
+
+            if (action === 'execute') {
+              // Execute the query normally
+              const queryStartTime = Date.now();
+              const result = await dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
+              const executionTime = Date.now() - queryStartTime;
+              await handleOutput(result, options, executionTime);
+              return;
+            }
+
+            // For other actions, we need to implement them later or show a message
+            console.log(chalk.yellow(`Action "${action}" is not yet implemented in the simplified mode.`));
+            console.log(chalk.cyan('Executing query instead...'));
+            
+            const queryStartTime = Date.now();
+            const result = await dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
+            const executionTime = Date.now() - queryStartTime;
+            await handleOutput(result, options, executionTime);
             return;
           }
 
