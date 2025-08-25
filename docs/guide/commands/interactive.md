@@ -20,9 +20,6 @@ Interactive Mode enables you to:
 aidx --interactive
 aidx -i
 
-# Start with specific language
-aidx --interactive --language ja
-
 # Start with preferred execution mode
 aidx --interactive --raw  # Start in raw KQL mode
 ```
@@ -237,7 +234,6 @@ While in interactive mode, you can use special commands:
 | `history` | Show query history for this session | `> history` |
 | `templates` | List and use available templates | `> templates` |
 | `mode <mode>` | Switch execution modes | `> mode review` |
-| `language <lang>` | Change explanation language | `> language ja` |
 | `clear` | Clear screen | `> clear` |
 | `exit` / `quit` | End interactive session | `> exit` |
 
