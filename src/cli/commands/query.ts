@@ -105,9 +105,7 @@ export function createQueryCommand(): Command {
   queryCommand
     .description('Query Application Insights with natural language')
     .argument('[question]', 'Natural language question to ask')
-    .option('-l, --language <language>', 'Language for explanations (en, ja, ko, zh, es, fr, de, etc.)')
     .option('-r, --raw', 'Execute raw KQL query')
-    .option('--direct', 'Execute query directly without confirmation (bypass step mode)')
     .option('--no-cache', 'Disable query caching')
     .option('-f, --format <format>', 'Output format (table, json, csv, tsv, raw)', 'table')
     .option('-o, --output <file>', 'Output file path')
@@ -176,22 +174,17 @@ export function createQueryCommand(): Command {
           const nlQuery = await aiProvider.generateQuery({ userInput: queryText, schema });
 
           // Determine execution mode
-          const shouldUseStepMode = !options.direct && nlQuery.confidence < 0.7;
+          const shouldUseStepMode = nlQuery.confidence < 0.7;
 
           if (shouldUseStepMode) {
             // Step execution mode (for low confidence or explicitly specified)
             // Use InteractiveSessionController through DI container
             const interactiveController = container.resolve<any>('interactiveSessionController');
-            
-            // Set language options if specified
-            if (options.language) {
-              interactiveController.setOptions({ language: options.language });
-            }
 
             // Create a session and execute in step mode
             const session = await interactiveController.createSession({
               mode: 'step',
-              language: options.language || 'auto'
+              language: 'auto'
             });
 
             console.log(chalk.blue.bold('\n🔍 Generated Query Review'));
