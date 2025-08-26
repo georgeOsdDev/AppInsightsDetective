@@ -1176,4 +1176,86 @@ describe('Visualizer', () => {
       consoleSpy.mockRestore();
     });
   });
+
+  describe('datetime formatting', () => {
+    it('should display datetime fields in ISO format without ellipsis', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'DatetimeTest',
+            columns: [
+              { name: 'timestamp', type: 'datetime' },
+              { name: 'resultCode', type: 'int' },
+              { name: 'Count', type: 'long' }
+            ],
+            rows: [
+              ['2025-08-25T00:00:00Z', 200, 293],
+              ['2025-08-26T00:00:00Z', 200, 13],
+              ['2025-08-27T00:00:00Z', 200, 289],
+              ['2025-08-28T00:00:00Z', 307, 2]
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      const originalColumns = process.stdout.columns;
+      process.stdout.columns = 60; // Simulate narrow terminal to trigger potential ellipsis
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      
+      // Should show full ISO datetime format, not ellipsized
+      expect(output).toContain('2025-08-25T00:00:00');
+      expect(output).toContain('2025-08-26T00:00:00');
+      expect(output).toContain('2025-08-27T00:00:00');
+      expect(output).toContain('2025-08-28T00:00:00');
+      
+      // Should not contain ellipsis
+      expect(output).not.toContain('...');
+      
+      // Should contain the other column values too
+      expect(output).toContain('200');
+      expect(output).toContain('293');
+      expect(output).toContain('307');
+
+      process.stdout.columns = originalColumns;
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle different datetime formats consistently', () => {
+      const mockResult: QueryResult = {
+        tables: [
+          {
+            name: 'DateFormatTest',
+            columns: [
+              { name: 'created', type: 'datetime' }
+            ],
+            rows: [
+              ['2024-01-01T12:00:00Z'],
+              ['2024-01-02T13:30:00.123Z'], // With milliseconds
+              ['2024-01-03T14:45:00+05:00'], // With timezone offset
+            ],
+          },
+        ],
+      };
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+      Visualizer.displayResult(mockResult);
+
+      const output = consoleSpy.mock.calls.map(call => call.join(' ')).join('\n');
+      
+      // All datetime values should be properly formatted and visible
+      expect(output).toContain('2024-01-01T12:00:00');
+      expect(output).toContain('2024-01-02T13:30:00'); // Should at least contain the base part
+      expect(output).toContain('2024-01-03T09:45:00'); // Should at least contain the base part (Note: timezone conversion)
+      
+      // Should not contain ellipsis for datetime fields
+      expect(output).not.toMatch(/\d{4}-\d{2}-\d{2}.*\.\.\./);
+
+      consoleSpy.mockRestore();
+    });
+  });
 });
