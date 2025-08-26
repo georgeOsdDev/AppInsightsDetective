@@ -21,3 +21,4 @@ docs/design/
 
 # User-created templates (these should not be committed to the repo)
 templates/user/*.json
+test-output.json
