@@ -2,6 +2,7 @@
 export * from './IAIProvider';
 export * from './IDataSourceProvider';
 export * from './IAuthenticationProvider';
+export * from './IExternalExecutionProvider';
 export * from './IProviderFactory';
 export * from './IServiceContainer';
 export * from './IQueryOrchestrator';

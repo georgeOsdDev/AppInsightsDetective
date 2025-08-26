@@ -5,10 +5,13 @@ import { OpenAIProvider } from '../providers/ai/OpenAIProvider';
 import { ApplicationInsightsProvider } from '../providers/datasource/ApplicationInsightsProvider';
 import { LogAnalyticsProvider } from '../providers/datasource/LogAnalyticsProvider';
 import { AzureManagedIdentityProvider } from '../providers/auth/AzureManagedIdentityProvider';
+import { ApplicationInsightsExternalProvider } from '../providers/external-execution/ApplicationInsightsExternalProvider';
+import { LogAnalyticsExternalProvider } from '../providers/external-execution/LogAnalyticsExternalProvider';
 import { 
   IAIProvider, 
   IDataSourceProvider, 
   IAuthenticationProvider,
+  IExternalExecutionProvider,
   IQueryOrchestrator,
   ISessionManager,
   IOutputRenderer,
@@ -50,6 +53,10 @@ export class Bootstrap {
     
     // Register auth providers
     this.providerFactory.registerAuthProvider('azure-managed-identity', AzureManagedIdentityProvider);
+
+    // Register external execution providers  
+    this.providerFactory.registerExternalExecutionProvider('application-insights', ApplicationInsightsExternalProvider);
+    this.providerFactory.registerExternalExecutionProvider('log-analytics', LogAnalyticsExternalProvider);
 
     // Register the provider factory
     this.container.register('providerFactory', this.providerFactory);
@@ -133,13 +140,25 @@ export class Bootstrap {
 
         if (dataSourceConfig?.tenantId && dataSourceConfig.subscriptionId && 
             dataSourceConfig.resourceGroup && dataSourceConfig.resourceName) {
-          const azureResourceInfo = {
+          
+          // Create external execution provider config based on data source type  
+          const externalExecutionConfig = {
+            type: defaultDataSource as 'application-insights' | 'log-analytics',
             tenantId: dataSourceConfig.tenantId,
             subscriptionId: dataSourceConfig.subscriptionId,
             resourceGroup: dataSourceConfig.resourceGroup,
-            resourceName: dataSourceConfig.resourceName
+            resourceName: dataSourceConfig.resourceName,
+            applicationId: dataSourceConfig.applicationId,
+            workspaceId: dataSourceConfig.workspaceId
           };
-          return new ExternalExecutionService(azureResourceInfo);
+          
+          // Create external execution provider using factory
+          const externalProvider = this.providerFactory.createExternalExecutionProvider(
+            defaultDataSource as 'application-insights' | 'log-analytics',
+            externalExecutionConfig
+          );
+          
+          return new ExternalExecutionService(externalProvider);
         }
       } catch (error) {
         logger.debug('External execution service configuration not available or incomplete:', error);

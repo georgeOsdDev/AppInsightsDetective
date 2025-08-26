@@ -1,16 +1,15 @@
 import { logger } from '../utils/logger';
 import { Visualizer } from '../utils/visualizer';
-import { gzipSync } from 'zlib';
 import { withLoadingIndicator } from '../utils/loadingIndicator';
 import {
-  AzureResourceInfo,
   ExternalExecutionTarget,
   ExternalExecutionResult,
   ExternalExecutionOption
 } from '../types';
+import { IExternalExecutionProvider } from '../core/interfaces/IExternalExecutionProvider';
 
 export class ExternalExecutionService {
-  constructor(private azureResourceInfo: AzureResourceInfo) {}
+  constructor(private externalProvider: IExternalExecutionProvider) {}
 
   /**
    * Browser launcher abstraction to allow for testing
@@ -24,43 +23,14 @@ export class ExternalExecutionService {
    * Get available external execution options
    */
   getAvailableOptions(): ExternalExecutionOption[] {
-    const options: ExternalExecutionOption[] = [
-      {
-        target: 'portal',
-        name: '🌐 Azure Portal (Application Insights)',
-        description: 'Open query in Azure Portal Logs blade with full visualization capabilities'
-      }
-    ];
-
-    return options;
-  }
-
-  /**
-   * Generate Azure Portal URL with embedded KQL query using proper base64/gzip encoding
-   */
-  generatePortalUrl(kqlQuery: string): string {
-    const { tenantId, subscriptionId, resourceGroup, resourceName } = this.azureResourceInfo;
-
-    // Compress and encode the KQL query using gzip + base64
-    const gzippedQuery = gzipSync(Buffer.from(kqlQuery, 'utf8'));
-    const encodedQuery = encodeURIComponent(gzippedQuery.toString('base64'));
-
-    // Generate Azure Portal Application Insights URL
-    // See also https://stuartleeks.com/posts/deep-linking-to-queries-in-application-insights-with-python/
-    const portalUrl = `https://portal.azure.com/#@${tenantId}/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F${subscriptionId}%2FresourceGroups%2F${resourceGroup}%2Fproviders%2FMicrosoft.Insights%2Fcomponents%2F${resourceName}/source/LogsBlade.AnalyticsShareLinkToQuery/q/${encodedQuery}`;
-
-    logger.debug(`Generated Azure Portal URL: ${portalUrl}`);
-    return portalUrl;
+    return this.externalProvider.getAvailableOptions();
   }
 
   /**
    * Generate URL for specified target
    */
-  generateUrl(target: ExternalExecutionTarget, kqlQuery: string): string {
-    if (target === 'portal') {
-      return this.generatePortalUrl(kqlQuery);
-    }
-    throw new Error(`Unsupported external execution target: ${target}`);
+  async generateUrl(target: ExternalExecutionTarget, kqlQuery: string): Promise<string> {
+    return await this.externalProvider.generateUrl(target, kqlQuery);
   }
 
   async executeExternal(
@@ -68,8 +38,8 @@ export class ExternalExecutionService {
     kqlQuery: string,
     displayUrl: boolean = true
   ): Promise<ExternalExecutionResult> {
-    const url = this.generateUrl(target, kqlQuery);
-    const targetName = 'Azure Portal';
+    const url = await this.generateUrl(target, kqlQuery);
+    const targetName = this.getTargetDisplayName(target);
 
     // Display URL for sharing/manual access
     if (displayUrl) {
@@ -108,21 +78,23 @@ export class ExternalExecutionService {
   }
 
   /**
-   * Validate Azure resource configuration for external execution
+   * Validate provider configuration for external execution
    */
   validateConfiguration(): { isValid: boolean; missingFields: string[] } {
-    const requiredFields = ['tenantId', 'subscriptionId', 'resourceGroup', 'resourceName'];
-    const missingFields: string[] = [];
-
-    for (const field of requiredFields) {
-      if (!this.azureResourceInfo[field as keyof AzureResourceInfo]) {
-        missingFields.push(field);
-      }
-    }
-
+    const validationResult = this.externalProvider.validateConfiguration();
     return {
-      isValid: missingFields.length === 0,
-      missingFields
+      isValid: validationResult.isValid,
+      missingFields: validationResult.missingFields
     };
+  }
+
+  /**
+   * Get display name for target
+   */
+  private getTargetDisplayName(target: ExternalExecutionTarget): string {
+    const metadata = this.externalProvider.getMetadata();
+    const options = this.externalProvider.getAvailableOptions();
+    const option = options.find(opt => opt.target === target);
+    return option ? option.name.replace(/🌐 /, '') : `${metadata.name} (${target})`;
   }
 }

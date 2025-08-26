@@ -1,7 +1,8 @@
 import { IAIProvider } from './IAIProvider';
 import { IDataSourceProvider } from './IDataSourceProvider';
 import { IAuthenticationProvider } from './IAuthenticationProvider';
-import { AIProviderType, DataSourceType, AuthType, AIProviderConfig, DataSourceConfig, AuthConfig } from '../types/ProviderTypes';
+import { IExternalExecutionProvider } from './IExternalExecutionProvider';
+import { AIProviderType, DataSourceType, AuthType, ExternalExecutionProviderType, AIProviderConfig, DataSourceConfig, AuthConfig, ExternalExecutionProviderConfig } from '../types/ProviderTypes';
 
 /**
  * Factory interface for creating providers
@@ -23,6 +24,11 @@ export interface IProviderFactory {
   createAuthProvider(type: AuthType, config: AuthConfig): IAuthenticationProvider;
 
   /**
+   * Create external execution provider instance
+   */
+  createExternalExecutionProvider(type: ExternalExecutionProviderType, config: ExternalExecutionProviderConfig): IExternalExecutionProvider;
+
+  /**
    * Get available AI provider types
    */
   getAvailableAIProviders(): AIProviderType[];
@@ -38,6 +44,11 @@ export interface IProviderFactory {
   getAvailableAuthProviders(): AuthType[];
 
   /**
+   * Get available external execution provider types
+   */
+  getAvailableExternalExecutionProviders(): ExternalExecutionProviderType[];
+
+  /**
    * Check if AI provider is registered
    */
   isAIProviderRegistered(type: AIProviderType): boolean;
@@ -51,4 +62,9 @@ export interface IProviderFactory {
    * Check if auth provider is registered
    */
   isAuthProviderRegistered(type: AuthType): boolean;
+
+  /**
+   * Check if external execution provider is registered
+   */
+  isExternalExecutionProviderRegistered(type: ExternalExecutionProviderType): boolean;
 }

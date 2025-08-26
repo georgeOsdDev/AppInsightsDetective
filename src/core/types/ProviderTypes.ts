@@ -2,6 +2,7 @@
 export type AIProviderType = 'azure-openai' | 'openai' | 'anthropic';
 export type DataSourceType = 'application-insights' | 'log-analytics' | 'azure-metrics';
 export type AuthType = 'azure-managed-identity' | 'service-principal';
+export type ExternalExecutionProviderType = 'application-insights' | 'log-analytics';
 
 // Configuration interfaces for providers
 export interface AIProviderConfig {
@@ -27,4 +28,14 @@ export interface AuthConfig {
   tenantId?: string;
   clientId?: string;
   clientSecret?: string;
+}
+
+export interface ExternalExecutionProviderConfig {
+  type: ExternalExecutionProviderType;
+  tenantId?: string;
+  subscriptionId?: string;
+  resourceGroup?: string;
+  resourceName?: string;
+  applicationId?: string;
+  workspaceId?: string;
 }
