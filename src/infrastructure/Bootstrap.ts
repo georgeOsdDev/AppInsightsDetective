@@ -4,6 +4,7 @@ import { AzureOpenAIProvider } from '../providers/ai/AzureOpenAIProvider';
 import { OpenAIProvider } from '../providers/ai/OpenAIProvider';
 import { ApplicationInsightsProvider } from '../providers/datasource/ApplicationInsightsProvider';
 import { LogAnalyticsProvider } from '../providers/datasource/LogAnalyticsProvider';
+import { AzureDataExplorerProvider } from '../providers/datasource/AzureDataExplorerProvider';
 import { AzureManagedIdentityProvider } from '../providers/auth/AzureManagedIdentityProvider';
 import { ApplicationInsightsExternalProvider } from '../providers/external-execution/ApplicationInsightsExternalProvider';
 import { LogAnalyticsExternalProvider } from '../providers/external-execution/LogAnalyticsExternalProvider';
@@ -50,6 +51,7 @@ export class Bootstrap {
     // Phase 5: Register data source providers
     this.providerFactory.registerDataSourceProvider('application-insights', ApplicationInsightsProvider);
     this.providerFactory.registerDataSourceProvider('log-analytics', LogAnalyticsProvider);
+    this.providerFactory.registerDataSourceProvider('azure-data-explorer', AzureDataExplorerProvider);
     
     // Register auth providers
     this.providerFactory.registerAuthProvider('azure-managed-identity', AzureManagedIdentityProvider);
