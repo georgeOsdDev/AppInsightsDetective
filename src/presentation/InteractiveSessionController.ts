@@ -284,8 +284,12 @@ export class InteractiveSessionController {
           continue;
 
         case 'portal':
-          await this.openInAzurePortal(nlQuery.generatedKQL);
-          return;
+          const shouldContinue = await this.openInAzurePortal(nlQuery.generatedKQL);
+          if (shouldContinue) {
+            continue; // Stay in the loop to show action options again
+          } else {
+            return; // Exit step mode
+          }
 
         case 'regenerate':
           const newQuery = await this.regenerateQuery(originalInput, nlQuery);
@@ -999,14 +1003,15 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
 
   /**
    * Open query in Azure Portal
+   * @returns Promise<boolean> - true if user wants to continue with more actions, false to exit
    */
-  private async openInAzurePortal(query: string): Promise<void> {
+  private async openInAzurePortal(query: string): Promise<boolean> {
     try {
       if (!this.externalExecutionService) {
         console.log(this.outputRenderer.renderError(
           'Azure Portal integration is not available. Please check your configuration.'
         ).content);
-        return;
+        return false;
       }
 
       // Validate configuration
@@ -1015,7 +1020,7 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
         console.log(this.outputRenderer.renderError(
           `Azure Portal integration requires the following configuration: ${validation.missingFields.join(', ')}`
         ).content);
-        return;
+        return false;
       }
 
       // Execute external command to open in portal
@@ -1036,20 +1041,19 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
           }
         ]);
 
-        if (continueSession) {
-          // Continue with the same query for additional actions
-          return;
-        }
+        return continueSession; // Return true to continue, false to exit
       } else {
         console.log(this.outputRenderer.renderError(
           result.error || 'Failed to open query in Azure Portal'
         ).content);
+        return false;
       }
     } catch (error) {
       logger.error('Failed to open in Azure Portal:', error);
       console.log(this.outputRenderer.renderError(
         `Failed to open in Azure Portal: ${error}`
       ).content);
+      return false;
     }
   }
 
