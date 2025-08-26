@@ -12,7 +12,8 @@ jest.mock('azure-kusto-data', () => ({
   })),
   KustoConnectionStringBuilder: {
     withAadAccessToken: jest.fn().mockReturnValue('mock-connection-string-with-token'),
-    withAadManagedIdentity: jest.fn().mockReturnValue('mock-connection-string-managed-identity')
+    withAadManagedIdentity: jest.fn().mockReturnValue('mock-connection-string-managed-identity'),
+    withSystemManagedIdentity: jest.fn().mockReturnValue('mock-connection-string-system-managed-identity')
   },
   ClientRequestProperties: jest.fn().mockImplementation(() => ({
     setOption: mockSetOption
@@ -31,7 +32,7 @@ describe('AzureDataExplorerProvider', () => {
     type: 'azure-data-explorer',
     clusterUri: 'https://help.kusto.windows.net',
     database: 'Samples',
-    requiresAuthentication: false
+    requiresAuthentication: true // All ADX clusters now require authentication
   };
 
   const mockAuthProvider = {
@@ -270,7 +271,7 @@ describe('AzureDataExplorerProvider', () => {
       expect(result.properties).toMatchObject({
         clusterUri: 'https://help.kusto.windows.net',
         database: 'Samples',
-        requiresAuthentication: false
+        requiresAuthentication: true
       });
     });
 
@@ -286,9 +287,9 @@ describe('AzureDataExplorerProvider', () => {
   });
 
   describe('authentication modes', () => {
-    it('should handle public cluster without authentication', () => {
-      const publicConfig = { ...mockConfig, requiresAuthentication: false };
-      expect(() => new AzureDataExplorerProvider(publicConfig)).not.toThrow();
+    it('should handle Microsoft Help cluster with Azure AD authentication', () => {
+      const helpConfig = { ...mockConfig, clusterUri: 'https://help.kusto.windows.net', requiresAuthentication: true };
+      expect(() => new AzureDataExplorerProvider(helpConfig)).not.toThrow();
     });
 
     it('should handle authenticated cluster with auth provider', () => {

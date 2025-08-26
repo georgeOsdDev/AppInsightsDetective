@@ -54,14 +54,25 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
         // Use provided authentication provider
         const token = await this.authProvider.getAccessToken(['https://help.kusto.windows.net/.default']);
         connectionString = this.KustoConnectionStringBuilder.withAadAccessToken(this.clusterUri, token);
-      } else if (this.requiresAuthentication) {
-        // Fallback to default Azure credential
+      } else {
+        // For all clusters (including "public" ones), use Azure AD authentication
+        // Even public clusters like Microsoft Help cluster require Azure AD auth
         const { DefaultAzureCredential } = await import('@azure/identity');
         const credential = new DefaultAzureCredential();
-        connectionString = this.KustoConnectionStringBuilder.withAadManagedIdentity(this.clusterUri);
-      } else {
-        // Public cluster - no authentication required
-        connectionString = this.clusterUri;
+        
+        try {
+          // Try to get a token to validate credentials are available
+          const tokenScope = this.clusterUri.includes('help.kusto.windows.net') 
+            ? 'https://help.kusto.windows.net/.default'
+            : 'https://kusto.kusto.windows.net/.default';
+          
+          const token = await credential.getToken(tokenScope);
+          connectionString = this.KustoConnectionStringBuilder.withAadAccessToken(this.clusterUri, token.token);
+        } catch (authError) {
+          // If no credentials available, try system managed identity as fallback
+          logger.debug('DefaultAzureCredential failed, trying system managed identity:', authError);
+          connectionString = this.KustoConnectionStringBuilder.withSystemManagedIdentity(this.clusterUri);
+        }
       }
 
       this.client = new this.KustoClient(connectionString);

@@ -290,13 +290,13 @@ async function configureAzureDataExplorer(): Promise<any> {
       name: 'clusterType',
       message: 'Choose your Azure Data Explorer cluster type:',
       choices: [
-        { name: '🌐 Public cluster (No authentication required)', value: 'public' },
-        { name: '🔐 Private cluster (Authentication required)', value: 'private' },
+        { name: '🌐 Microsoft Help Cluster (Sample data)', value: 'help' },
+        { name: '🔐 Private Enterprise Cluster', value: 'private' },
       ],
     },
   ]);
 
-  if (clusterType === 'public') {
+  if (clusterType === 'help') {
     const answers = await inquirer.prompt([
       {
         type: 'input',
@@ -318,7 +318,7 @@ async function configureAzureDataExplorer(): Promise<any> {
       type: 'azure-data-explorer',
       clusterUri: answers.clusterUri,
       database: answers.database,
-      requiresAuthentication: false,
+      requiresAuthentication: true, // All clusters require Azure AD authentication
     };
   } else {
     const answers = await inquirer.prompt([
