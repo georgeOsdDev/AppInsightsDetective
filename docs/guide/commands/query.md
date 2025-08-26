@@ -1,10 +1,10 @@
-# Query Command
+# Query Functionality
 
-The `query` command is the primary interface for executing queries against Azure Application Insights using natural language or raw KQL.
+AppInsights Detective provides a primary interface for executing queries against Azure Application Insights using natural language or raw KQL.
 
 ## Purpose
 
-The query command transforms natural language questions into KQL (Kusto Query Language) queries and executes them against your Application Insights data. It supports multiple execution modes, output formats, and advanced features for data analysis.
+The main CLI functionality transforms natural language questions into KQL (Kusto Query Language) queries and executes them against your Application Insights data. It supports multiple execution modes, output formats, and advanced features for data analysis.
 
 ## Basic Usage
 
