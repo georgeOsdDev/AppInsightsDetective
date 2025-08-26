@@ -27,6 +27,8 @@ export class ProviderConfigValidator {
         return this.validateAzureOpenAIConfig(config);
       case 'openai':
         return this.validateOpenAIConfig(config);
+      case 'ollama':
+        return this.validateOllamaConfig(config);
       case 'anthropic':
         result.errors.push('Anthropic provider not yet implemented');
         result.isValid = false;
@@ -126,6 +128,42 @@ export class ProviderConfigValidator {
     }
     if (config.deploymentName) {
       result.warnings.push('Deployment name not used for OpenAI provider, will be ignored');
+    }
+
+    return result;
+  }
+
+  /**
+   * Validate Ollama configuration
+   */
+  private static validateOllamaConfig(config: AIProviderConfig): ValidationResult {
+    const result: ValidationResult = { isValid: true, errors: [], warnings: [] };
+
+    // Validate endpoint
+    if (!config.endpoint) {
+      result.warnings.push('Ollama endpoint not specified, will use default (http://localhost:11434/v1)');
+    } else {
+      try {
+        new URL(config.endpoint);
+      } catch {
+        result.errors.push('Invalid Ollama endpoint URL');
+        result.isValid = false;
+      }
+    }
+
+    // Validate model
+    if (!config.model) {
+      result.warnings.push('Ollama model not specified, will use default (phi3:latest)');
+    }
+
+    // Ollama doesn't need an actual API key
+    if (!config.apiKey) {
+      result.warnings.push('API key not required for Ollama, using placeholder value');
+    }
+
+    // Ollama doesn't use deploymentName
+    if (config.deploymentName) {
+      result.warnings.push('Deployment name not used for Ollama provider, will be ignored');
     }
 
     return result;
