@@ -19,6 +19,8 @@ import { IQueryEditorService } from '../core/interfaces/IQueryEditorService';
 import { ExternalExecutionService } from '../services/externalExecutionService';
 import { logger } from '../utils/logger';
 import { LoadingIndicator, globalLoadingIndicator } from '../utils/loadingIndicator';
+import { promptForExplanationOptions } from '../utils/explanationPrompts';
+import { getLanguageName } from '../utils/languageUtils';
 
 /**
  * Options for interactive session controller
@@ -1051,18 +1053,26 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
    */
   private async explainQuery(query: string): Promise<void> {
     try {
-      globalLoadingIndicator.start('Generating query explanation with AI...');
-      const explanation = await this.queryService.explainQuery(query, {
-        language: this.currentSession?.options.language as string || 'en',
-        technicalLevel: 'intermediate',
-        includeExamples: true
-      });
+      // Prompt user for explanation options
+      const explanationOptions = await promptForExplanationOptions();
+      
+      globalLoadingIndicator.start(`Generating query explanation with AI in ${getLanguageName(explanationOptions.language || 'en')}...`);
+      const explanation = await this.queryService.explainQuery(query, explanationOptions);
       globalLoadingIndicator.succeed('Query explanation generated successfully');
 
       console.log(chalk.green.bold('\n📚 Query Explanation:'));
       console.log(chalk.dim('='.repeat(50)));
       console.log(chalk.white(explanation));
       console.log(chalk.dim('='.repeat(50)));
+
+      // Continuation confirmation
+      await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'continue',
+          message: 'Press Enter to continue...',
+        }
+      ]);
       
     } catch (error) {
       globalLoadingIndicator.fail('Failed to generate query explanation');
