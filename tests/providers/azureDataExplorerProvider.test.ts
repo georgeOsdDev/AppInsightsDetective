@@ -11,7 +11,8 @@ jest.mock('azure-kusto-data', () => ({
     execute: mockExecute
   })),
   KustoConnectionStringBuilder: {
-    withAadAccessToken: jest.fn().mockReturnValue('mock-connection-string-with-token'),
+    withAccessToken: jest.fn().mockReturnValue('mock-connection-string-with-token'),
+    withTokenCredential: jest.fn().mockReturnValue('mock-connection-string-with-credential'),
     withAadManagedIdentity: jest.fn().mockReturnValue('mock-connection-string-managed-identity'),
     withSystemManagedIdentity: jest.fn().mockReturnValue('mock-connection-string-system-managed-identity')
   },

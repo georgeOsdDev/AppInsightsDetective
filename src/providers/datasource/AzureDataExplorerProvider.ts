@@ -48,12 +48,12 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
       this.KustoConnectionStringBuilder = kustoData.KustoConnectionStringBuilder;
       this.ClientRequestProperties = kustoData.ClientRequestProperties;
 
-      let connectionString: string;
+      let connectionStringBuilder: any;
 
       if (this.requiresAuthentication && this.authProvider) {
-        // Use provided authentication provider
+        // Use provided authentication provider - get token and use withAccessToken
         const token = await this.authProvider.getAccessToken(['https://help.kusto.windows.net/.default']);
-        connectionString = this.KustoConnectionStringBuilder.withAadAccessToken(this.clusterUri, token);
+        connectionStringBuilder = this.KustoConnectionStringBuilder.withAccessToken(this.clusterUri, token);
       } else {
         // For all clusters (including "public" ones), use Azure AD authentication
         // Even public clusters like Microsoft Help cluster require Azure AD auth
@@ -61,21 +61,16 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
         const credential = new DefaultAzureCredential();
         
         try {
-          // Try to get a token to validate credentials are available
-          const tokenScope = this.clusterUri.includes('help.kusto.windows.net') 
-            ? 'https://help.kusto.windows.net/.default'
-            : 'https://kusto.kusto.windows.net/.default';
-          
-          const token = await credential.getToken(tokenScope);
-          connectionString = this.KustoConnectionStringBuilder.withAadAccessToken(this.clusterUri, token.token);
+          // Use withTokenCredential for proper Azure AD integration
+          connectionStringBuilder = this.KustoConnectionStringBuilder.withTokenCredential(this.clusterUri, credential);
         } catch (authError) {
           // If no credentials available, try system managed identity as fallback
           logger.debug('DefaultAzureCredential failed, trying system managed identity:', authError);
-          connectionString = this.KustoConnectionStringBuilder.withSystemManagedIdentity(this.clusterUri);
+          connectionStringBuilder = this.KustoConnectionStringBuilder.withSystemManagedIdentity(this.clusterUri);
         }
       }
 
-      this.client = new this.KustoClient(connectionString);
+      this.client = new this.KustoClient(connectionStringBuilder);
       logger.debug('Azure Data Explorer client initialized successfully');
     } catch (error) {
       logger.error('Failed to initialize Azure Data Explorer client:', error);
