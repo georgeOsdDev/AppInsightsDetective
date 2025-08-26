@@ -13,7 +13,7 @@ import chalk from 'chalk';
 /**
  * Handle output formatting and file writing
  */
-async function handleOutput(result: QueryResult, options: any, executionTime: number): Promise<void> {
+export async function handleOutput(result: QueryResult, options: any, executionTime: number): Promise<void> {
   const outputFormat = options.format as OutputFormat;
   const outputFile = options.output as string | undefined;
   const encoding = FileOutputManager.isValidEncoding(options.encoding) ? options.encoding : 'utf8';
