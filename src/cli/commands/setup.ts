@@ -269,11 +269,65 @@ async function configureLogAnalytics(): Promise<any> {
     },
   ]);
 
-  return {
+  const config = {
     type: 'log-analytics',
     workspaceId: answers.workspaceId,
     tenantId: answers.tenantId,
     endpoint: answers.endpoint,
+  };
+
+  // Try to auto-discover missing resource information
+  try {
+    Visualizer.displayInfo('Attempting to discover workspace resource information...');
+    
+    const { ResourceGraphService } = await import('../../services/resourceGraphService');
+    const resourceGraphService = new ResourceGraphService();
+    
+    const resourceInfo = await resourceGraphService.getLogAnalyticsResourceInfo(answers.workspaceId);
+    
+    if (resourceInfo) {
+      Visualizer.displaySuccess('Successfully discovered resource information!');
+      return {
+        ...config,
+        subscriptionId: resourceInfo.subscriptionId,
+        resourceGroup: resourceInfo.resourceGroup,
+        resourceName: resourceInfo.resourceName,
+      };
+    } else {
+      Visualizer.displayWarning('Could not auto-discover resource information. Please provide manually.');
+    }
+  } catch (error) {
+    logger.debug('Auto-discovery failed:', error);
+    Visualizer.displayWarning('Auto-discovery failed. Please provide resource information manually.');
+  }
+
+  // Fallback to manual input for required fields
+  const resourceAnswers = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'subscriptionId',
+      message: 'Enter your Azure Subscription ID:',
+      validate: (input) => input.trim() !== '' || 'Subscription ID is required',
+    },
+    {
+      type: 'input',
+      name: 'resourceGroup',
+      message: 'Enter your Resource Group name:',
+      validate: (input) => input.trim() !== '' || 'Resource Group is required',
+    },
+    {
+      type: 'input',
+      name: 'resourceName',
+      message: 'Enter your Log Analytics Workspace name:',
+      validate: (input) => input.trim() !== '' || 'Workspace name is required',
+    },
+  ]);
+
+  return {
+    ...config,
+    subscriptionId: resourceAnswers.subscriptionId,
+    resourceGroup: resourceAnswers.resourceGroup,
+    resourceName: resourceAnswers.resourceName,
   };
 }
 
