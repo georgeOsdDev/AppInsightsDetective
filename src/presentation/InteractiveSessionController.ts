@@ -16,8 +16,9 @@ import { OutputFormatter } from '../utils/outputFormatter';
 import { Visualizer } from '../utils/visualizer';
 import { QueryTemplate } from '../core/interfaces/ITemplateRepository';
 import { IQueryEditorService } from '../core/interfaces/IQueryEditorService';
+import { ExternalExecutionService } from '../services/externalExecutionService';
 import { logger } from '../utils/logger';
-import { withLoadingIndicator } from '../utils/loadingIndicator';
+import { LoadingIndicator, globalLoadingIndicator } from '../utils/loadingIndicator';
 import { promptForExplanationOptions } from '../utils/explanationPrompts';
 import { getLanguageName } from '../utils/languageUtils';
 
@@ -48,6 +49,7 @@ export class InteractiveSessionController {
     private aiProvider: IAIProvider,
     private outputRenderer: IOutputRenderer,
     private queryEditorService: IQueryEditorService,
+    private externalExecutionService: ExternalExecutionService | null,
     private options: InteractiveSessionControllerOptions = {}
   ) {
     this.fileOutputManager = new FileOutputManager();
@@ -217,19 +219,34 @@ export class InteractiveSessionController {
       
       if (mode === 'step') {
         // Step mode: Generate query first, then show for review
-        const result = await this.queryService.generateQuery({
-          userInput: input,
-          sessionId: this.currentSession.sessionId
-        });
-        await this.handleStepMode(result.nlQuery, input);
+        globalLoadingIndicator.start('Generating KQL query with AI...');
+        try {
+          const result = await this.queryService.generateQuery({
+            userInput: input,
+            sessionId: this.currentSession!.sessionId
+          });
+          globalLoadingIndicator.succeed('Query generated successfully');
+          await this.handleStepMode(result.nlQuery, input);
+        } catch (error) {
+          globalLoadingIndicator.fail('Failed to generate query');
+          throw error;
+        }
       } else {
         // Direct or raw mode: Execute query immediately
-        const result = await this.queryService.executeQuery({
-          userInput: input,
-          sessionId: this.currentSession.sessionId,
-          mode
-        });
-        await this.handleDirectMode(result);
+        const loadingMessage = mode === 'raw' ? 'Executing KQL query...' : 'Generating and executing query with AI...';
+        globalLoadingIndicator.start(loadingMessage);
+        try {
+          const result = await this.queryService.executeQuery({
+            userInput: input,
+            sessionId: this.currentSession!.sessionId,
+            mode
+          });
+          globalLoadingIndicator.succeed('Query executed successfully');
+          await this.handleDirectMode(result);
+        } catch (error) {
+          globalLoadingIndicator.fail('Failed to execute query');
+          throw error;
+        }
       }
 
     } catch (error) {
@@ -265,6 +282,10 @@ export class InteractiveSessionController {
         case 'explain':
           await this.explainQuery(nlQuery.generatedKQL);
           continue;
+
+        case 'portal':
+          await this.openInAzurePortal(nlQuery.generatedKQL);
+          return;
 
         case 'regenerate':
           const newQuery = await this.regenerateQuery(originalInput, nlQuery);
@@ -367,19 +388,29 @@ export class InteractiveSessionController {
    * Get user action for step mode
    */
   private async getUserAction(): Promise<string> {
+    const choices = [
+      { name: '🚀 Execute Query', value: 'execute' },
+      { name: '📖 Explain Query', value: 'explain' },
+      { name: '🔄 Regenerate Query', value: 'regenerate' },
+      { name: '✏️  Edit Query', value: 'edit' },
+      { name: '📜 View History', value: 'history' },
+      { name: '❌ Cancel', value: 'cancel' }
+    ];
+
+    // Add Azure Portal option if external execution service is available
+    if (this.externalExecutionService) {
+      const validation = this.externalExecutionService.validateConfiguration();
+      if (validation.isValid) {
+        choices.splice(5, 0, { name: '🌐 Open in Azure Portal', value: 'portal' });
+      }
+    }
+
     const { action } = await inquirer.prompt([
       {
         type: 'list',
         name: 'action',
         message: 'What would you like to do with this query?',
-        choices: [
-          { name: '🚀 Execute Query', value: 'execute' },
-          { name: '📖 Explain Query', value: 'explain' },
-          { name: '🔄 Regenerate Query', value: 'regenerate' },
-          { name: '✏️  Edit Query', value: 'edit' },
-          { name: '📜 View History', value: 'history' },
-          { name: '❌ Cancel', value: 'cancel' }
-        ]
+        choices
       }
     ]);
 
@@ -395,15 +426,18 @@ export class InteractiveSessionController {
         throw new Error('No active session');
       }
 
+      globalLoadingIndicator.start('Executing KQL query...');
       const result = await this.queryService.executeQuery({
         userInput: query,
-        sessionId: this.currentSession.sessionId,
+        sessionId: this.currentSession!.sessionId,
         mode: 'raw'
       });
+      globalLoadingIndicator.succeed('Query executed successfully');
 
       await this.displayResults(result.result, query);
 
     } catch (error) {
+      globalLoadingIndicator.fail('Failed to execute query');
       console.log(this.outputRenderer.renderError(error as Error).content);
     }
   }
@@ -523,15 +557,14 @@ export class InteractiveSessionController {
 
     // Perform analysis
     try {
-      const queryAnalysisResult = await withLoadingIndicator(
-        'Analyzing query results with AI...',
-        () => this.aiProvider.analyzeQueryResult({
-          result,
-          originalQuery: originalQuery || 'unknown query',
-          analysisType: analysisType as 'patterns' | 'anomalies' | 'insights' | 'full',
-          options: { language: language as SupportedLanguage }
-        })
-      );
+      globalLoadingIndicator.start('Analyzing query results with AI...');
+      const queryAnalysisResult = await this.aiProvider.analyzeQueryResult({
+        result,
+        originalQuery: originalQuery || 'unknown query',
+        analysisType: analysisType as 'patterns' | 'anomalies' | 'insights' | 'full',
+        options: { language: language as SupportedLanguage }
+      });
+      globalLoadingIndicator.succeed('Analysis completed successfully');
 
       // Map to legacy AnalysisResult format for backward compatibility
       const analysis = this.mapToAnalysisResult(queryAnalysisResult);
@@ -546,6 +579,7 @@ export class InteractiveSessionController {
       }
 
     } catch (error) {
+      globalLoadingIndicator.fail('Analysis failed');
       logger.error('Analysis failed:', error);
       console.log(this.outputRenderer.renderError(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`).content);
     }
@@ -937,21 +971,80 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
         }
       ]);
 
-      if (shouldExecute && this.currentSession) {
+      if (shouldExecute && this.currentSession && template) {
+        globalLoadingIndicator.start('Executing template query...');
         const result = await this.queryService.executeQuery({
           userInput: '', // Empty since we're using template mode
-          templateId: template.id,
+          templateId: template!.id,
           parameters,
-          sessionId: this.currentSession.sessionId,
+          sessionId: this.currentSession!.sessionId,
           mode: 'template'
         });
+        globalLoadingIndicator.succeed('Template query executed successfully');
 
         await this.displayResults(result.result, query);
       }
 
     } catch (error) {
+      globalLoadingIndicator.fail('Failed to execute template query');
       logger.error('Failed to use template:', error);
       console.log(this.outputRenderer.renderError(`Failed to use template: ${error}`).content);
+    }
+  }
+
+  /**
+   * Open query in Azure Portal
+   */
+  private async openInAzurePortal(query: string): Promise<void> {
+    try {
+      if (!this.externalExecutionService) {
+        console.log(this.outputRenderer.renderError(
+          'Azure Portal integration is not available. Please check your configuration.'
+        ).content);
+        return;
+      }
+
+      // Validate configuration
+      const validation = this.externalExecutionService.validateConfiguration();
+      if (!validation.isValid) {
+        console.log(this.outputRenderer.renderError(
+          `Azure Portal integration requires the following configuration: ${validation.missingFields.join(', ')}`
+        ).content);
+        return;
+      }
+
+      // Execute external command to open in portal
+      const result = await this.externalExecutionService.executeExternal('portal', query, true);
+      
+      if (result.launched) {
+        console.log(this.outputRenderer.renderSuccess(
+          'Query opened in Azure Portal successfully! Check your browser.'
+        ).content);
+        
+        // Ask if user wants to continue with another action
+        const { continueSession } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'continueSession',
+            message: '🔄 Would you like to perform another action with this query?',
+            default: false
+          }
+        ]);
+
+        if (continueSession) {
+          // Continue with the same query for additional actions
+          return;
+        }
+      } else {
+        console.log(this.outputRenderer.renderError(
+          result.error || 'Failed to open query in Azure Portal'
+        ).content);
+      }
+    } catch (error) {
+      logger.error('Failed to open in Azure Portal:', error);
+      console.log(this.outputRenderer.renderError(
+        `Failed to open in Azure Portal: ${error}`
+      ).content);
     }
   }
 
@@ -963,9 +1056,9 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
       // Prompt user for explanation options
       const explanationOptions = await promptForExplanationOptions();
       
-      console.log(this.outputRenderer.renderInfo(`Generating detailed query explanation in ${getLanguageName(explanationOptions.language || 'en')}...`).content);
-      
+      globalLoadingIndicator.start(`Generating query explanation with AI in ${getLanguageName(explanationOptions.language || 'en')}...`);
       const explanation = await this.queryService.explainQuery(query, explanationOptions);
+      globalLoadingIndicator.succeed('Query explanation generated successfully');
 
       console.log(chalk.green.bold('\n📚 Query Explanation:'));
       console.log(chalk.dim('='.repeat(50)));
@@ -982,6 +1075,7 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
       ]);
       
     } catch (error) {
+      globalLoadingIndicator.fail('Failed to generate query explanation');
       console.log(this.outputRenderer.renderError(`Explanation failed: ${error}`).content);
     }
   }
@@ -991,19 +1085,19 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
    */
   private async regenerateQuery(originalQuestion: string, previousQuery: any): Promise<any> {
     try {
-      console.log(this.outputRenderer.renderInfo('Regenerating query with different approach...').content);
-      
+      globalLoadingIndicator.start('Regenerating query with AI...');
       const result = await this.queryService.regenerateQuery(
         originalQuestion,
         previousQuery,
         this.currentSession!.sessionId,
         2
       );
+      globalLoadingIndicator.succeed('New query generated successfully');
 
-      console.log(this.outputRenderer.renderSuccess('New query generated successfully!').content);
       return result.nlQuery;
       
     } catch (error) {
+      globalLoadingIndicator.fail('Failed to regenerate query');
       console.log(this.outputRenderer.renderError(`Regeneration failed: ${error}`).content);
       return null;
     }
