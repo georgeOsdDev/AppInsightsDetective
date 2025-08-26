@@ -249,7 +249,7 @@ export class Visualizer {
 
         // Fixed length for datetime type
         if (col.type.toLowerCase() === 'datetime') {
-          return 19; // "YYYY-MM-DD HH:mm:ss" format
+          return 20; // "2025-08-25T00:00:00Z" ISO format
         }
 
         return String(cell).length;
@@ -269,9 +269,13 @@ export class Visualizer {
       // When space is insufficient, distribute considering column types
       const minWidths = table.columns.map((col, index) => {
         const isNumeric = ['int', 'long', 'real'].includes(col.type.toLowerCase());
+        const isDatetime = col.type.toLowerCase() === 'datetime';
         const headerWidth = col.name.length;
         
-        if (isNumeric) {
+        if (isDatetime) {
+          // Datetime columns need fixed minimum width for ISO format
+          return Math.max(20, headerWidth); // Full ISO format
+        } else if (isNumeric) {
           // Numeric columns prioritize actual data width (minimum 4 characters)
           const actualDataWidth = idealWidths[index];
           return Math.max(Math.min(actualDataWidth, 15), 4); // Numbers up to 15 characters maximum
@@ -287,7 +291,12 @@ export class Visualizer {
         // When it doesn't fit even with minimum width
         return table.columns.map((col, index) => {
           const isNumeric = ['int', 'long', 'real'].includes(col.type.toLowerCase());
-          if (isNumeric) {
+          const isDatetime = col.type.toLowerCase() === 'datetime';
+          
+          if (isDatetime) {
+            // Preserve minimum space for datetime columns
+            return Math.max(minWidths[index], 20);
+          } else if (isNumeric) {
             // Secure minimum space for numeric columns
             return Math.max(minWidths[index], 4);
           } else {
@@ -305,23 +314,26 @@ export class Visualizer {
         const minWidth = minWidths[index];
         const extraNeeded = Math.max(0, ideal - minWidth);
         const isNumeric = ['int', 'long', 'real'].includes(table.columns[index].type.toLowerCase());
+        const isDatetime = table.columns[index].type.toLowerCase() === 'datetime';
         
-        // Allocate more extra space to numeric columns
-        const priorityMultiplier = isNumeric ? 2 : 1;
+        // Allocate more extra space to numeric and datetime columns
+        const priorityMultiplier = (isNumeric || isDatetime) ? 2 : 1;
         const adjustedExtraNeeded = extraNeeded * priorityMultiplier;
         
         const extraAllocated = totalExtraNeeded > 0 ? 
           Math.floor((adjustedExtraNeeded / totalExtraNeeded) * extraSpace) : 0;
         
-        return Math.min(minWidth + extraAllocated, isNumeric ? 20 : 60);
+        const maxWidth = isDatetime ? 25 : (isNumeric ? 20 : 60); // Allow some extra space for datetime
+        return Math.min(minWidth + extraAllocated, maxWidth);
       });
     }
   }
 
   private static padString(str: string, width: number, columnType?: string): string {
     if (str.length > width) {
-      // For numeric columns, don't truncate short numbers
+      // For numeric and datetime columns, don't truncate short values
       const isNumericColumn = columnType && ['int', 'long', 'real'].includes(columnType.toLowerCase());
+      const isDatetimeColumn = columnType && columnType.toLowerCase() === 'datetime';
       
       if (isNumericColumn) {
         // Handle both real chalk codes and mocked chalk formatting
@@ -333,6 +345,18 @@ export class Visualizer {
         // For simple numeric values (common case), don't truncate if reasonable length
         if (cleanStr.length <= 15 && /^-?\d+(\.\d+)?$/.test(cleanStr)) {
           // Short numeric values should never be truncated, allow overflow
+          return str;
+        }
+      }
+      
+      if (isDatetimeColumn) {
+        // For datetime columns, try to preserve the full ISO format
+        const cleanStr = str
+          .replace(/\x1b\[[0-9;]*m/g, '') // Real ANSI codes
+          .replace(/^\w+\((.+)\)$/, '$1'); // Mock format like "green(...)" -> "..."
+        
+        // If it looks like an ISO datetime format, allow overflow to show complete datetime
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?/.test(cleanStr)) {
           return str;
         }
       }
@@ -360,16 +384,8 @@ export class Visualizer {
       case 'datetime':
         try {
           const date = new Date(value as string);
-          // Use shorter date/time format
-          return chalk.green(date.toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          }));
+          // Use ISO format for consistent display and to prevent ellipsis
+          return chalk.green(date.toISOString());
         } catch {
           return chalk.red(String(value));
         }
