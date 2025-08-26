@@ -16,6 +16,7 @@ export function createListProvidersCommand(): Command {
         const { ProviderFactory } = await import('../../infrastructure/di/ProviderFactory');
         const { AzureOpenAIProvider } = await import('../../providers/ai/AzureOpenAIProvider');
         const { OpenAIProvider } = await import('../../providers/ai/OpenAIProvider');
+        const { OllamaProvider } = await import('../../providers/ai/OllamaProvider');
         const { ApplicationInsightsProvider } = await import('../../providers/datasource/ApplicationInsightsProvider');
         const { LogAnalyticsProvider } = await import('../../providers/datasource/LogAnalyticsProvider');
         const { AzureManagedIdentityProvider } = await import('../../providers/auth/AzureManagedIdentityProvider');
@@ -25,6 +26,7 @@ export function createListProvidersCommand(): Command {
         // Register all Phase 5 providers
         providerFactory.registerAIProvider('azure-openai', AzureOpenAIProvider);
         providerFactory.registerAIProvider('openai', OpenAIProvider);
+        providerFactory.registerAIProvider('ollama', OllamaProvider);
         providerFactory.registerDataSourceProvider('application-insights', ApplicationInsightsProvider);
         providerFactory.registerDataSourceProvider('log-analytics', LogAnalyticsProvider);
         providerFactory.registerAuthProvider('azure-managed-identity', AzureManagedIdentityProvider);
@@ -50,6 +52,9 @@ export function createListProvidersCommand(): Command {
                   break;
                 case 'openai':
                   console.log('      OpenAI API with direct API key authentication');
+                  break;
+                case 'ollama':
+                  console.log('      Local LLM using Ollama for offline AI capabilities');
                   break;
                 case 'anthropic':
                   console.log('      Anthropic Claude API (not yet implemented)');
