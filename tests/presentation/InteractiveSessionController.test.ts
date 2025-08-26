@@ -2,10 +2,11 @@ import { InteractiveSessionController } from '../../src/presentation/Interactive
 import { QueryService } from '../../src/services/QueryService';
 import { TemplateService } from '../../src/services/TemplateService';
 import { ExternalExecutionService } from '../../src/services/externalExecutionService';
+import { ApplicationInsightsExternalProvider } from '../../src/providers/external-execution/ApplicationInsightsExternalProvider';
 import { ConsoleOutputRenderer } from '../../src/presentation/renderers/ConsoleOutputRenderer';
 import { QueryEditorService } from '../../src/services/QueryEditorService';
 import { IAIProvider } from '../../src/core/interfaces/IAIProvider';
-import { AzureResourceInfo } from '../../src/types';
+import { ExternalExecutionProviderConfig } from '../../src/core/types/ProviderTypes';
 
 // Mock dependencies
 jest.mock('inquirer');
@@ -28,7 +29,8 @@ describe('InteractiveSessionController - Azure Portal Integration', () => {
   let outputRenderer: ConsoleOutputRenderer;
   let queryEditorService: QueryEditorService;
 
-  const mockAzureResourceInfo: AzureResourceInfo = {
+  const mockExternalConfig: ExternalExecutionProviderConfig = {
+    type: 'application-insights',
     tenantId: 'tenant-123',
     subscriptionId: 'sub-123',
     resourceGroup: 'rg-test',
@@ -44,7 +46,8 @@ describe('InteractiveSessionController - Azure Portal Integration', () => {
     } as any;
 
     templateService = new TemplateService();
-    externalExecutionService = new ExternalExecutionService(mockAzureResourceInfo);
+    const externalProvider = new ApplicationInsightsExternalProvider(mockExternalConfig);
+    externalExecutionService = new ExternalExecutionService(externalProvider);
     outputRenderer = new ConsoleOutputRenderer();
     queryEditorService = new QueryEditorService();
 
@@ -67,27 +70,29 @@ describe('InteractiveSessionController - Azure Portal Integration', () => {
       expect(validation.missingFields).toEqual([]);
     });
 
-    it('should generate correct Azure Portal URL', () => {
+    it('should generate correct Azure Portal URL', async () => {
       const kqlQuery = 'exceptions | take 10';
-      const url = externalExecutionService.generatePortalUrl(kqlQuery);
+      const url = await externalExecutionService.generateUrl('portal', kqlQuery);
       
       expect(url).toContain('portal.azure.com');
-      expect(url).toContain(mockAzureResourceInfo.tenantId);
-      expect(url).toContain(mockAzureResourceInfo.subscriptionId);
-      expect(url).toContain(mockAzureResourceInfo.resourceGroup);
-      expect(url).toContain(mockAzureResourceInfo.resourceName);
+      expect(url).toContain(mockExternalConfig.tenantId);
+      expect(url).toContain(mockExternalConfig.subscriptionId);
+      expect(url).toContain(mockExternalConfig.resourceGroup);
+      expect(url).toContain(mockExternalConfig.resourceName);
       expect(url).toContain('LogsBlade');
     });
 
     it('should handle missing configuration gracefully', () => {
-      const invalidResourceInfo: AzureResourceInfo = {
+      const invalidConfig: ExternalExecutionProviderConfig = {
+        type: 'application-insights',
         tenantId: '',
         subscriptionId: 'sub-123',
         resourceGroup: 'rg-test',
         resourceName: 'app-insights-test'
       };
       
-      const invalidExternalService = new ExternalExecutionService(invalidResourceInfo);
+      const invalidProvider = new ApplicationInsightsExternalProvider(invalidConfig);
+      const invalidExternalService = new ExternalExecutionService(invalidProvider);
       const validation = invalidExternalService.validateConfiguration();
       
       expect(validation.isValid).toBe(false);

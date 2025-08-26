@@ -6,8 +6,8 @@ import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../..
 // Mock configuration to use multi-provider format
 jest.mock('../../src/utils/config', () => {
   return {
-    ConfigManager: jest.fn().mockImplementation(() => ({
-      getConfig: () => ({
+    ConfigManager: jest.fn().mockImplementation(() => {
+      const config = {
         providers: {
           auth: {
             default: 'azure-managed-identity',
@@ -28,13 +28,21 @@ jest.mock('../../src/utils/config', () => {
             'application-insights': {
               type: 'application-insights',
               applicationId: 'test-app-id',
-              endpoint: 'https://api.applicationinsights.io/v1/apps'
+              endpoint: 'https://api.applicationinsights.io/v1/apps',
+              tenantId: 'test-tenant-id'
             }
           }
         }
-      }),
-      validateConfig: () => true
-    }))
+      };
+
+      return {
+        getConfig: () => config,
+        getEnhancedConfig: async () => config,
+        validateConfig: () => true,
+        getDefaultProvider: (providerType: string) => (config.providers as any)[providerType].default,
+        getProviderConfig: (providerType: string, providerId: string) => (config.providers as any)[providerType][providerId]
+      };
+    })
   };
 });
 

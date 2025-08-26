@@ -1,12 +1,14 @@
 import { IProviderFactory } from '../../core/interfaces/IProviderFactory';
-import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../../core/interfaces';
+import { IAIProvider, IDataSourceProvider, IAuthenticationProvider, IExternalExecutionProvider } from '../../core/interfaces';
 import { 
   AIProviderType, 
   DataSourceType, 
   AuthType, 
+  ExternalExecutionProviderType,
   AIProviderConfig, 
   DataSourceConfig, 
-  AuthConfig 
+  AuthConfig,
+  ExternalExecutionProviderConfig 
 } from '../../core/types/ProviderTypes';
 import { logger } from '../../utils/logger';
 import { ProviderConfigValidator } from '../../utils/providerValidation';
@@ -15,6 +17,7 @@ import { ProviderConfigValidator } from '../../utils/providerValidation';
 type AIProviderConstructor = new (config: AIProviderConfig, authProvider?: IAuthenticationProvider) => IAIProvider;
 type DataSourceProviderConstructor = new (config: DataSourceConfig, authProvider?: IAuthenticationProvider) => IDataSourceProvider;
 type AuthProviderConstructor = new (config: AuthConfig) => IAuthenticationProvider;
+type ExternalExecutionProviderConstructor = new (config: ExternalExecutionProviderConfig) => IExternalExecutionProvider;
 
 /**
  * Factory for creating provider instances
@@ -23,6 +26,7 @@ export class ProviderFactory implements IProviderFactory {
   private aiProviders = new Map<AIProviderType, AIProviderConstructor>();
   private dataSourceProviders = new Map<DataSourceType, DataSourceProviderConstructor>();
   private authProviders = new Map<AuthType, AuthProviderConstructor>();
+  private externalExecutionProviders = new Map<ExternalExecutionProviderType, ExternalExecutionProviderConstructor>();
 
   /**
    * Register an AI provider constructor
@@ -46,6 +50,14 @@ export class ProviderFactory implements IProviderFactory {
   registerAuthProvider(type: AuthType, constructor: AuthProviderConstructor): void {
     logger.debug(`Registering auth provider: ${type}`);
     this.authProviders.set(type, constructor);
+  }
+
+  /**
+   * Register an external execution provider constructor
+   */
+  registerExternalExecutionProvider(type: ExternalExecutionProviderType, constructor: ExternalExecutionProviderConstructor): void {
+    logger.debug(`Registering external execution provider: ${type}`);
+    this.externalExecutionProviders.set(type, constructor);
   }
 
   /**
@@ -109,6 +121,23 @@ export class ProviderFactory implements IProviderFactory {
   }
 
   /**
+   * Create external execution provider instance
+   */
+  createExternalExecutionProvider(type: ExternalExecutionProviderType, config: ExternalExecutionProviderConfig): IExternalExecutionProvider {
+    // Basic validation - more comprehensive validation will be done by the provider
+    if (!config.type) {
+      throw new Error('External execution provider configuration must have a type');
+    }
+
+    const constructor = this.externalExecutionProviders.get(type);
+    if (!constructor) {
+      throw new Error(`External execution provider not registered: ${type}`);
+    }
+    logger.debug(`Creating external execution provider: ${type}`);
+    return new constructor(config);
+  }
+
+  /**
    * Get available AI provider types
    */
   getAvailableAIProviders(): AIProviderType[] {
@@ -130,6 +159,13 @@ export class ProviderFactory implements IProviderFactory {
   }
 
   /**
+   * Get available external execution provider types
+   */
+  getAvailableExternalExecutionProviders(): ExternalExecutionProviderType[] {
+    return Array.from(this.externalExecutionProviders.keys());
+  }
+
+  /**
    * Check if AI provider is registered
    */
   isAIProviderRegistered(type: AIProviderType): boolean {
@@ -148,5 +184,12 @@ export class ProviderFactory implements IProviderFactory {
    */
   isAuthProviderRegistered(type: AuthType): boolean {
     return this.authProviders.has(type);
+  }
+
+  /**
+   * Check if external execution provider is registered
+   */
+  isExternalExecutionProviderRegistered(type: ExternalExecutionProviderType): boolean {
+    return this.externalExecutionProviders.has(type);
   }
 }

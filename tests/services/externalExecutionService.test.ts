@@ -1,9 +1,11 @@
 import { ExternalExecutionService } from '../../src/services/externalExecutionService';
-import { AzureResourceInfo } from '../../src/types';
+import { ApplicationInsightsExternalProvider } from '../../src/providers/external-execution/ApplicationInsightsExternalProvider';
+import { ExternalExecutionProviderConfig } from '../../src/core/types/ProviderTypes';
 import { gzipSync } from 'zlib';
 
 describe('ExternalExecutionService', () => {
-  const mockAzureResourceInfo: AzureResourceInfo = {
+  const mockConfig: ExternalExecutionProviderConfig = {
+    type: 'application-insights',
     tenantId: 'test-tenant-id',
     subscriptionId: 'test-subscription-id',
     resourceGroup: 'test-resource-group',
@@ -13,34 +15,35 @@ describe('ExternalExecutionService', () => {
   const testKQLQuery = 'requests | where timestamp > ago(1h) | summarize count() by resultCode';
 
   let service: ExternalExecutionService;
+  let provider: ApplicationInsightsExternalProvider;
 
   beforeEach(() => {
-    service = new ExternalExecutionService(mockAzureResourceInfo);
+    provider = new ApplicationInsightsExternalProvider(mockConfig);
+    service = new ExternalExecutionService(provider);
   });
 
   describe('URL Generation', () => {
-    test('should generate correct Azure Portal URL with base64/gzip encoding', () => {
+    test('should generate correct Azure Portal URL with base64/gzip encoding', async () => {
       // Expected encoding: gzip + base64
       const gzippedQuery = gzipSync(Buffer.from(testKQLQuery, 'utf8'));
       const encodedQuery = encodeURIComponent(gzippedQuery.toString('base64'));
-      const expectedUrl = `https://portal.azure.com/#@${mockAzureResourceInfo.tenantId}/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F${mockAzureResourceInfo.subscriptionId}%2FresourceGroups%2F${mockAzureResourceInfo.resourceGroup}%2Fproviders%2FMicrosoft.Insights%2Fcomponents%2F${mockAzureResourceInfo.resourceName}/source/LogsBlade.AnalyticsShareLinkToQuery/q/${encodedQuery}`;
-      const actualUrl = service.generatePortalUrl(testKQLQuery);
+      const expectedUrl = `https://portal.azure.com/#@${mockConfig.tenantId}/blade/Microsoft_Azure_Monitoring_Logs/LogsBlade/resourceId/%2Fsubscriptions%2F${mockConfig.subscriptionId}%2FresourceGroups%2F${mockConfig.resourceGroup}%2Fproviders%2FMicrosoft.Insights%2Fcomponents%2F${mockConfig.resourceName}/source/LogsBlade.AnalyticsShareLinkToQuery/q/${encodedQuery}`;
+      const actualUrl = await service.generateUrl('portal', testKQLQuery);
 
       expect(actualUrl).toBe(expectedUrl);
     });
 
-    test('should generate URL for portal target', () => {
-      const portalUrl = service.generateUrl('portal', testKQLQuery);
+    test('should generate URL for portal target', async () => {
+      const portalUrl = await service.generateUrl('portal', testKQLQuery);
 
       expect(portalUrl).toContain('portal.azure.com');
-      expect(portalUrl).toContain(mockAzureResourceInfo.tenantId);
-      expect(portalUrl).toContain(mockAzureResourceInfo.subscriptionId);
+      expect(portalUrl).toContain(mockConfig.tenantId);
+      expect(portalUrl).toContain(mockConfig.subscriptionId);
     });
 
-    test('should throw error for unsupported target', () => {
-      expect(() => {
-        service.generateUrl('unknown' as any, testKQLQuery);
-      }).toThrow('Unsupported external execution target');
+    test('should throw error for unsupported target', async () => {
+      await expect(service.generateUrl('unknown' as any, testKQLQuery))
+        .rejects.toThrow('Unsupported external execution target');
     });
   });
 
@@ -66,12 +69,15 @@ describe('ExternalExecutionService', () => {
     });
 
     test('should detect missing required fields', () => {
-      const incompleteService = new ExternalExecutionService({
+      const incompleteConfig: ExternalExecutionProviderConfig = {
+        type: 'application-insights',
         tenantId: '',
         subscriptionId: 'test-sub',
         resourceGroup: 'test-rg',
         resourceName: 'test-name'
-      });
+      };
+      const incompleteProvider = new ApplicationInsightsExternalProvider(incompleteConfig);
+      const incompleteService = new ExternalExecutionService(incompleteProvider);
 
       const validation = incompleteService.validateConfiguration();
 

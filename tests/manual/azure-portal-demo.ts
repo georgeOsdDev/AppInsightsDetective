@@ -4,12 +4,13 @@
  */
 import chalk from 'chalk';
 import { ExternalExecutionService } from '../../src/services/externalExecutionService';
+import { ApplicationInsightsExternalProvider } from '../../src/providers/external-execution/ApplicationInsightsExternalProvider';
 import { InteractiveSessionController } from '../../src/presentation/InteractiveSessionController';
 import { QueryService } from '../../src/services/QueryService';
 import { TemplateService } from '../../src/services/TemplateService';
 import { ConsoleOutputRenderer } from '../../src/presentation/renderers/ConsoleOutputRenderer';
 import { QueryEditorService } from '../../src/services/QueryEditorService';
-import { AzureResourceInfo } from '../../src/types';
+import { ExternalExecutionProviderConfig } from '../../src/core/types/ProviderTypes';
 
 // Mock AI Provider
 const mockAIProvider = {
@@ -32,7 +33,8 @@ async function demonstrateAzurePortalIntegration() {
   console.log(chalk.blue.bold('🧪 Azure Portal Integration Demo\n'));
 
   // Test configuration with valid Azure resource info
-  const azureResourceInfo: AzureResourceInfo = {
+  const externalConfig: ExternalExecutionProviderConfig = {
+    type: 'application-insights',
     tenantId: 'demo-tenant-id',
     subscriptionId: 'demo-subscription-id',
     resourceGroup: 'demo-resource-group',
@@ -40,7 +42,8 @@ async function demonstrateAzurePortalIntegration() {
   };
 
   // Create services
-  const externalExecutionService = new ExternalExecutionService(azureResourceInfo);
+  const externalProvider = new ApplicationInsightsExternalProvider(externalConfig);
+  const externalExecutionService = new ExternalExecutionService(externalProvider);
   const templateService = new TemplateService();
   const outputRenderer = new ConsoleOutputRenderer();
   const queryEditorService = new QueryEditorService();
@@ -67,7 +70,7 @@ async function demonstrateAzurePortalIntegration() {
   // Test 2: Generate Portal URL
   console.log(chalk.cyan('Test 2: Portal URL Generation'));
   const testQuery = 'exceptions | where timestamp > ago(1h) | summarize count() by type';
-  const portalUrl = externalExecutionService.generatePortalUrl(testQuery);
+  const portalUrl = await externalExecutionService.generateUrl('portal', testQuery);
   console.log(chalk.green('✅ Generated Portal URL:'));
   console.log(chalk.dim(portalUrl));
   console.log();
