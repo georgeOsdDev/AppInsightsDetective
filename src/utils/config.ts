@@ -168,41 +168,44 @@ export class ConfigManager {
     }
 
     // Validate default AI provider configuration
-    const defaultAI = providers.ai[providers.ai.default];
+    const defaultAIKey = providers.ai.default;
+    const defaultAI = providers.ai[defaultAIKey];
     if (!defaultAI) {
-      logger.error(`Default AI provider '${providers.ai.default}' configuration is missing`);
+      logger.error(`Default AI provider '${defaultAIKey}' configuration is missing`);
       return false;
     }
 
     const aiValidation = ProviderConfigValidator.validateAIProviderConfig(defaultAI);
     if (!aiValidation.isValid) {
-      logger.error(`Default AI provider '${providers.ai.default}' configuration is incomplete: ${aiValidation.errors.join(', ')}`);
+      logger.error(`Default AI provider '${defaultAIKey}' configuration is incomplete: ${aiValidation.errors.join(', ')}`);
       return false;
     }
 
     // Validate default data source provider configuration
-    const defaultDataSource = providers.dataSources[providers.dataSources.default];
+    const defaultDataSourceKey = providers.dataSources.default;
+    const defaultDataSource = providers.dataSources[defaultDataSourceKey];
     if (!defaultDataSource) {
-      logger.error(`Default data source provider '${providers.dataSources.default}' configuration is missing`);
+      logger.error(`Default data source provider '${defaultDataSourceKey}' configuration is missing`);
       return false;
     }
 
     const dataSourceValidation = ProviderConfigValidator.validateDataSourceConfig(defaultDataSource);
     if (!dataSourceValidation.isValid) {
-      logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete: ${dataSourceValidation.errors.join(', ')}`);
+      logger.error(`Default data source provider '${defaultDataSourceKey}' configuration is incomplete: ${dataSourceValidation.errors.join(', ')}`);
       return false;
     }
 
     // Validate default auth provider configuration
-    const defaultAuth = providers.auth[providers.auth.default];
+    const defaultAuthKey = providers.auth.default;
+    const defaultAuth = providers.auth[defaultAuthKey];
     if (!defaultAuth) {
-      logger.error(`Default auth provider '${providers.auth.default}' configuration is missing`);
+      logger.error(`Default auth provider '${defaultAuthKey}' configuration is missing`);
       return false;
     }
 
     const authValidation = ProviderConfigValidator.validateAuthConfig(defaultAuth);
     if (!authValidation.isValid) {
-      logger.error(`Default auth provider '${providers.auth.default}' configuration is incomplete: ${authValidation.errors.join(', ')}`);
+      logger.error(`Default auth provider '${defaultAuthKey}' configuration is incomplete: ${authValidation.errors.join(', ')}`);
       return false;
     }
 
