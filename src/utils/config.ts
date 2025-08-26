@@ -3,6 +3,7 @@ import * as path from 'path';
 import { Config } from '../types';
 import { logger, updateLoggerLevel } from './logger';
 import { ResourceGraphService } from '../services/resourceGraphService';
+import { ProviderConfigValidator } from './providerValidation';
 
 const DEFAULT_CONFIG_PATH = path.join(process.cwd(), 'config', 'default.json');
 const USER_CONFIG_PATH = path.join(process.env.HOME || '~', '.aidx', 'config.json');
@@ -168,22 +169,40 @@ export class ConfigManager {
 
     // Validate default AI provider configuration
     const defaultAI = providers.ai[providers.ai.default];
-    if (!defaultAI || !defaultAI.endpoint) {
-      logger.error(`Default AI provider '${providers.ai.default}' configuration is incomplete`);
+    if (!defaultAI) {
+      logger.error(`Default AI provider '${providers.ai.default}' configuration is missing`);
+      return false;
+    }
+
+    const aiValidation = ProviderConfigValidator.validateAIProviderConfig(defaultAI);
+    if (!aiValidation.isValid) {
+      logger.error(`Default AI provider '${providers.ai.default}' configuration is incomplete: ${aiValidation.errors.join(', ')}`);
       return false;
     }
 
     // Validate default data source provider configuration
     const defaultDataSource = providers.dataSources[providers.dataSources.default];
-    if (!defaultDataSource || !defaultDataSource.applicationId || !defaultDataSource.tenantId) {
-      logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete`);
+    if (!defaultDataSource) {
+      logger.error(`Default data source provider '${providers.dataSources.default}' configuration is missing`);
+      return false;
+    }
+
+    const dataSourceValidation = ProviderConfigValidator.validateDataSourceConfig(defaultDataSource);
+    if (!dataSourceValidation.isValid) {
+      logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete: ${dataSourceValidation.errors.join(', ')}`);
       return false;
     }
 
     // Validate default auth provider configuration
     const defaultAuth = providers.auth[providers.auth.default];
-    if (!defaultAuth || !defaultAuth.tenantId) {
-      logger.error(`Default auth provider '${providers.auth.default}' configuration is incomplete`);
+    if (!defaultAuth) {
+      logger.error(`Default auth provider '${providers.auth.default}' configuration is missing`);
+      return false;
+    }
+
+    const authValidation = ProviderConfigValidator.validateAuthConfig(defaultAuth);
+    if (!authValidation.isValid) {
+      logger.error(`Default auth provider '${providers.auth.default}' configuration is incomplete: ${authValidation.errors.join(', ')}`);
       return false;
     }
 
