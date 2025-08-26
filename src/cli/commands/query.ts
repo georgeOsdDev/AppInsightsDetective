@@ -25,31 +25,43 @@ async function handleOutput(result: QueryResult, options: any, executionTime: nu
     options.format = 'table';
   }
 
-  // Always show console output for table format or when no file is specified
-  if (outputFormat === 'table' || !outputFile) {
-    // Determine if empty columns should be hidden (default: true, disabled with --show-empty-columns)
-    const hideEmptyColumns = !options.showEmptyColumns;
-    
-    Visualizer.displayResult(result, { hideEmptyColumns });
-    const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
-    Visualizer.displaySummary(executionTime, totalRows);
+  // Handle console output based on format and output file options
+  if (!outputFile) {
+    // No output file specified - display to console
+    if (outputFormat === 'table') {
+      // Table format: use visualizer with charts
+      const hideEmptyColumns = !options.showEmptyColumns;
+      Visualizer.displayResult(result, { hideEmptyColumns });
+      const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
+      Visualizer.displaySummary(executionTime, totalRows);
 
-    // Display simple chart for numeric data results (only for console table output)
-    if (outputFormat === 'table' && result.tables.length > 0 && result.tables[0].rows.length > 1) {
-      const firstTable = result.tables[0];
-      if (firstTable.columns.length >= 2) {
-        const hasNumericData = firstTable.rows.some(row =>
-          typeof row[1] === 'number' || !isNaN(Number(row[1]))
-        );
+      // Display simple chart for numeric data results (only for console table output)
+      if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
+        const firstTable = result.tables[0];
+        if (firstTable.columns.length >= 2) {
+          const hasNumericData = firstTable.rows.some(row =>
+            typeof row[1] === 'number' || !isNaN(Number(row[1]))
+          );
 
-        if (hasNumericData) {
-          const chartData = firstTable.rows.slice(0, 10).map(row => ({
-            label: row[0],
-            value: Number(row[1]) || 0,
-          }));
-          Visualizer.displayChart(chartData, 'bar');
+          if (hasNumericData) {
+            const chartData = firstTable.rows.slice(0, 10).map(row => ({
+              label: row[0],
+              value: Number(row[1]) || 0,
+            }));
+            Visualizer.displayChart(chartData, 'bar');
+          }
         }
       }
+    } else {
+      // Non-table format: display formatted output to console
+      const formattedOutput = OutputFormatter.formatResult(result, outputFormat, {
+        pretty: options.pretty,
+        includeHeaders: !options.noHeaders
+      });
+      console.log(formattedOutput.content);
+      
+      const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
+      Visualizer.displaySummary(executionTime, totalRows);
     }
   }
 
@@ -80,20 +92,25 @@ async function handleOutput(result: QueryResult, options: any, executionTime: nu
       const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
       console.log(chalk.green(`✅ Successfully saved ${totalRows} rows to ${resolvedPath}`));
       
-      // Show execution summary if not already shown
-      if (outputFormat !== 'table') {
-        Visualizer.displaySummary(executionTime, totalRows);
-      }
+      // Summary is handled in console output section above
 
     } catch (error) {
       logger.error('File output failed:', error);
       Visualizer.displayError(`Failed to save to file: ${error}`);
       
       // Fallback to console output
-      if (outputFormat !== 'table') {
-        console.log(chalk.yellow('Falling back to console output:'));
+      if (outputFormat === 'table') {
+        // Show table format if that was the original format
         const hideEmptyColumns = !options.showEmptyColumns;
         Visualizer.displayResult(result, { hideEmptyColumns });
+      } else {
+        // Show formatted output for non-table formats
+        const formattedOutput = OutputFormatter.formatResult(result, outputFormat, {
+          pretty: options.pretty,
+          includeHeaders: !options.noHeaders
+        });
+        console.log(chalk.yellow('Falling back to console output:'));
+        console.log(formattedOutput.content);
       }
     }
   }
