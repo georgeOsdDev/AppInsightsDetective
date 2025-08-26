@@ -290,7 +290,7 @@ async function configureOpenAI(currentConfig: any): Promise<any> {
   ]).then(r => r.updateApiKey) : true;
 
   const answers: any = {
-    model: currentConfig.model || 'gpt-4',
+    model: currentConfig.model || 'gpt-4o-mini',
   };
 
   if (updateApiKey) {
@@ -313,8 +313,10 @@ async function configureOpenAI(currentConfig: any): Promise<any> {
       name: 'model',
       message: 'OpenAI model:',
       choices: [
-        { name: 'GPT-4 (Recommended)', value: 'gpt-4' },
-        { name: 'GPT-4 Turbo', value: 'gpt-4-turbo-preview' },
+        { name: 'GPT-4o Mini (Fast & Cost-effective)', value: 'gpt-4o-mini' },
+        { name: 'GPT-4o (Latest GPT-4)', value: 'gpt-4o' },
+        { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+        { name: 'GPT-4', value: 'gpt-4' },
         { name: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
       ],
       default: answers.model,

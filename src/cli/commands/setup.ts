@@ -169,12 +169,26 @@ async function configureOpenAI(): Promise<any> {
       message: 'Enter OpenAI endpoint:',
       default: 'https://api.openai.com/v1',
     },
+    {
+      type: 'list',
+      name: 'model',
+      message: 'Select OpenAI model:',
+      choices: [
+        { name: 'GPT-4o Mini (Fast & Cost-effective)', value: 'gpt-4o-mini' },
+        { name: 'GPT-4o (Latest GPT-4)', value: 'gpt-4o' },
+        { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+        { name: 'GPT-4', value: 'gpt-4' },
+        { name: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+      ],
+      default: 'gpt-4o-mini',
+    },
   ]);
 
   return {
     type: 'openai',
     endpoint: answers.endpoint,
     apiKey: answers.apiKey,
+    model: answers.model,
   };
 }
 
