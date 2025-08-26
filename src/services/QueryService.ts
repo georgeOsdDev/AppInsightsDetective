@@ -6,6 +6,7 @@ import {
   IQuerySession
 } from '../core/interfaces';
 import { QueryResult, QueryResultWithTiming, NLQuery, SupportedLanguage } from '../types';
+import { DataSourceType } from '../core/types/ProviderTypes';
 import { logger } from '../utils/logger';
 
 /**
@@ -16,6 +17,8 @@ export interface QueryServiceRequest extends NLQueryRequest {
   mode?: 'direct' | 'step' | 'raw' | 'template';
   templateId?: string;
   parameters?: Record<string, any>;
+  dataSourceType?: DataSourceType;
+  extraContext?: string;
 }
 
 /**
@@ -82,7 +85,9 @@ export class QueryService {
         // First generate the KQL
         nlQuery = await this.aiProvider.generateQuery({
           userInput: request.userInput,
-          schema: request.schema
+          schema: request.schema,
+          dataSourceType: request.dataSourceType,
+          extraContext: request.extraContext
         });
 
         // Add to session history
@@ -113,7 +118,9 @@ export class QueryService {
     originalQuestion: string, 
     previousQuery: NLQuery, 
     sessionId: string,
-    attemptNumber: number = 1
+    attemptNumber: number = 1,
+    dataSourceType?: DataSourceType,
+    extraContext?: string
   ): Promise<{ nlQuery: NLQuery; session: IQuerySession }> {
     logger.info(`QueryService: Regenerating query (attempt ${attemptNumber})`);
 
@@ -132,7 +139,9 @@ export class QueryService {
 
       const newQuery = await this.aiProvider.regenerateQuery({
         userInput: originalQuestion,
-        context: regenerationContext
+        context: regenerationContext,
+        dataSourceType,
+        extraContext
       });
       
       if (!newQuery) {
@@ -222,6 +231,8 @@ export class QueryService {
     sessionId?: string;
     language?: SupportedLanguage;
     schema?: any;
+    dataSourceType?: DataSourceType;
+    extraContext?: string;
   }): Promise<{
     nlQuery: NLQuery;
     session: IQuerySession;
@@ -247,7 +258,9 @@ export class QueryService {
       // Generate the KQL using AI provider
       const nlQuery = await this.aiProvider.generateQuery({
         userInput: request.userInput,
-        schema: request.schema
+        schema: request.schema,
+        dataSourceType: request.dataSourceType,
+        extraContext: request.extraContext
       });
 
       // Add to session history but don't execute

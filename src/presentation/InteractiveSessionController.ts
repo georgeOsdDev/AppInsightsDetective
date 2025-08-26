@@ -10,6 +10,8 @@ import {
 } from '../core/interfaces';
 import { QueryService, QueryServiceRequest } from '../services/QueryService';
 import { SupportedLanguage, OutputFormat, QueryResult, AnalysisResult } from '../types';
+import { DataSourceType } from '../core/types/ProviderTypes';
+import { ConfigManager } from '../utils/config';
 import { detectTimeSeriesData } from '../utils/chart';
 import { FileOutputManager } from '../utils/fileOutput';
 import { OutputFormatter } from '../utils/outputFormatter';
@@ -50,6 +52,7 @@ export class InteractiveSessionController {
     private outputRenderer: IOutputRenderer,
     private queryEditorService: IQueryEditorService,
     private externalExecutionService: ExternalExecutionService | null,
+    private configManager: ConfigManager,
     private options: InteractiveSessionControllerOptions = {}
   ) {
     this.fileOutputManager = new FileOutputManager();
@@ -60,6 +63,14 @@ export class InteractiveSessionController {
    */
   setOptions(options: Partial<InteractiveSessionControllerOptions>): void {
     this.options = { ...this.options, ...options };
+  }
+
+  /**
+   * Get the current data source type from configuration
+   */
+  private getDataSourceType(): DataSourceType {
+    const config = this.configManager.getConfig();
+    return config.providers.dataSources.default as DataSourceType;
   }
 
   /**
@@ -223,7 +234,8 @@ export class InteractiveSessionController {
         try {
           const result = await this.queryService.generateQuery({
             userInput: input,
-            sessionId: this.currentSession!.sessionId
+            sessionId: this.currentSession!.sessionId,
+            dataSourceType: this.getDataSourceType()
           });
           globalLoadingIndicator.succeed('Query generated successfully');
           await this.handleStepMode(result.nlQuery, input);
@@ -239,7 +251,8 @@ export class InteractiveSessionController {
           const result = await this.queryService.executeQuery({
             userInput: input,
             sessionId: this.currentSession!.sessionId,
-            mode
+            mode,
+            dataSourceType: this.getDataSourceType()
           });
           globalLoadingIndicator.succeed('Query executed successfully');
           await this.handleDirectMode(result);
@@ -439,7 +452,8 @@ export class InteractiveSessionController {
       const result = await this.queryService.executeQuery({
         userInput: query,
         sessionId: this.currentSession!.sessionId,
-        mode: 'raw'
+        mode: 'raw',
+        dataSourceType: this.getDataSourceType()
       });
       globalLoadingIndicator.succeed('Query executed successfully');
 
@@ -987,7 +1001,8 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
           templateId: template!.id,
           parameters,
           sessionId: this.currentSession!.sessionId,
-          mode: 'template'
+          mode: 'template',
+          dataSourceType: this.getDataSourceType()
         });
         globalLoadingIndicator.succeed('Template query executed successfully');
 
@@ -1099,7 +1114,8 @@ ${chalk.dim('    ' + this.truncateQuery(item.query, 80))}`,
         originalQuestion,
         previousQuery,
         this.currentSession!.sessionId,
-        2
+        2,
+        this.getDataSourceType()
       );
       globalLoadingIndicator.succeed('New query generated successfully');
 

@@ -31,7 +31,9 @@ export class QueryOrchestrator implements IQueryOrchestrator {
       // Generate KQL query from natural language
       const nlQuery = await this.aiProvider.generateQuery({
         userInput: request.userInput,
-        schema: request.schema
+        schema: request.schema,
+        dataSourceType: request.dataSourceType,
+        extraContext: request.extraContext
       });
 
       // Execute the generated KQL

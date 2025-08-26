@@ -1,4 +1,5 @@
 import { QueryResult, NLQuery, QueryResultWithTiming } from '../../types';
+import { DataSourceType } from '../types/ProviderTypes';
 
 /**
  * Request for natural language query execution
@@ -7,6 +8,8 @@ export interface NLQueryRequest {
   userInput: string;
   schema?: any;
   language?: string;
+  dataSourceType?: DataSourceType;
+  extraContext?: string;
 }
 
 /**
