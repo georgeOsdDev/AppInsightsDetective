@@ -35,6 +35,14 @@ async function queryHandleOutput(result: QueryResult, options: any, executionTim
       const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
       console.log(`[MOCK CONSOLE] Would show summary: ${totalRows} rows, ${executionTime}ms`);
     }
+  } else {
+    // Output file specified - show table format to console if format is table
+    if (outputFormat === 'table') {
+      console.log(`[MOCK CONSOLE] Would show ${outputFormat} output`);
+      const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
+      console.log(`[MOCK CONSOLE] Would show summary: ${totalRows} rows, ${executionTime}ms`);
+      console.log('[MOCK CONSOLE] Would display chart');
+    }
   }
 
   // Handle file output
@@ -211,8 +219,8 @@ describe('Query Command Output Handling', () => {
   });
 
   describe('Console output behavior', () => {
-    it('should not show console output for table format with file output', async () => {
-      const outputFile = path.join(testDir, 'table-no-console.txt');
+    it('should show console output for table format with file output', async () => {
+      const outputFile = path.join(testDir, 'table-with-console.txt');
       const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
       const options = {
@@ -222,8 +230,11 @@ describe('Query Command Output Handling', () => {
 
       await queryHandleOutput(mockResult, options, 500);
 
-      // Should NOT show console output because file is specified (new behavior matches main CLI)
-      expect(consoleLogSpy).not.toHaveBeenCalledWith('[MOCK CONSOLE] Would show table output');
+      // Should show console output because format is table (new behavior matches main CLI)
+      expect(consoleLogSpy).toHaveBeenCalledWith('[MOCK CONSOLE] Would show table output');
+      
+      // Should also show the success message
+      expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('[MOCK SUCCESS] Successfully saved 3 rows to'));
 
       consoleLogSpy.mockRestore();
     });

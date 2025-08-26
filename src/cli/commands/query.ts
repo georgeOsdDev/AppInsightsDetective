@@ -63,6 +63,32 @@ async function handleOutput(result: QueryResult, options: any, executionTime: nu
       const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
       Visualizer.displaySummary(executionTime, totalRows);
     }
+  } else {
+    // Output file specified - show table format to console if format is table
+    if (outputFormat === 'table') {
+      const hideEmptyColumns = !options.showEmptyColumns;
+      Visualizer.displayResult(result, { hideEmptyColumns });
+      const totalRows = result.tables.reduce((sum, table) => sum + table.rows.length, 0);
+      Visualizer.displaySummary(executionTime, totalRows);
+
+      // Display chart for table format
+      if (result.tables.length > 0 && result.tables[0].rows.length > 1) {
+        const firstTable = result.tables[0];
+        if (firstTable.columns.length >= 2) {
+          const hasNumericData = firstTable.rows.some(row =>
+            typeof row[1] === 'number' || !isNaN(Number(row[1]))
+          );
+
+          if (hasNumericData) {
+            const chartData = firstTable.rows.slice(0, 10).map(row => ({
+              label: String(row[0] || ''),
+              value: Number(row[1]) || 0,
+            }));
+            Visualizer.displayChart(chartData, 'bar');
+          }
+        }
+      }
+    }
   }
 
   // Handle file output
