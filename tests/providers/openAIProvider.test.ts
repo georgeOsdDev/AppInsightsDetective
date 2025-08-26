@@ -108,7 +108,7 @@ describe('OpenAIProvider', () => {
       const MockedOpenAI = require('openai').default as jest.MockedClass<typeof import('openai').default>;
       const mockCreate = jest.fn().mockResolvedValue({
         choices: [{
-          message: { content: '{"kql": "requests | count", "confidence": 0.85}' },
+          message: { content: '{"kql": "requests | count", "confidence": 0.85, "reasoning": "Test reasoning"}' },
           finish_reason: 'stop'
         }]
       });
