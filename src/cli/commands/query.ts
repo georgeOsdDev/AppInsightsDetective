@@ -156,7 +156,32 @@ export function createQueryCommand(): Command {
     .option('--no-headers', 'Exclude headers in CSV/TSV output')
     .option('--encoding <encoding>', 'File encoding (utf8, utf16le, etc.)', 'utf8')
     .option('--show-empty-columns', 'Show all columns including empty ones (default: hide empty columns)')
-    .action(async (question, options) => {
+    .action(async (...args) => {
+      // Fix for Commander.js v14: Handle variable argument signature properly
+      // In subcommands, the signature can be: (arg1, arg2, ..., options, command)
+      // We need to identify which parameter is the options and which is the command
+      
+      const question = args[0]; // First argument is always the question
+      let actualOptions: any;
+      
+      if (args.length === 2) {
+        // (question, options) - old pattern
+        actualOptions = args[1];
+      } else if (args.length === 3) {
+        // (question, options, command) - new pattern
+        const options = args[1];
+        const command = args[2];
+        
+        // Use command.opts() if available, otherwise fall back to options parameter
+        if (command && typeof command.opts === 'function') {
+          actualOptions = command.opts();
+        } else {
+          actualOptions = options;
+        }
+      } else {
+        // Fallback - use the second-to-last argument as options
+        actualOptions = args[args.length - 2] || {};
+      }
       try {
         const configManager = new ConfigManager();
 
@@ -192,13 +217,13 @@ export function createQueryCommand(): Command {
 
         const startTime = Date.now();
 
-        if (options.raw) {
+        if (actualOptions.raw) {
           // Execute as raw KQL query
           Visualizer.displayInfo(`Executing raw KQL query: ${queryText}`);
           const result = await dataSourceProvider.executeQuery({ query: queryText });
           const executionTime = Date.now() - startTime;
 
-          await handleOutput(result, options, executionTime);
+          await handleOutput(result, actualOptions, executionTime);
         } else {
           // Generate KQL from natural language and execute
           Visualizer.displayInfo(`Processing question: "${queryText}"`);
@@ -276,7 +301,7 @@ export function createQueryCommand(): Command {
               const queryStartTime = Date.now();
               const result = await dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
               const executionTime = Date.now() - queryStartTime;
-              await handleOutput(result, options, executionTime);
+              await handleOutput(result, actualOptions, executionTime);
               return;
             }
 
@@ -287,7 +312,7 @@ export function createQueryCommand(): Command {
             const queryStartTime = Date.now();
             const result = await dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
             const executionTime = Date.now() - queryStartTime;
-            await handleOutput(result, options, executionTime);
+            await handleOutput(result, actualOptions, executionTime);
             return;
           }
 
@@ -305,7 +330,7 @@ export function createQueryCommand(): Command {
           const result = await dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
           const executionTime = Date.now() - queryStartTime;
 
-          await handleOutput(result, options, executionTime);
+          await handleOutput(result, actualOptions, executionTime);
         }
 
       } catch (error) {
