@@ -196,7 +196,7 @@ sequenceDiagram
     participant DataSourceProvider
     participant Renderer
     
-    User->>CLI: aidx query "show errors"
+    User->>CLI: aidx "show errors"
     CLI->>QueryService: executeQuery(request)
     QueryService->>QueryOrchestrator: executeNaturalLanguageQuery()
     QueryOrchestrator->>AIProvider: generateQuery(userInput)

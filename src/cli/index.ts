@@ -2,7 +2,7 @@
 
 import { Command } from 'commander';
 import { createSetupCommand } from './commands/setup';
-import { createQueryCommand } from './commands/query';
+
 import { createStatusCommand } from './commands/status';
 import { createTemplateCommand } from './commands/template';
 import { createListProvidersCommand } from './commands/listProviders';
@@ -178,7 +178,6 @@ program
 
 // Sub commands
 program.addCommand(createSetupCommand());
-program.addCommand(createQueryCommand());
 program.addCommand(createStatusCommand());
 program.addCommand(createTemplateCommand());
 program.addCommand(createListProvidersCommand());
@@ -289,25 +288,64 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
       const shouldUseStepMode = nlQuery.confidence < 0.7;
 
       if (shouldUseStepMode) {
-        // For now, fall back to legacy services for step execution
-        // TODO: Refactor StepExecutionService to use providers in Phase 3
-        Visualizer.displayWarning('Step-by-step execution mode requires interactive mode. Use -i flag for full step mode.');
-        Visualizer.displayInfo(`Generated Query (confidence: ${Math.round(nlQuery.confidence * 100)}%):`);
-        console.log(chalk.cyan(nlQuery.generatedKQL));
-        
-        // Ask for confirmation
+        console.log(chalk.blue.bold('\n🔍 Generated Query Review'));
+        console.log(chalk.dim('='.repeat(50)));
+
+        // Display the generated query
+        console.log(chalk.cyan.bold('\n📝 Original Question:'));
+        console.log(chalk.white(`  "${question}"`));
+
+        Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
+
+        if (nlQuery.reasoning) {
+          console.log(chalk.cyan.bold('\n💭 AI Reasoning:'));
+          console.log(chalk.dim(`  ${nlQuery.reasoning}`));
+        }
+
+        // Show confidence warning
+        if (nlQuery.confidence < 0.7) {
+          console.log(chalk.yellow.bold('\n⚠️  Low Confidence Warning:'));
+          console.log(chalk.yellow('  This query has low confidence. Consider reviewing or regenerating it.'));
+        }
+
+        // Ask user what to do
         const inquirer = await import('inquirer');
-        const { proceed } = await inquirer.default.prompt([{
-          type: 'confirm',
-          name: 'proceed',
-          message: 'Execute this query?',
-          default: true
-        }]);
-        
-        if (!proceed) {
+        const { action } = await inquirer.default.prompt([
+          {
+            type: 'list',
+            name: 'action',
+            message: 'What would you like to do with this query?',
+            choices: [
+              { name: '🚀 Execute Query - Run this KQL query', value: 'execute' },
+              { name: '📖 Explain Query - Get detailed explanation', value: 'explain' },
+              { name: '🔄 Regenerate Query - Generate a different approach', value: 'regenerate' },
+              { name: '✏️  Edit Query - Manually modify the query', value: 'edit' },
+              { name: '❌ Cancel - Stop execution', value: 'cancel' }
+            ]
+          }
+        ]);
+
+        if (action === 'cancel') {
           console.log(chalk.yellow('Query execution cancelled.'));
           return;
         }
+
+        if (action === 'execute') {
+          // Execute the query normally
+          const result = await dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
+          const executionTime = Date.now() - startTime;
+          await handleOutput(result, options, executionTime);
+          return;
+        }
+
+        // For other actions, we need to implement them later or show a message
+        console.log(chalk.yellow(`Action "${action}" is not yet implemented in the simplified mode.`));
+        console.log(chalk.cyan('Executing query instead...'));
+        
+        const result = await dataSourceProvider.executeQuery({ query: nlQuery.generatedKQL });
+        const executionTime = Date.now() - startTime;
+        await handleOutput(result, options, executionTime);
+        return;
       } else {
         // Normal execution (high confidence) - display the generated query
         Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
