@@ -112,6 +112,9 @@ export class Bootstrap {
     const dataSourceProvider = this.container.resolve<IDataSourceProvider>('dataSourceProvider');
     const configManager = this.container.resolve<ConfigManager>('configManager');
 
+    // Enhance configuration by fetching missing resource information from Azure Resource Graph
+    await configManager.getEnhancedConfig();
+
     // Register business logic layer
     const templateService = new TemplateService();
     this.container.register<ITemplateRepository>('templateRepository', templateService);
