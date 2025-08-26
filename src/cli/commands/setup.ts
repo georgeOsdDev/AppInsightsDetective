@@ -174,8 +174,12 @@ async function configureOpenAI(): Promise<any> {
       name: 'model',
       message: 'Select OpenAI model:',
       choices: [
+        { name: 'o1-preview (Latest Reasoning Model)', value: 'o1-preview' },
+        { name: 'o1-mini (Fast Reasoning Model)', value: 'o1-mini' },
+        { name: 'GPT-4o (2024-11-20) - Latest', value: 'gpt-4o-2024-11-20' },
+        { name: 'GPT-4o (2024-08-06)', value: 'gpt-4o-2024-08-06' },
+        { name: 'GPT-4o', value: 'gpt-4o' },
         { name: 'GPT-4o Mini (Fast & Cost-effective)', value: 'gpt-4o-mini' },
-        { name: 'GPT-4o (Latest GPT-4)', value: 'gpt-4o' },
         { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
         { name: 'GPT-4', value: 'gpt-4' },
         { name: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
