@@ -24,3 +24,23 @@ if (process.env.NODE_ENV !== 'production') {
     )
   }));
 }
+
+/**
+ * Update the logger level dynamically
+ * This allows the logger level to be configured after the config file is loaded
+ */
+export function updateLoggerLevel(level: 'debug' | 'info' | 'warn' | 'error'): void {
+  // Environment variable takes precedence over config file
+  if (process.env.LOG_LEVEL) {
+    return;
+  }
+  
+  logger.level = level;
+  
+  // Update all transports to respect the new level
+  logger.transports.forEach((transport) => {
+    if (transport instanceof winston.transports.Console) {
+      transport.level = level;
+    }
+  });
+}

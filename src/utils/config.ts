@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Config } from '../types';
-import { logger } from './logger';
+import { logger, updateLoggerLevel } from './logger';
 import { ResourceGraphService } from '../services/resourceGraphService';
 
 const DEFAULT_CONFIG_PATH = path.join(process.cwd(), 'config', 'default.json');
@@ -22,6 +22,7 @@ export class ConfigManager {
       if (fs.existsSync(USER_CONFIG_PATH)) {
         const userConfigContent = JSON.parse(fs.readFileSync(USER_CONFIG_PATH, 'utf-8'));
         this.config = userConfigContent;
+        this.updateLoggerLevelFromConfig();
         logger.info('Loaded user configuration from', USER_CONFIG_PATH);
         return;
       }
@@ -30,16 +31,27 @@ export class ConfigManager {
       if (fs.existsSync(DEFAULT_CONFIG_PATH)) {
         const defaultConfigContent = JSON.parse(fs.readFileSync(DEFAULT_CONFIG_PATH, 'utf-8'));
         this.config = defaultConfigContent;
+        this.updateLoggerLevelFromConfig();
         logger.info('Loaded default configuration from', DEFAULT_CONFIG_PATH);
         return;
       }
 
       // Build from environment variables
       this.config = this.buildConfigFromEnv();
+      this.updateLoggerLevelFromConfig();
       logger.info('Built configuration from environment variables');
     } catch (error) {
       logger.error('Failed to load configuration:', error);
       throw new Error('Configuration could not be loaded');
+    }
+  }
+
+  /**
+   * Update logger level based on configuration
+   */
+  private updateLoggerLevelFromConfig(): void {
+    if (this.config?.logLevel) {
+      updateLoggerLevel(this.config.logLevel);
     }
   }
 
