@@ -7,9 +7,11 @@
 - ✅ 結果に対するexplain機能
 - ✅ アウトプットフォーマット table, json ,csv,tsv
 - ✅ グラフ描画
-- explain query機能で言語とレベル選択が表示されない
-- テンプレートディレクトリの指定 ~/.aidx/templates/user をデフォルトにしたい。
-- stepExecutionServiceのリファクタ
+- ✅ explain query機能で言語とレベル選択が表示されない
+- ✅ oraのフィードバックがない
+- ✅ テンプレートディレクトリの指定 ~/.aidx/templates/user をデフォルトにしたい。
+- 各プロバイダのテスト
+- ✅ stepExecutionServiceのリファクタ
 - ファイル名命名規則
 - コードレビュー
 - リリース準備
