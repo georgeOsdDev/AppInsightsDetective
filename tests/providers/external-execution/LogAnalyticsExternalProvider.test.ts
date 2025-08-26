@@ -74,6 +74,19 @@ describe('LogAnalyticsExternalProvider', () => {
       expect(url).toContain(validConfig.subscriptionId);
       expect(url).toContain('microsoft.operationalinsights');
     });
+
+    it('should throw error when generating URL with missing required fields', async () => {
+      const incompleteConfig = { 
+        ...validConfig, 
+        subscriptionId: '', 
+        resourceGroup: '', 
+        workspaceId: '' 
+      };
+      const incompleteProvider = new LogAnalyticsExternalProvider(incompleteConfig);
+
+      await expect(incompleteProvider.generateUrl('portal', testKQLQuery))
+        .rejects.toThrow('Cannot generate Azure Portal URL. Missing required configuration: subscriptionId, resourceGroup, workspaceId');
+    });
   });
 
   describe('validateConfiguration', () => {
@@ -94,13 +107,13 @@ describe('LogAnalyticsExternalProvider', () => {
       expect(validation.missingFields).toContain('tenantId');
     });
 
-    it('should detect missing workspaceId', () => {
+    it('should detect missing workspaceId but still be valid with tenantId', () => {
       const incompleteConfig = { ...validConfig, workspaceId: undefined };
       const incompleteProvider = new LogAnalyticsExternalProvider(incompleteConfig);
 
       const validation = incompleteProvider.validateConfiguration();
 
-      expect(validation.isValid).toBe(false);
+      expect(validation.isValid).toBe(true); // Valid because tenantId is present
       expect(validation.missingFields).toContain('workspaceId');
     });
 

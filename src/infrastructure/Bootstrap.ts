@@ -138,16 +138,17 @@ export class Bootstrap {
         const defaultDataSource = configManager.getDefaultProvider('dataSources');
         const dataSourceConfig = configManager.getProviderConfig('dataSources', defaultDataSource);
 
-        if (dataSourceConfig?.tenantId && dataSourceConfig.subscriptionId && 
-            dataSourceConfig.resourceGroup && dataSourceConfig.resourceName) {
+        // For backward compatibility, create the service if we have minimal configuration (tenantId)
+        // More detailed validation will happen at the provider level
+        if (dataSourceConfig?.tenantId) {
           
           // Create external execution provider config based on data source type  
           const externalExecutionConfig = {
             type: defaultDataSource as 'application-insights' | 'log-analytics',
             tenantId: dataSourceConfig.tenantId,
-            subscriptionId: dataSourceConfig.subscriptionId,
-            resourceGroup: dataSourceConfig.resourceGroup,
-            resourceName: dataSourceConfig.resourceName,
+            subscriptionId: dataSourceConfig.subscriptionId || '',
+            resourceGroup: dataSourceConfig.resourceGroup || '',
+            resourceName: dataSourceConfig.resourceName || '',
             applicationId: dataSourceConfig.applicationId,
             workspaceId: dataSourceConfig.workspaceId
           };

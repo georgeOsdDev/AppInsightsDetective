@@ -74,6 +74,19 @@ describe('ApplicationInsightsExternalProvider', () => {
       expect(url).toContain(validConfig.subscriptionId);
       expect(url).toContain('LogsBlade');
     });
+
+    it('should throw error when generating URL with missing required fields', async () => {
+      const incompleteConfig = { 
+        ...validConfig, 
+        subscriptionId: '', 
+        resourceGroup: '', 
+        resourceName: '' 
+      };
+      const incompleteProvider = new ApplicationInsightsExternalProvider(incompleteConfig);
+
+      await expect(incompleteProvider.generateUrl('portal', testKQLQuery))
+        .rejects.toThrow('Cannot generate Azure Portal URL. Missing required configuration: subscriptionId, resourceGroup, resourceName');
+    });
   });
 
   describe('validateConfiguration', () => {
@@ -94,33 +107,33 @@ describe('ApplicationInsightsExternalProvider', () => {
       expect(validation.missingFields).toContain('tenantId');
     });
 
-    it('should detect missing subscriptionId', () => {
+    it('should detect missing subscriptionId but still be valid with tenantId', () => {
       const incompleteConfig = { ...validConfig, subscriptionId: undefined };
       const incompleteProvider = new ApplicationInsightsExternalProvider(incompleteConfig);
 
       const validation = incompleteProvider.validateConfiguration();
 
-      expect(validation.isValid).toBe(false);
+      expect(validation.isValid).toBe(true); // Valid because tenantId is present
       expect(validation.missingFields).toContain('subscriptionId');
     });
 
-    it('should detect missing resourceGroup', () => {
+    it('should detect missing resourceGroup but still be valid with tenantId', () => {
       const incompleteConfig = { ...validConfig, resourceGroup: '' };
       const incompleteProvider = new ApplicationInsightsExternalProvider(incompleteConfig);
 
       const validation = incompleteProvider.validateConfiguration();
 
-      expect(validation.isValid).toBe(false);
+      expect(validation.isValid).toBe(true); // Valid because tenantId is present
       expect(validation.missingFields).toContain('resourceGroup');
     });
 
-    it('should detect missing resourceName', () => {
+    it('should detect missing resourceName but still be valid with tenantId', () => {
       const incompleteConfig = { ...validConfig, resourceName: '' };
       const incompleteProvider = new ApplicationInsightsExternalProvider(incompleteConfig);
 
       const validation = incompleteProvider.validateConfiguration();
 
-      expect(validation.isValid).toBe(false);
+      expect(validation.isValid).toBe(true); // Valid because tenantId is present
       expect(validation.missingFields).toContain('resourceName');
     });
 

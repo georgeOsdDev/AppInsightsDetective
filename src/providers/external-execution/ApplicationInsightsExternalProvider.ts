@@ -54,8 +54,12 @@ export class ApplicationInsightsExternalProvider implements IExternalExecutionPr
       }
     }
 
+    // For backward compatibility, show the external execution option if we have at least tenantId
+    // More detailed validation will happen during URL generation
+    const hasMinimalConfig = !!this.config.tenantId;
+
     return {
-      isValid: missingFields.length === 0,
+      isValid: hasMinimalConfig,
       missingFields
     };
   }
@@ -74,6 +78,20 @@ export class ApplicationInsightsExternalProvider implements IExternalExecutionPr
    */
   private generateAzurePortalUrl(kqlQuery: string): string {
     const { tenantId, subscriptionId, resourceGroup, resourceName } = this.azureResourceInfo;
+
+    // Validate that all required fields are present for URL generation
+    const missingFields: string[] = [];
+    if (!tenantId) missingFields.push('tenantId');
+    if (!subscriptionId) missingFields.push('subscriptionId');
+    if (!resourceGroup) missingFields.push('resourceGroup');
+    if (!resourceName) missingFields.push('resourceName');
+
+    if (missingFields.length > 0) {
+      throw new Error(
+        `Cannot generate Azure Portal URL. Missing required configuration: ${missingFields.join(', ')}. ` +
+        `Please ensure these values are configured in your data source settings.`
+      );
+    }
 
     // Compress and encode the KQL query using gzip + base64
     const gzippedQuery = gzipSync(Buffer.from(kqlQuery, 'utf8'));
