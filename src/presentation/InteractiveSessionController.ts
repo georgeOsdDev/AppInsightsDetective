@@ -301,6 +301,11 @@ export class InteractiveSessionController {
    * Handle direct mode execution
    */
   private async handleDirectMode(result: any): Promise<void> {
+    // Display the generated KQL query with confidence score for transparency
+    if (result.nlQuery?.generatedKQL && result.nlQuery?.confidence !== undefined) {
+      Visualizer.displayKQLQuery(result.nlQuery.generatedKQL, result.nlQuery.confidence);
+    }
+    
     await this.displayResults(result.result, result.nlQuery?.generatedKQL);
   }
 
