@@ -308,6 +308,9 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
           console.log(chalk.yellow('Query execution cancelled.'));
           return;
         }
+      } else {
+        // Normal execution (high confidence) - display the generated query
+        Visualizer.displayKQLQuery(nlQuery.generatedKQL, nlQuery.confidence);
       }
 
       // Execute query
