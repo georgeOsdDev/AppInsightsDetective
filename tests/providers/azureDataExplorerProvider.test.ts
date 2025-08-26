@@ -80,10 +80,10 @@ describe('AzureDataExplorerProvider', () => {
       const mockResponse = {
         primaryResults: [{
           columns: [
-            { columnName: 'State', dataType: 'string' },
-            { columnName: 'EventCount', dataType: 'long' }
+            { name: 'State', type: 'string' },
+            { name: 'EventCount', type: 'long' }
           ],
-          rows: [
+          _rows: [
             ['CALIFORNIA', 100],
             ['TEXAS', 75]
           ]
@@ -158,8 +158,8 @@ describe('AzureDataExplorerProvider', () => {
 
       const mockResponse = {
         primaryResults: [{
-          columns: [{ columnName: 'BuildVersion', dataType: 'string' }],
-          rows: [['1.0.0']]
+          columns: [{ name: 'BuildVersion', type: 'string' }],
+          _rows: [['1.0.0']]
         }]
       };
 
@@ -190,19 +190,19 @@ describe('AzureDataExplorerProvider', () => {
 
       const mockTablesResponse = {
         primaryResults: [{
-          columns: [{ columnName: 'TableName', dataType: 'string' }],
-          rows: [['StormEvents'], ['PopulationData']]
+          columns: [{ name: 'TableName', type: 'string' }],
+          _rows: [['StormEvents'], ['PopulationData']]
         }]
       };
 
       const mockSchemaResponse = {
         primaryResults: [{
           columns: [
-            { columnName: 'TableName', dataType: 'string' },
-            { columnName: 'ColumnName', dataType: 'string' },
-            { columnName: 'ColumnType', dataType: 'string' }
+            { name: 'TableName', type: 'string' },
+            { name: 'ColumnName', type: 'string' },
+            { name: 'ColumnType', type: 'string' }
           ],
-          rows: [
+          _rows: [
             ['StormEvents', 'State', 'string'],
             ['StormEvents', 'EventType', 'string'],
             ['PopulationData', 'State', 'string'],
@@ -248,15 +248,15 @@ describe('AzureDataExplorerProvider', () => {
 
       const mockVersionResponse = {
         primaryResults: [{
-          columns: [{ columnName: 'BuildVersion', dataType: 'string' }],
-          rows: [['1.0.0']]
+          columns: [{ name: 'BuildVersion', type: 'string' }],
+          _rows: [['1.0.0']]
         }]
       };
 
       const mockDatabaseResponse = {
         primaryResults: [{
-          columns: [{ columnName: 'DatabaseName', dataType: 'string' }],
-          rows: [['Samples']]
+          columns: [{ name: 'DatabaseName', type: 'string' }],
+          _rows: [['Samples']]
         }]
       };
 

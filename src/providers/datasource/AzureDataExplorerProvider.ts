@@ -202,7 +202,8 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
    */
   private transformADXResponse(adxResponse: any): QueryResult {
     try {
-      // ADX returns results in a different format, need to transform to match Application Insights
+      // ADX returns results in KustoResponseDataSetV2 format
+      // primaryResults is an array of KustoResultTable objects
       const primaryResult = adxResponse.primaryResults[0];
       
       if (!primaryResult) {
@@ -215,12 +216,16 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
         };
       }
 
+      // KustoResultColumn has 'name' and 'type' properties (not columnName/dataType)
       const columns = primaryResult.columns.map((col: any) => ({
-        name: col.columnName,
-        type: col.dataType || col.columnType
+        name: col.name,
+        type: col.type
       }));
 
-      const rows = primaryResult.rows || [];
+      // KustoResultTable stores raw row data in _rows property
+      const rows = primaryResult._rows || [];
+
+      logger.debug(`Transformed ADX response: ${rows.length} rows, ${columns.length} columns`);
 
       return {
         tables: [{
