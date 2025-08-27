@@ -88,13 +88,114 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
   }
 
   /**
+   * Initialize client with authentication validation and fallback during initialization
+   */
+  private async initializeClientWithValidation(): Promise<void> {
+    const initialAuthMethod = (this.requiresAuthentication && this.authProvider) ? 'token' : 'defaultCredential';
+    
+    try {
+      // Try to initialize with the specified auth method and validate
+      if (await this.tryInitializeWithAuth(initialAuthMethod)) {
+        return;
+      }
+
+      // If the primary auth method failed, try fallback methods
+      logger.debug(`Primary authentication method ${initialAuthMethod} failed, trying fallback methods`);
+      const fallbackMethods = this.getFallbackAuthMethods(initialAuthMethod);
+      
+      for (const fallbackMethod of fallbackMethods) {
+        if (await this.tryInitializeWithAuth(fallbackMethod)) {
+          logger.debug(`Successfully initialized with fallback method: ${fallbackMethod}`);
+          return;
+        }
+      }
+
+      throw new Error(`All authentication methods failed. Tried: ${initialAuthMethod}, ${fallbackMethods.join(', ')}`);
+    } catch (error) {
+      // If it's a non-authentication error that was re-thrown, wrap it
+      throw new Error(`Client initialization failed: ${error}`);
+    }
+  }
+
+  /**
+   * Try to initialize client with a specific auth method and validate the connection
+   */
+  private async tryInitializeWithAuth(authMethod: 'token' | 'defaultCredential' | 'azLogin' | 'systemManagedIdentity'): Promise<boolean> {
+    try {
+      // Dynamic import to avoid TypeScript module resolution issues
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const kustoData = require('azure-kusto-data');
+      this.KustoClient = kustoData.Client;
+      this.KustoConnectionStringBuilder = kustoData.KustoConnectionStringBuilder;
+      this.ClientRequestProperties = kustoData.ClientRequestProperties;
+
+      let connectionStringBuilder: any;
+
+      if (this.requiresAuthentication && this.authProvider && authMethod === 'token') {
+        // Use provided authentication provider - get token and use withAccessToken
+        const token = await this.authProvider.getAccessToken(['https://help.kusto.windows.net/.default']);
+        connectionStringBuilder = this.KustoConnectionStringBuilder.withAccessToken(this.clusterUri, token);
+      } else if (authMethod === 'defaultCredential') {
+        // Use DefaultAzureCredential
+        const { DefaultAzureCredential } = await import('@azure/identity');
+        const credential = new DefaultAzureCredential();
+        connectionStringBuilder = this.KustoConnectionStringBuilder.withTokenCredential(this.clusterUri, credential);
+      } else if (authMethod === 'azLogin') {
+        // Use Azure CLI credential
+        connectionStringBuilder = this.KustoConnectionStringBuilder.withAzLoginIdentity(this.clusterUri);
+      } else if (authMethod === 'systemManagedIdentity') {
+        // Use system managed identity
+        connectionStringBuilder = this.KustoConnectionStringBuilder.withSystemManagedIdentity(this.clusterUri);
+      } else {
+        throw new Error(`Invalid auth method: ${authMethod}`);
+      }
+
+      const testClient = new this.KustoClient(connectionStringBuilder);
+      
+      // Validate the connection by executing a simple test query
+      const clientRequestProperties = new this.ClientRequestProperties();
+      clientRequestProperties.setOption('servertimeout', 30000); // 30 second timeout
+      const testQuery = '.show version';
+      await testClient.execute(this.database, testQuery, clientRequestProperties);
+      
+      // If validation succeeds, set this as our active client and auth method
+      this.client = testClient;
+      this.currentAuthMethod = authMethod;
+      logger.debug(`Azure Data Explorer client initialized and validated successfully with ${authMethod} authentication`);
+      
+      return true;
+    } catch (error) {
+      // If it's not an authentication error, don't try other auth methods
+      if (!this.isAuthenticationError(error)) {
+        logger.debug(`Non-authentication error during ${authMethod} initialization:`, error);
+        throw error; // Re-throw non-auth errors to stop trying other methods
+      }
+      
+      logger.debug(`Authentication method ${authMethod} failed:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Validate connection during initialization (avoids circular dependency with executeQuery)
+   */
+  private async validateConnectionDuringInit(): Promise<void> {
+    const clientRequestProperties = new this.ClientRequestProperties();
+    clientRequestProperties.setOption('servertimeout', 30000); // 30 second timeout
+    
+    // Test connection with a simple query that should work on any ADX cluster
+    const testQuery = '.show version';
+    await this.client.execute(this.database, testQuery, clientRequestProperties);
+  }
+
+  /**
    * Execute KQL query against Azure Data Explorer cluster
    */
   async executeQuery(request: QueryExecutionRequest): Promise<QueryResult> {
     try {
       logger.debug('Executing query on Azure Data Explorer...');
 
-      // Ensure client is initialized
+      // Ensure client is initialized with validated authentication
       if (!this.client) {
         // Start with token auth if authProvider exists, otherwise defaultCredential
         const initialAuthMethod = (this.requiresAuthentication && this.authProvider) ? 'token' : 'defaultCredential';
@@ -106,7 +207,7 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
         clientRequestProperties.setOption('servertimeout', request.timeout);
       }
 
-      // Try to execute with current authentication method
+      // Execute query with authentication retry logic for runtime 401 errors
       return await this.executeQueryWithRetry(request, clientRequestProperties);
 
     } catch (error) {
@@ -116,7 +217,7 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
   }
 
   /**
-   * Execute query with authentication retry logic
+   * Execute query with authentication retry logic for runtime 401 errors
    */
   private async executeQueryWithRetry(request: QueryExecutionRequest, clientRequestProperties: any): Promise<QueryResult> {
     try {
@@ -129,12 +230,12 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
       return result;
 
     } catch (error) {
-      // Check if this is a 401 authentication error
+      // Check if this is a 401 authentication error that occurred after successful initialization
       if (this.isAuthenticationError(error)) {
-        logger.debug(`Authentication failed with ${this.currentAuthMethod}, trying fallback authentication methods:`, error);
+        logger.debug(`Runtime authentication error with ${this.currentAuthMethod}, trying fallback authentication methods:`, error);
         
         // Try fallback authentication methods
-        const fallbackMethods = this.getFallbackAuthMethods();
+        const fallbackMethods = this.getFallbackAuthMethods(this.currentAuthMethod);
         
         for (const authMethod of fallbackMethods) {
           try {
@@ -187,7 +288,7 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
   /**
    * Get fallback authentication methods based on current method and available options
    */
-  private getFallbackAuthMethods(): ('token' | 'defaultCredential' | 'azLogin' | 'systemManagedIdentity')[] {
+  private getFallbackAuthMethods(currentMethod: 'token' | 'defaultCredential' | 'azLogin' | 'systemManagedIdentity'): ('token' | 'defaultCredential' | 'azLogin' | 'systemManagedIdentity')[] {
     const allMethods: ('token' | 'defaultCredential' | 'azLogin' | 'systemManagedIdentity')[] = [];
     
     // Only include 'token' if we have an auth provider
@@ -199,7 +300,7 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
     allMethods.push('defaultCredential', 'azLogin', 'systemManagedIdentity');
     
     // Return methods that haven't been tried yet
-    return allMethods.filter(method => method !== this.currentAuthMethod);
+    return allMethods.filter(method => method !== currentMethod);
   }
 
   /**
@@ -207,9 +308,10 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
    */
   async validateConnection(): Promise<ValidationResult> {
     try {
-      // Test connection with a simple query
-      const testQuery = '.show version';
-      await this.executeQuery({ query: testQuery });
+      // Use initialization with validation to test auth methods and fallback if needed
+      if (!this.client) {
+        await this.initializeClientWithValidation();
+      }
       
       logger.debug('Azure Data Explorer connection validated successfully');
       return { isValid: true };
