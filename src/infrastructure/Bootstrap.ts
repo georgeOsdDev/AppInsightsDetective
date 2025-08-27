@@ -185,6 +185,7 @@ export class Bootstrap {
       outputRenderer,
       queryEditorService,
       externalExecutionService,
+      configManager,
       {} // options parameter
     );
     this.container.register('interactiveSessionController', interactiveSessionController);

@@ -3,16 +3,20 @@
  */
 
 /**
- * Build system prompt for KQL generation
+ * Data source type for prompts
  */
-export function buildSystemPrompt(schema?: any): string {
-  let prompt = `You are an expert in Azure Application Insights KQL (Kusto Query Language).
-Your task is to convert natural language queries into valid KQL queries for Application Insights.
-Follow Azure Monitor Community best practices and proven patterns.
+export type DataSourceType = 'application-insights' | 'log-analytics' | 'azure-metrics';
+
+/**
+ * Build system prompt for KQL generation based on data source type
+ */
+export function buildSystemPrompt(dataSourceType?: DataSourceType, schema?: any, extraContext?: string): string {
+  const baseInstructions = getDataSourceSpecificInstructions(dataSourceType || 'application-insights');
+  
+  let prompt = `${baseInstructions}
 
 Key guidelines:
 - Generate only valid KQL syntax
-- Use proper table names (requests, dependencies, exceptions, pageViews, etc.)
 - Optimize for performance (use filters early, avoid unnecessary sorting)
 - Return results as JSON with this exact structure:
 {
@@ -21,20 +25,77 @@ Key guidelines:
   "reasoning": "explanation of approach"
 }
 
-Common patterns:
-- Use 'requests' table for HTTP requests analysis
-- Use 'dependencies' for external calls and database queries
-- Use 'exceptions' for error analysis
-- Use 'pageViews' for user experience metrics
-- Use 'where timestamp > ago(...)' for time filtering
+General KQL patterns:
+- Use 'where timestamp > ago(...)' or similar time filtering for time-series data
 - Use 'summarize' for aggregations
-- Use 'extend' to add calculated columns`;
+- Use 'extend' to add calculated columns
+- Use proper join techniques when working with multiple tables
+- Consider using 'take' to limit results for better performance`;
 
   if (schema) {
     prompt += `\n\nAvailable schema information:\n${JSON.stringify(schema, null, 2)}`;
   }
 
+  if (extraContext) {
+    prompt += `\n\nAdditional context:\n${extraContext}`;
+  }
+
   return prompt;
+}
+
+/**
+ * Get data source specific instructions
+ */
+function getDataSourceSpecificInstructions(dataSourceType: DataSourceType): string {
+  switch (dataSourceType) {
+    case 'application-insights':
+      return `You are an expert in Azure Application Insights KQL (Kusto Query Language).
+Your task is to convert natural language queries into valid KQL queries for Application Insights.
+Follow Azure Monitor Community best practices and proven patterns.
+
+Application Insights specific guidance:
+- Use proper table names: requests, dependencies, exceptions, pageViews, traces, customEvents, etc.
+- 'requests' table for HTTP requests analysis
+- 'dependencies' for external calls and database queries  
+- 'exceptions' for error analysis
+- 'pageViews' for user experience metrics
+- 'traces' for custom application logging
+- 'customEvents' for custom application telemetry`;
+
+    case 'log-analytics':
+      return `You are an expert in Azure Log Analytics KQL (Kusto Query Language).
+Your task is to convert natural language queries into valid KQL queries for Log Analytics workspaces.
+Follow Azure Monitor Community best practices and proven patterns.
+
+Log Analytics specific guidance:
+- Table names vary by workspace configuration and data sources
+- Common system tables include: Heartbeat, Perf, Event, Syslog, SecurityEvent, etc.
+- Custom tables may exist with specific naming conventions
+- Use 'search' operator when table structure is unknown
+- Consider workspace-specific data retention policies`;
+
+    case 'azure-metrics':
+      return `You are an expert in Azure Monitor Metrics KQL (Kusto Query Language).
+Your task is to convert natural language queries into valid KQL queries for Azure Metrics.
+Follow Azure Monitor Community best practices and proven patterns.
+
+Azure Metrics specific guidance:
+- Focus on metric-based queries rather than log-based
+- Use appropriate time granularity for metric aggregations
+- Common metric categories: CPU, Memory, Network, Storage, etc.
+- Consider metric dimensions for filtering and grouping
+- Use appropriate aggregation functions: avg, sum, count, min, max`;
+
+    default:
+      return `You are an expert in KQL (Kusto Query Language).
+Your task is to convert natural language queries into valid KQL queries.
+Follow best practices and proven patterns for the target data source.
+
+General guidance:
+- Analyze the available schema and table structures
+- Use appropriate table names based on the data source
+- Apply filters and aggregations as needed`;
+  }
 }
 
 /**

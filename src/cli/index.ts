@@ -13,6 +13,7 @@ import { Bootstrap } from '../infrastructure/Bootstrap';
 import { IAIProvider, IDataSourceProvider, IAuthenticationProvider } from '../core/interfaces';
 import { QueryGenerationRequest } from '../core/interfaces/IAIProvider';
 import { QueryExecutionRequest } from '../core/interfaces/IDataSourceProvider';
+import { DataSourceType } from '../core/types/ProviderTypes';
 import { InteractiveSessionController } from '../presentation/InteractiveSessionController';
 import { QueryService } from '../services/QueryService';
 import { ConfigManager } from '../utils/config';
@@ -278,10 +279,15 @@ async function executeDirectQuery(question: string, options: any): Promise<void>
         logger.warn('Could not retrieve schema, proceeding without it');
       }
 
+      // Get data source type from configuration
+      const config = configManager.getConfig();
+      const dataSourceType = config.providers.dataSources.default as DataSourceType;
+
       // Generate KQL query
       const nlQuery = await aiProvider.generateQuery({
         userInput: question,
-        schema
+        schema,
+        dataSourceType
       });
 
       // Step execution mode for low confidence

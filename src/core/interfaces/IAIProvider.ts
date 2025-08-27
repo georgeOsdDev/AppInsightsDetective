@@ -1,4 +1,5 @@
 import { NLQuery, RegenerationContext, SupportedLanguage, ExplanationOptions } from '../../types';
+import { DataSourceType } from '../types/ProviderTypes';
 
 /**
  * Request for AI query generation
@@ -7,6 +8,8 @@ export interface QueryGenerationRequest {
   userInput: string;
   schema?: any;
   language?: SupportedLanguage;
+  dataSourceType?: DataSourceType;
+  extraContext?: string;
 }
 
 /**
@@ -25,6 +28,8 @@ export interface RegenerationRequest {
   context: RegenerationContext;
   schema?: any;
   language?: SupportedLanguage;
+  dataSourceType?: DataSourceType;
+  extraContext?: string;
 }
 
 /**

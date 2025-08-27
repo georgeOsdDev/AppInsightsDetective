@@ -29,6 +29,32 @@ export interface QueryTemplate {
 }
 
 /**
+ * Prompt template definition for providing extra context to AI
+ */
+export interface PromptTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  contextTemplate: string;
+  parameters: Array<{
+    name: string;
+    type: 'string' | 'number' | 'datetime' | 'timespan';
+    description: string;
+    required: boolean;
+    defaultValue?: any;
+    validValues?: any[];
+  }>;
+  metadata: {
+    author?: string;
+    version: string;
+    createdAt: Date;
+    updatedAt: Date;
+    tags: string[];
+  };
+}
+
+/**
  * Template search criteria
  */
 export interface TemplateFilter {
@@ -92,4 +118,34 @@ export interface ITemplateRepository {
    * Validate template structure
    */
   validateTemplate(template: QueryTemplate): void;
+
+  /**
+   * Get all prompt templates
+   */
+  getPromptTemplates(filter?: TemplateFilter): Promise<PromptTemplate[]>;
+
+  /**
+   * Get a specific prompt template by ID
+   */
+  getPromptTemplate(id: string): Promise<PromptTemplate | null>;
+
+  /**
+   * Save a prompt template
+   */
+  savePromptTemplate(template: PromptTemplate): Promise<void>;
+
+  /**
+   * Delete a prompt template
+   */
+  deletePromptTemplate(id: string): Promise<boolean>;
+
+  /**
+   * Apply prompt template parameters to generate context
+   */
+  applyPromptTemplate(template: PromptTemplate, parameters: TemplateParameters): Promise<string>;
+
+  /**
+   * Validate prompt template structure
+   */
+  validatePromptTemplate(template: PromptTemplate): void;
 }

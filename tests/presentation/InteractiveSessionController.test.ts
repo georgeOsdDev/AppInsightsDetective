@@ -5,6 +5,7 @@ import { ExternalExecutionService } from '../../src/services/externalExecutionSe
 import { ApplicationInsightsExternalProvider } from '../../src/providers/external-execution/ApplicationInsightsExternalProvider';
 import { ConsoleOutputRenderer } from '../../src/presentation/renderers/ConsoleOutputRenderer';
 import { QueryEditorService } from '../../src/services/QueryEditorService';
+import { ConfigManager } from '../../src/utils/config';
 import { IAIProvider } from '../../src/core/interfaces/IAIProvider';
 import { ExternalExecutionProviderConfig } from '../../src/core/types/ProviderTypes';
 
@@ -28,6 +29,7 @@ describe('InteractiveSessionController - Azure Portal Integration', () => {
   let externalExecutionService: ExternalExecutionService;
   let outputRenderer: ConsoleOutputRenderer;
   let queryEditorService: QueryEditorService;
+  let configManager: ConfigManager;
 
   const mockExternalConfig: ExternalExecutionProviderConfig = {
     type: 'application-insights',
@@ -50,6 +52,17 @@ describe('InteractiveSessionController - Azure Portal Integration', () => {
     externalExecutionService = new ExternalExecutionService(externalProvider);
     outputRenderer = new ConsoleOutputRenderer();
     queryEditorService = new QueryEditorService();
+    
+    // Mock ConfigManager
+    configManager = {
+      getConfig: jest.fn().mockReturnValue({
+        providers: {
+          dataSources: {
+            default: 'application-insights'
+          }
+        }
+      })
+    } as any;
 
     // Create controller with external execution service
     controller = new InteractiveSessionController(
@@ -58,7 +71,8 @@ describe('InteractiveSessionController - Azure Portal Integration', () => {
       mockAIProvider,
       outputRenderer,
       queryEditorService,
-      externalExecutionService
+      externalExecutionService,
+      configManager
     );
   });
 
@@ -107,7 +121,8 @@ describe('InteractiveSessionController - Azure Portal Integration', () => {
         mockAIProvider,
         outputRenderer,
         queryEditorService,
-        null // No external execution service
+        null, // No external execution service
+        configManager
       );
 
       // Should not throw errors when external service is not available

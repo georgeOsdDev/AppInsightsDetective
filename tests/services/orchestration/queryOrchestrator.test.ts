@@ -95,7 +95,13 @@ const mockTemplateRepository: ITemplateRepository = {
   applyTemplate: jest.fn().mockResolvedValue('requests | where timestamp > ago(1h) | take 100'),
   getCategories: jest.fn().mockResolvedValue(['Testing']),
   initialize: jest.fn().mockResolvedValue(undefined),
-  validateTemplate: jest.fn().mockReturnValue(undefined)
+  validateTemplate: jest.fn().mockReturnValue(undefined),
+  getPromptTemplates: jest.fn().mockResolvedValue([]),
+  getPromptTemplate: jest.fn().mockResolvedValue(null),
+  savePromptTemplate: jest.fn().mockResolvedValue(undefined),
+  deletePromptTemplate: jest.fn().mockResolvedValue(true),
+  applyPromptTemplate: jest.fn().mockResolvedValue('Focus on performance analysis'),
+  validatePromptTemplate: jest.fn().mockReturnValue(undefined)
 };
 
 describe('QueryOrchestrator', () => {

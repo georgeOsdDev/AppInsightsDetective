@@ -10,6 +10,7 @@ import { QueryService } from '../../src/services/QueryService';
 import { TemplateService } from '../../src/services/TemplateService';
 import { ConsoleOutputRenderer } from '../../src/presentation/renderers/ConsoleOutputRenderer';
 import { QueryEditorService } from '../../src/services/QueryEditorService';
+import { ConfigManager } from '../../src/utils/config';
 import { ExternalExecutionProviderConfig } from '../../src/core/types/ProviderTypes';
 
 // Mock AI Provider
@@ -47,6 +48,17 @@ async function demonstrateAzurePortalIntegration() {
   const templateService = new TemplateService();
   const outputRenderer = new ConsoleOutputRenderer();
   const queryEditorService = new QueryEditorService();
+  
+  // Mock ConfigManager
+  const configManager = {
+    getConfig: () => ({
+      providers: {
+        dataSources: {
+          default: 'application-insights'
+        }
+      }
+    })
+  } as any;
 
   // Create controller with Azure Portal integration
   const controller = new InteractiveSessionController(
@@ -55,7 +67,8 @@ async function demonstrateAzurePortalIntegration() {
     mockAIProvider,
     outputRenderer,
     queryEditorService,
-    externalExecutionService
+    externalExecutionService,
+    configManager
   );
 
   // Test 1: Validate configuration
@@ -92,7 +105,8 @@ async function demonstrateAzurePortalIntegration() {
     mockAIProvider,
     outputRenderer,
     queryEditorService,
-    null // No external execution service
+    null, // No external execution service
+    configManager
   );
   console.log('✅ Controller works without external execution service');
   console.log();

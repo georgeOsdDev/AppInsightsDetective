@@ -1,6 +1,7 @@
 import { 
   ITemplateRepository, 
   QueryTemplate, 
+  PromptTemplate,
   TemplateFilter, 
   TemplateParameters 
 } from '../core/interfaces/ITemplateRepository';
@@ -15,6 +16,7 @@ import * as os from 'os';
  */
 export class TemplateService implements ITemplateRepository {
   private templates = new Map<string, QueryTemplate>();
+  private promptTemplates = new Map<string, PromptTemplate>();
   private initialized = false;
 
   constructor() {
@@ -30,6 +32,7 @@ export class TemplateService implements ITemplateRepository {
     }
 
     await this.initializeBasicTemplates();
+    await this.initializeBasicPromptTemplates();
     await this.loadUserTemplates();
     this.initialized = true;
   }
@@ -388,6 +391,133 @@ by bin(timestamp, {{binSize}}), type, target
   }
 
   /**
+   * Initialize basic prompt templates for providing extra context to AI
+   */
+  private async initializeBasicPromptTemplates(): Promise<void> {
+    const basicPromptTemplates: PromptTemplate[] = [
+      {
+        id: 'performance-focus',
+        name: 'Performance Analysis Focus',
+        description: 'Focus the AI on performance-related aspects of the query',
+        category: 'Performance',
+        contextTemplate: `Focus your analysis on performance metrics and optimization opportunities. Pay special attention to:
+- Response times and latencies (especially values above {{threshold}} ms)
+- Request volumes and patterns
+- Resource utilization and bottlenecks
+- Performance trends over the specified time period
+- Opportunities for optimization
+
+Consider the application context: {{appContext}}`,
+        parameters: [
+          {
+            name: 'threshold',
+            type: 'number',
+            description: 'Response time threshold for performance alerts (milliseconds)',
+            required: false,
+            defaultValue: 1000
+          },
+          {
+            name: 'appContext',
+            type: 'string',
+            description: 'Context about the application being analyzed',
+            required: false,
+            defaultValue: 'web application'
+          }
+        ],
+        metadata: {
+          author: 'System',
+          version: '1.0.0',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          tags: ['performance', 'optimization', 'analysis']
+        }
+      },
+      {
+        id: 'error-investigation',
+        name: 'Error Investigation Focus',
+        description: 'Guide the AI to focus on error analysis and troubleshooting',
+        category: 'Debugging',
+        contextTemplate: `Focus on identifying and analyzing errors, exceptions, and failure patterns. Consider:
+- Error rates and trends
+- Common failure modes and patterns
+- Root cause indicators
+- Error correlation across services
+- User impact assessment
+
+Environment context: {{environment}}
+Time period of interest: {{timeContext}}`,
+        parameters: [
+          {
+            name: 'environment',
+            type: 'string',
+            description: 'Environment being analyzed (prod, staging, dev, etc.)',
+            required: false,
+            defaultValue: 'production'
+          },
+          {
+            name: 'timeContext',
+            type: 'string',
+            description: 'Specific time context for the analysis',
+            required: false,
+            defaultValue: 'recent activity'
+          }
+        ],
+        metadata: {
+          author: 'System',
+          version: '1.0.0',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          tags: ['error', 'debugging', 'troubleshooting']
+        }
+      },
+      {
+        id: 'user-experience',
+        name: 'User Experience Analysis',
+        description: 'Focus on user experience metrics and customer impact',
+        category: 'User Experience',
+        contextTemplate: `Analyze the data from a user experience perspective. Focus on:
+- User journey and interaction patterns
+- Performance impact on user experience
+- Geographic distribution of users
+- Device and browser usage patterns
+- Customer satisfaction indicators
+
+Target user segment: {{userSegment}}
+Business priority: {{businessPriority}}`,
+        parameters: [
+          {
+            name: 'userSegment',
+            type: 'string',
+            description: 'Target user segment being analyzed',
+            required: false,
+            defaultValue: 'all users'
+          },
+          {
+            name: 'businessPriority',
+            type: 'string',
+            description: 'Current business priority or focus area',
+            required: false,
+            defaultValue: 'customer satisfaction'
+          }
+        ],
+        metadata: {
+          author: 'System',
+          version: '1.0.0',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          tags: ['user-experience', 'customer', 'analytics']
+        }
+      }
+    ];
+
+    for (const template of basicPromptTemplates) {
+      this.promptTemplates.set(template.id, template);
+    }
+
+    logger.info(`TemplateService: Initialized with ${basicPromptTemplates.length} basic prompt templates`);
+  }
+
+  /**
    * Get the user templates directory, preferring ~/.aidx/templates/user with fallback to project directory
    */
    private async getUserTemplatesDirectory(): Promise<string> {
@@ -537,6 +667,171 @@ by bin(timestamp, {{binSize}}), type, target
       case 'number':
       default:
         return String(value);
+    }
+  }
+
+  /**
+   * Get all prompt templates
+   */
+  async getPromptTemplates(filter?: TemplateFilter): Promise<PromptTemplate[]> {
+    await this.initialize();
+    
+    let templates = Array.from(this.promptTemplates.values());
+
+    if (filter) {
+      if (filter.category) {
+        templates = templates.filter(t => t.category === filter.category);
+      }
+
+      if (filter.tags && filter.tags.length > 0) {
+        templates = templates.filter(t => 
+          filter.tags!.some(tag => t.metadata.tags.includes(tag))
+        );
+      }
+
+      if (filter.searchTerm) {
+        const term = filter.searchTerm.toLowerCase();
+        templates = templates.filter(t =>
+          t.name.toLowerCase().includes(term) ||
+          t.description.toLowerCase().includes(term)
+        );
+      }
+    }
+
+    return templates;
+  }
+
+  /**
+   * Get a specific prompt template by ID
+   */
+  async getPromptTemplate(id: string): Promise<PromptTemplate | null> {
+    await this.initialize();
+    return this.promptTemplates.get(id) || null;
+  }
+
+  /**
+   * Save a prompt template
+   */
+  async savePromptTemplate(template: PromptTemplate): Promise<void> {
+    await this.initialize();
+    
+    this.validatePromptTemplate(template);
+    this.promptTemplates.set(template.id, template);
+    
+    logger.info(`TemplateService: Saving prompt template: ${template.id}`);
+    
+    // Save to user templates directory
+    const userTemplateDir = await this.getUserTemplatesDirectory();
+    const promptTemplateDir = path.join(userTemplateDir, 'prompts');
+    
+    try {
+      await fs.mkdir(promptTemplateDir, { recursive: true });
+      const filePath = path.join(promptTemplateDir, `${template.id}.json`);
+      await fs.writeFile(filePath, JSON.stringify(template, null, 2));
+      
+      logger.info(`TemplateService: Prompt template saved successfully: ${template.id}`);
+    } catch (error) {
+      logger.error(`TemplateService: Failed to save prompt template ${template.id}:`, error);
+      throw new Error(`Failed to save prompt template: ${error}`);
+    }
+  }
+
+  /**
+   * Delete a prompt template
+   */
+  async deletePromptTemplate(id: string): Promise<boolean> {
+    await this.initialize();
+    
+    if (!this.promptTemplates.has(id)) {
+      return false;
+    }
+
+    this.promptTemplates.delete(id);
+    
+    // Also delete from disk
+    const userTemplateDir = await this.getUserTemplatesDirectory();
+    const promptTemplateDir = path.join(userTemplateDir, 'prompts');
+    const filePath = path.join(promptTemplateDir, `${id}.json`);
+    
+    try {
+      await fs.unlink(filePath);
+      logger.info(`TemplateService: Prompt template deleted: ${id}`);
+    } catch (error) {
+      logger.warn(`TemplateService: Could not delete prompt template file ${id}:`, error);
+    }
+
+    return true;
+  }
+
+  /**
+   * Apply prompt template parameters to generate context
+   */
+  async applyPromptTemplate(template: PromptTemplate, parameters: TemplateParameters): Promise<string> {
+    let context = template.contextTemplate;
+
+    // Replace parameter placeholders
+    for (const param of template.parameters) {
+      const value = parameters[param.name];
+      if (value !== undefined) {
+        const formattedValue = this.formatParameterValue(value, param.type);
+        // Use more specific placeholder patterns for prompts
+        context = context.replace(
+          new RegExp(`\\{\\{${param.name}\\}\\}`, 'g'), 
+          formattedValue
+        );
+      } else if (param.required) {
+        throw new Error(`Required parameter '${param.name}' not provided`);
+      }
+    }
+
+    return context;
+  }
+
+  /**
+   * Validate prompt template structure
+   */
+  validatePromptTemplate(template: PromptTemplate): void {
+    if (!template.id || typeof template.id !== 'string') {
+      throw new Error('Prompt template must have a valid ID');
+    }
+
+    if (!template.name || typeof template.name !== 'string') {
+      throw new Error('Prompt template must have a valid name');
+    }
+
+    if (!template.description || typeof template.description !== 'string') {
+      throw new Error('Prompt template must have a valid description');
+    }
+
+    if (!template.category || typeof template.category !== 'string') {
+      throw new Error('Prompt template must have a valid category');
+    }
+
+    if (!template.contextTemplate || typeof template.contextTemplate !== 'string') {
+      throw new Error('Prompt template must have a valid context template');
+    }
+
+    if (!Array.isArray(template.parameters)) {
+      throw new Error('Prompt template must have a parameters array');
+    }
+
+    // Validate parameters
+    for (const param of template.parameters) {
+      if (!param.name || typeof param.name !== 'string') {
+        throw new Error('Parameter must have a valid name');
+      }
+
+      if (!['string', 'number', 'datetime', 'timespan'].includes(param.type)) {
+        throw new Error(`Parameter type must be one of: string, number, datetime, timespan`);
+      }
+
+      if (typeof param.required !== 'boolean') {
+        throw new Error('Parameter required field must be boolean');
+      }
+    }
+
+    if (!template.metadata || typeof template.metadata !== 'object') {
+      throw new Error('Prompt template must have metadata');
     }
   }
 }

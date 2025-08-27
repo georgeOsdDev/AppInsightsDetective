@@ -64,7 +64,7 @@ export class OpenAIProvider implements IAIProvider {
     try {
       logger.debug('Generating KQL query with OpenAI...');
 
-      const systemPrompt = buildSystemPrompt(request.schema);
+      const systemPrompt = buildSystemPrompt(request.dataSourceType, request.schema, request.extraContext);
       const userPrompt = `Convert this natural language query to KQL: "${request.userInput}"`;
 
       const response = await this.openAIClient.chat.completions.create({
@@ -153,7 +153,7 @@ export class OpenAIProvider implements IAIProvider {
     try {
       logger.debug(`Regenerating KQL query (attempt ${request.context.attemptNumber}) with OpenAI...`);
 
-      const systemPrompt = buildSystemPrompt(request.schema);
+      const systemPrompt = buildSystemPrompt(request.dataSourceType, request.schema, request.extraContext);
       const userPrompt = buildRegenerationPrompt(
         request.userInput,
         request.context.previousQuery,
