@@ -222,8 +222,21 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
         type: col.type
       }));
 
-      // KustoResultTable has rows() method to access row data
-      const rows = primaryResult.rows() || [];
+      // KustoResultTable has rows() method that returns a generator of KustoResultRow objects
+      // Convert generator to array and extract values from each row
+      const rows: unknown[][] = [];
+      const rowGenerator = primaryResult.rows();
+      if (rowGenerator) {
+        for (const row of rowGenerator) {
+          // Convert KustoResultRow to plain array of values
+          // Each row has column values accessible by column names or via ordinal access
+          const rowValues: unknown[] = [];
+          for (let i = 0; i < columns.length; i++) {
+            rowValues.push(row.getValueAt(i));
+          }
+          rows.push(rowValues);
+        }
+      }
 
       logger.debug(`Transformed ADX response: ${rows.length} rows, ${columns.length} columns`);
 

@@ -42,6 +42,21 @@ describe('AzureDataExplorerProvider', () => {
     getOpenAIToken: jest.fn().mockResolvedValue('mock-openai-token')
   };
 
+  // Helper function to create mock KustoResultRow objects
+  const createMockRow = (values: unknown[]) => ({
+    getValueAt: jest.fn().mockImplementation((index: number) => values[index])
+  });
+
+  // Helper function to create mock rows generator
+  const createMockRowsGenerator = (rowData: unknown[][]) => {
+    const mockRows = rowData.map(createMockRow);
+    return function* () {
+      for (const row of mockRows) {
+        yield row;
+      }
+    };
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -83,10 +98,10 @@ describe('AzureDataExplorerProvider', () => {
             { name: 'State', type: 'string' },
             { name: 'EventCount', type: 'long' }
           ],
-          rows: () => [
+          rows: createMockRowsGenerator([
             ['CALIFORNIA', 100],
             ['TEXAS', 75]
-          ]
+          ])
         }]
       };
 
@@ -159,7 +174,7 @@ describe('AzureDataExplorerProvider', () => {
       const mockResponse = {
         primaryResults: [{
           columns: [{ name: 'BuildVersion', type: 'string' }],
-          rows: () => [['1.0.0']]
+          rows: createMockRowsGenerator([['1.0.0']])
         }]
       };
 
@@ -191,7 +206,7 @@ describe('AzureDataExplorerProvider', () => {
       const mockTablesResponse = {
         primaryResults: [{
           columns: [{ name: 'TableName', type: 'string' }],
-          rows: () => [['StormEvents'], ['PopulationData']]
+          rows: createMockRowsGenerator([['StormEvents'], ['PopulationData']])
         }]
       };
 
@@ -202,12 +217,12 @@ describe('AzureDataExplorerProvider', () => {
             { name: 'ColumnName', type: 'string' },
             { name: 'ColumnType', type: 'string' }
           ],
-          rows: () => [
+          rows: createMockRowsGenerator([
             ['StormEvents', 'State', 'string'],
             ['StormEvents', 'EventType', 'string'],
             ['PopulationData', 'State', 'string'],
             ['PopulationData', 'Population', 'long']
-          ]
+          ])
         }]
       };
 
@@ -249,14 +264,14 @@ describe('AzureDataExplorerProvider', () => {
       const mockVersionResponse = {
         primaryResults: [{
           columns: [{ name: 'BuildVersion', type: 'string' }],
-          rows: () => [['1.0.0']]
+          rows: createMockRowsGenerator([['1.0.0']])
         }]
       };
 
       const mockDatabaseResponse = {
         primaryResults: [{
           columns: [{ name: 'DatabaseName', type: 'string' }],
-          rows: () => [['Samples']]
+          rows: createMockRowsGenerator([['Samples']])
         }]
       };
 
