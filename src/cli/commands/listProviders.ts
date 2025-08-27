@@ -19,6 +19,7 @@ export function createListProvidersCommand(): Command {
         const { OllamaProvider } = await import('../../providers/ai/OllamaProvider');
         const { ApplicationInsightsProvider } = await import('../../providers/datasource/ApplicationInsightsProvider');
         const { LogAnalyticsProvider } = await import('../../providers/datasource/LogAnalyticsProvider');
+        const { AzureDataExplorerProvider } = await import('../../providers/datasource/AzureDataExplorerProvider');
         const { AzureManagedIdentityProvider } = await import('../../providers/auth/AzureManagedIdentityProvider');
 
         const providerFactory = new ProviderFactory();
@@ -29,6 +30,7 @@ export function createListProvidersCommand(): Command {
         providerFactory.registerAIProvider('ollama', OllamaProvider);
         providerFactory.registerDataSourceProvider('application-insights', ApplicationInsightsProvider);
         providerFactory.registerDataSourceProvider('log-analytics', LogAnalyticsProvider);
+        providerFactory.registerDataSourceProvider('azure-data-explorer', AzureDataExplorerProvider);
         providerFactory.registerAuthProvider('azure-managed-identity', AzureManagedIdentityProvider);
 
         // Get available providers

@@ -53,6 +53,8 @@ export class ProviderConfigValidator {
         return this.validateApplicationInsightsConfig(config);
       case 'log-analytics':
         return this.validateLogAnalyticsConfig(config);
+      case 'azure-data-explorer':
+        return this.validateAzureDataExplorerConfig(config);
       case 'azure-metrics':
         result.errors.push('Azure Metrics provider not yet implemented');
         result.isValid = false;
@@ -211,6 +213,42 @@ export class ProviderConfigValidator {
     // Application ID not used for Log Analytics
     if (config.applicationId) {
       result.warnings.push('Application ID not used for Log Analytics provider, will be ignored');
+    }
+
+    return result;
+  }
+
+  /**
+   * Validate Azure Data Explorer configuration
+   */
+  private static validateAzureDataExplorerConfig(config: DataSourceConfig): ValidationResult {
+    const result: ValidationResult = { isValid: true, errors: [], warnings: [] };
+
+    if (!config.clusterUri) {
+      result.errors.push('Azure Data Explorer cluster URI is required');
+      result.isValid = false;
+    } else if (!this.isValidUrl(config.clusterUri)) {
+      result.errors.push('Azure Data Explorer cluster URI must be a valid URL');
+      result.isValid = false;
+    }
+
+    if (!config.database) {
+      result.errors.push('Azure Data Explorer database name is required');
+      result.isValid = false;
+    }
+
+    // Warn about unused fields
+    if (config.applicationId) {
+      result.warnings.push('Application ID not used for Azure Data Explorer provider, will be ignored');
+    }
+    if (config.subscriptionId) {
+      result.warnings.push('Subscription ID not used for Azure Data Explorer provider, will be ignored');
+    }
+    if (config.resourceGroup) {
+      result.warnings.push('Resource Group not used for Azure Data Explorer provider, will be ignored');
+    }
+    if (config.resourceName) {
+      result.warnings.push('Resource Name not used for Azure Data Explorer provider, will be ignored');
     }
 
     return result;

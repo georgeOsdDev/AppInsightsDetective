@@ -172,12 +172,36 @@ async function configureOpenAI(): Promise<any> {
       message: 'Enter OpenAI endpoint:',
       default: 'https://api.openai.com/v1',
     },
+    {
+      type: 'list',
+      name: 'model',
+      message: 'Select OpenAI model:',
+      choices: [
+        { name: 'GPT-5 (Latest Model)', value: 'gpt-5' },
+        { name: 'GPT-5 Mini (Fast GPT-5)', value: 'gpt-5-mini' },
+        { name: 'GPT-5 Nano (Ultra Fast GPT-5)', value: 'gpt-5-nano' },
+        { name: 'GPT-OSS 120B (Open Source 120B)', value: 'gpt-oss-120b' },
+        { name: 'GPT-OSS 20B (Open Source 20B)', value: 'gpt-oss-20b' },
+        { name: 'o1-preview (Latest Reasoning Model)', value: 'o1-preview' },
+        { name: 'o1-mini (Fast Reasoning Model)', value: 'o1-mini' },
+        { name: 'GPT-4o (2024-11-20) - Latest', value: 'gpt-4o-2024-11-20' },
+        { name: 'GPT-4o (2024-08-06)', value: 'gpt-4o-2024-08-06' },
+        { name: 'GPT-4o', value: 'gpt-4o' },
+        { name: 'GPT-4o Mini (Fast & Cost-effective)', value: 'gpt-4o-mini' },
+        { name: 'GPT-4.1 (Enhanced GPT-4)', value: 'gpt-4.1' },
+        { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+        { name: 'GPT-4', value: 'gpt-4' },
+        { name: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+      ],
+      default: 'gpt-4o-mini',
+    },
   ]);
 
   return {
     type: 'openai',
     endpoint: answers.endpoint,
     apiKey: answers.apiKey,
+    model: answers.model,
   };
 }
 
@@ -231,6 +255,7 @@ async function chooseDataSourceProvider(): Promise<string> {
       choices: [
         { name: '📊 Application Insights (Recommended)', value: 'application-insights' },
         { name: '📈 Log Analytics', value: 'log-analytics' },
+        { name: '🔍 Azure Data Explorer', value: 'azure-data-explorer' },
       ],
     },
   ]);
@@ -247,6 +272,8 @@ async function configureDataSourceProvider(provider: string): Promise<any> {
       return await configureApplicationInsights();
     case 'log-analytics':
       return await configureLogAnalytics();
+    case 'azure-data-explorer':
+      return await configureAzureDataExplorer();
     default:
       throw new Error(`Unsupported data source provider: ${provider}`);
   }
@@ -316,6 +343,78 @@ async function configureLogAnalytics(): Promise<any> {
     tenantId: answers.tenantId,
     endpoint: answers.endpoint,
   };
+}
+
+/**
+ * Configure Azure Data Explorer
+ */
+async function configureAzureDataExplorer(): Promise<any> {
+  const { clusterType } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'clusterType',
+      message: 'Choose your Azure Data Explorer cluster type:',
+      choices: [
+        { name: '🌐 Microsoft Help Cluster (Sample data)', value: 'help' },
+        { name: '🔐 Private Enterprise Cluster', value: 'private' },
+      ],
+    },
+  ]);
+
+  if (clusterType === 'help') {
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'clusterUri',
+        message: 'Enter cluster URI:',
+        default: 'https://help.kusto.windows.net',
+        validate: (input) => input.trim() !== '' || 'Cluster URI is required',
+      },
+      {
+        type: 'input',
+        name: 'database',
+        message: 'Enter database name:',
+        default: 'Samples',
+        validate: (input) => input.trim() !== '' || 'Database name is required',
+      },
+    ]);
+
+    return {
+      type: 'azure-data-explorer',
+      clusterUri: answers.clusterUri,
+      database: answers.database,
+      requiresAuthentication: true, // All clusters require Azure AD authentication
+    };
+  } else {
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'clusterUri',
+        message: 'Enter your Azure Data Explorer cluster URI:',
+        validate: (input) => input.trim() !== '' || 'Cluster URI is required',
+      },
+      {
+        type: 'input',
+        name: 'database',
+        message: 'Enter database name:',
+        validate: (input) => input.trim() !== '' || 'Database name is required',
+      },
+      {
+        type: 'input',
+        name: 'tenantId',
+        message: 'Enter your Azure Tenant ID:',
+        validate: (input) => input.trim() !== '' || 'Tenant ID is required',
+      },
+    ]);
+
+    return {
+      type: 'azure-data-explorer',
+      clusterUri: answers.clusterUri,
+      database: answers.database,
+      tenantId: answers.tenantId,
+      requiresAuthentication: true,
+    };
+  }
 }
 
 /**

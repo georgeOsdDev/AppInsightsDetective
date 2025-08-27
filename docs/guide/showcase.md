@@ -768,6 +768,92 @@ aidx template use executive-summary \
 
 ### Community and Sharing
 
+
+## Azure Data Explorer (ADX) Analysis
+
+### Getting Started with Microsoft Help Cluster
+
+**Scenario**: Learning KQL and exploring sample datasets using Microsoft's public help cluster.
+
+```bash
+# Configure for help cluster (no authentication needed)
+aidx setup
+# Select: Azure Data Explorer -> Public cluster -> help.kusto.windows.net
+
+# Explore weather data
+aidx "show me the top 10 states by number of storm events"
+
+# Analyze storm patterns
+aidx "what are the most common types of weather events"
+
+# Look at seasonal trends
+aidx "show storm events by month for Texas"
+
+# Population analysis
+aidx "which states have the highest population growth"
+```
+
+**Generated KQL Examples**:
+```kql
+-- Top states by storm events
+StormEvents
+| summarize EventCount = count() by State
+| order by EventCount desc
+| take 10
+
+-- Weather event types analysis
+StormEvents
+| summarize EventCount = count() by EventType
+| order by EventCount desc
+
+-- Seasonal patterns for Texas
+StormEvents
+| where State == "TEXAS"
+| extend Month = format_datetime(StartTime, "yyyy-MM")
+| summarize EventCount = count() by Month, EventType
+| render columnchart
+
+-- Population trends
+PopulationData
+| where Year >= 2000 and Year <= 2020
+| summarize TotalPopulation = sum(Population) by State
+| order by TotalPopulation desc
+| take 15
+```
+
+### Custom ADX Cluster Analysis
+
+**Scenario**: Analyzing your own business data in Azure Data Explorer.
+
+```bash
+# Configure your cluster
+aidx setup
+# Select: Azure Data Explorer -> Private cluster -> your-cluster.region.kusto.windows.net
+
+# Business metrics analysis
+aidx "show me daily revenue trends for the last month"
+
+# User behavior analysis  
+aidx "what are the most popular features used by our customers"
+
+# Performance monitoring
+aidx "show me error rates by service over time"
+
+# Export for reporting
+aidx "monthly summary report" --format json --output monthly-report.json
+```
+
+**Benefits of ADX with AppInsights Detective**:
+- **Large Dataset Analysis**: Handle massive amounts of data efficiently
+- **Real-time Analytics**: Query streaming data with low latency
+- **Cost-Effective**: Pay only for compute used during queries
+- **Schema Flexibility**: Work with diverse data structures
+- **Advanced Analytics**: Leverage Kusto's powerful analytical functions
+
+## Best Practices & Tips
+
+### General Guidelines
+
 - **Template Libraries**: Share successful patterns with the community
 - **Query Collections**: Contribute domain-specific query examples
 - **Best Practices**: Document effective investigation methodologies

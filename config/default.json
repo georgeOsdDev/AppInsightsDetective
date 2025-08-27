@@ -26,6 +26,12 @@
         "workspaceId": "test-workspace",
         "tenantId": "test-tenant",
         "endpoint": "https://api.loganalytics.io/v1/workspaces"
+      },
+      "azure-data-explorer": {
+        "type": "azure-data-explorer",
+        "clusterUri": "https://help.kusto.windows.net",
+        "database": "Samples",
+        "requiresAuthentication": false
       }
     },
     "auth": {

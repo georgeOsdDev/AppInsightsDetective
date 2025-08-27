@@ -8,7 +8,11 @@ Before you begin, ensure you have:
 
 ### Required Azure Resources
 
+Choose one or more data sources:
+
 - **Azure Application Insights** resource with data to query
+- **Azure Data Explorer (ADX)** cluster with accessible databases
+- **Azure Log Analytics** workspace with data to query
 - **AI Provider** (choose one):
   - **Azure OpenAI** resource with a deployed model (GPT-4 recommended)
   - **OpenAI API** account with API key  
@@ -19,7 +23,9 @@ Before you begin, ensure you have:
 
 Your user account or managed identity needs the following permissions:
 
-- **Application Insights Reader** role on your Application Insights resource
+- **Application Insights Reader** role on your Application Insights resource (if using Application Insights)
+- **Azure Data Explorer Database User** role on your ADX database (if using Azure Data Explorer)
+- **Log Analytics Reader** role on your Log Analytics workspace (if using Log Analytics)
 - **Azure Resource Graph Reader** role for automatic resource discovery
 - **Subscription Reader** role for cross-subscription resource discovery
 
@@ -29,6 +35,8 @@ For cloud AI providers:
 
 For local LLM:
 - **Ollama installed and running** locally (no cloud permissions needed)
+
+> **Note**: For public ADX clusters like Microsoft's help cluster (`https://help.kusto.windows.net`), no authentication is required.
 
 ### System Requirements
 
@@ -141,6 +149,18 @@ Create a configuration file at `~/.aidx/config.json`:
         "type": "application-insights",
         "applicationId": "your-application-insights-app-id",
         "tenantId": "your-azure-tenant-id"
+      },
+      "azure-data-explorer": {
+        "type": "azure-data-explorer",
+        "clusterUri": "https://your-cluster.region.kusto.windows.net",
+        "database": "YourDatabase",
+        "requiresAuthentication": true
+      },
+      "azure-data-explorer-public": {
+        "type": "azure-data-explorer",
+        "clusterUri": "https://help.kusto.windows.net",
+        "database": "Samples",
+        "requiresAuthentication": false
       }
     },
     "auth": {
@@ -221,6 +241,59 @@ For direct OpenAI API access:
 3. **Set Permissions**:
    - Assign "Reader" role on the Application Insights resource
    - Assign "Reader" role on the subscription (for resource discovery)
+
+### Azure Data Explorer Setup
+
+#### Option 1: Using Microsoft Help Cluster (No Setup Required)
+
+The easiest way to get started is with Microsoft's public help cluster:
+
+```json
+{
+  "dataSources": {
+    "default": "azure-data-explorer",
+    "azure-data-explorer": {
+      "type": "azure-data-explorer",
+      "clusterUri": "https://help.kusto.windows.net",
+      "database": "Samples",
+      "requiresAuthentication": false
+    }
+  }
+}
+```
+
+**Sample queries you can try:**
+- `"Show me the top 10 states by storm events"`
+- `"What are the different types of weather events?"`
+- `"Show me population data for California"`
+
+#### Option 2: Using Your Own ADX Cluster
+
+1. **Get Cluster URI**:
+   - Navigate to your Azure Data Explorer cluster in Azure Portal
+   - Copy the URI (e.g., `https://your-cluster.region.kusto.windows.net`)
+
+2. **Choose Database**:
+   - Select the database you want to query
+
+3. **Set Permissions**:
+   - Assign "Database User" role on the ADX database
+   - Or "Database Viewer" for read-only access
+
+4. **Configure**:
+```json
+{
+  "dataSources": {
+    "default": "azure-data-explorer", 
+    "azure-data-explorer": {
+      "type": "azure-data-explorer",
+      "clusterUri": "https://your-cluster.region.kusto.windows.net",
+      "database": "YourDatabase",
+      "requiresAuthentication": true
+    }
+  }
+}
+```
 
 ### Authentication Configuration
 
