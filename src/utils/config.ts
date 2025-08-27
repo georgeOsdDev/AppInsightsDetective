@@ -175,8 +175,24 @@ export class ConfigManager {
 
     // Validate default data source provider configuration
     const defaultDataSource = providers.dataSources[providers.dataSources.default];
-    if (!defaultDataSource || !defaultDataSource.applicationId || !defaultDataSource.tenantId) {
+    if (!defaultDataSource || !defaultDataSource.tenantId) {
       logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete`);
+      return false;
+    }
+
+    // Check for required fields based on data source type
+    if (defaultDataSource.type === 'application-insights') {
+      if (!defaultDataSource.applicationId) {
+        logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete`);
+        return false;
+      }
+    } else if (defaultDataSource.type === 'log-analytics') {
+      if (!defaultDataSource.workspaceId) {
+        logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete`);
+        return false;
+      }
+    } else {
+      logger.error(`Unknown data source provider type: '${defaultDataSource.type}'`);
       return false;
     }
 

@@ -228,6 +228,84 @@ describe('ConfigManager', () => {
       expect(configManager.validateConfig()).toBe(false);
     });
 
+    it('should return true for valid Log Analytics config', () => {
+      const mockConfig = {
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {
+              type: 'azure-managed-identity',
+              tenantId: 'test-tenant-id'
+            }
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              type: 'azure-openai',
+              endpoint: 'https://test.openai.azure.com/',
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'log-analytics',
+            'log-analytics': {
+              type: 'log-analytics',
+              workspaceId: 'test-workspace-id',
+              endpoint: 'https://api.loganalytics.io/v1/workspaces',
+              tenantId: 'test-tenant-id'
+            }
+          }
+        },
+        logLevel: 'info' as const
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(JSON.stringify(mockConfig));
+
+      const configManager = new ConfigManager();
+
+      expect(configManager.validateConfig()).toBe(true);
+    });
+
+    it('should return false for invalid Log Analytics config', () => {
+      const mockConfig = {
+        providers: {
+          auth: {
+            default: 'azure-managed-identity',
+            'azure-managed-identity': {
+              type: 'azure-managed-identity',
+              tenantId: 'test-tenant-id'
+            }
+          },
+          ai: {
+            default: 'azure-openai',
+            'azure-openai': {
+              type: 'azure-openai',
+              endpoint: 'https://test.openai.azure.com/',
+              deploymentName: 'gpt-4'
+            }
+          },
+          dataSources: {
+            default: 'log-analytics',
+            'log-analytics': {
+              type: 'log-analytics',
+              workspaceId: '',  // Invalid empty workspaceId
+              endpoint: 'https://api.loganalytics.io/v1/workspaces',
+              tenantId: 'test-tenant-id'
+            }
+          }
+        },
+        logLevel: 'info' as const
+      };
+
+      mockFs.existsSync.mockReturnValue(true);
+      mockFs.readFileSync.mockReturnValue(JSON.stringify(mockConfig));
+
+      const configManager = new ConfigManager();
+
+      expect(configManager.validateConfig()).toBe(false);
+    });
+
     it('should return false for invalid OpenAI config', () => {
       const mockConfig = {
         providers: {
