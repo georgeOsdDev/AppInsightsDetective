@@ -14,7 +14,8 @@ jest.mock('azure-kusto-data', () => ({
     withAccessToken: jest.fn().mockReturnValue('mock-connection-string-with-token'),
     withTokenCredential: jest.fn().mockReturnValue('mock-connection-string-with-credential'),
     withAadManagedIdentity: jest.fn().mockReturnValue('mock-connection-string-managed-identity'),
-    withSystemManagedIdentity: jest.fn().mockReturnValue('mock-connection-string-system-managed-identity')
+    withSystemManagedIdentity: jest.fn().mockReturnValue('mock-connection-string-system-managed-identity'),
+    withAzLoginIdentity: jest.fn().mockReturnValue('mock-connection-string-azlogin-identity')
   },
   ClientRequestProperties: jest.fn().mockImplementation(() => ({
     setOption: mockSetOption
@@ -316,6 +317,146 @@ describe('AzureDataExplorerProvider', () => {
     it('should handle authenticated cluster without auth provider (uses managed identity)', () => {
       const authConfig = { ...mockConfig, requiresAuthentication: true };
       expect(() => new AzureDataExplorerProvider(authConfig)).not.toThrow();
+    });
+  });
+
+  describe('Azure CLI credential fallback', () => {
+    let provider: AzureDataExplorerProvider;
+    const mockKustoConnectionStringBuilder = jest.requireMock('azure-kusto-data').KustoConnectionStringBuilder;
+
+    beforeEach(() => {
+      // Create provider without auth provider to test fallback chain
+      provider = new AzureDataExplorerProvider(mockConfig);
+      jest.clearAllMocks();
+    });
+
+    it('should use DefaultAzureCredential when available', async () => {
+      // Mock successful DefaultAzureCredential
+      mockKustoConnectionStringBuilder.withTokenCredential.mockReturnValueOnce('mock-connection-string-with-credential');
+
+      const request: QueryExecutionRequest = {
+        query: '.show version'
+      };
+
+      const mockResponse = {
+        primaryResults: [{
+          columns: [{ name: 'BuildVersion', type: 'string' }],
+          rows: createMockRowsGenerator([['1.0.0']])
+        }]
+      };
+
+      mockExecute.mockResolvedValueOnce(mockResponse);
+
+      await provider.executeQuery(request);
+
+      // Verify DefaultAzureCredential was used first
+      expect(mockKustoConnectionStringBuilder.withTokenCredential).toHaveBeenCalledWith(
+        'https://help.kusto.windows.net',
+        expect.any(Object)
+      );
+      expect(mockKustoConnectionStringBuilder.withAzLoginIdentity).not.toHaveBeenCalled();
+      expect(mockKustoConnectionStringBuilder.withSystemManagedIdentity).not.toHaveBeenCalled();
+    });
+
+    it('should fallback to Azure CLI credential when DefaultAzureCredential fails', async () => {
+      // Mock DefaultAzureCredential failure and successful Azure CLI credential
+      mockKustoConnectionStringBuilder.withTokenCredential.mockImplementationOnce(() => {
+        throw new Error('DefaultAzureCredential failed');
+      });
+      mockKustoConnectionStringBuilder.withAzLoginIdentity.mockReturnValueOnce('mock-connection-string-azlogin-identity');
+
+      const request: QueryExecutionRequest = {
+        query: '.show version'
+      };
+
+      const mockResponse = {
+        primaryResults: [{
+          columns: [{ name: 'BuildVersion', type: 'string' }],
+          rows: createMockRowsGenerator([['1.0.0']])
+        }]
+      };
+
+      mockExecute.mockResolvedValueOnce(mockResponse);
+
+      await provider.executeQuery(request);
+
+      // Verify fallback chain was followed
+      expect(mockKustoConnectionStringBuilder.withTokenCredential).toHaveBeenCalledWith(
+        'https://help.kusto.windows.net',
+        expect.any(Object)
+      );
+      expect(mockKustoConnectionStringBuilder.withAzLoginIdentity).toHaveBeenCalledWith(
+        'https://help.kusto.windows.net'
+      );
+      expect(mockKustoConnectionStringBuilder.withSystemManagedIdentity).not.toHaveBeenCalled();
+    });
+
+    it('should fallback to system managed identity when both DefaultAzureCredential and Azure CLI credential fail', async () => {
+      // Mock both DefaultAzureCredential and Azure CLI credential failures
+      mockKustoConnectionStringBuilder.withTokenCredential.mockImplementationOnce(() => {
+        throw new Error('DefaultAzureCredential failed');
+      });
+      mockKustoConnectionStringBuilder.withAzLoginIdentity.mockImplementationOnce(() => {
+        throw new Error('Azure CLI credential failed');
+      });
+      mockKustoConnectionStringBuilder.withSystemManagedIdentity.mockReturnValueOnce('mock-connection-string-system-managed-identity');
+
+      const request: QueryExecutionRequest = {
+        query: '.show version'
+      };
+
+      const mockResponse = {
+        primaryResults: [{
+          columns: [{ name: 'BuildVersion', type: 'string' }],
+          rows: createMockRowsGenerator([['1.0.0']])
+        }]
+      };
+
+      mockExecute.mockResolvedValueOnce(mockResponse);
+
+      await provider.executeQuery(request);
+
+      // Verify complete fallback chain was followed
+      expect(mockKustoConnectionStringBuilder.withTokenCredential).toHaveBeenCalledWith(
+        'https://help.kusto.windows.net',
+        expect.any(Object)
+      );
+      expect(mockKustoConnectionStringBuilder.withAzLoginIdentity).toHaveBeenCalledWith(
+        'https://help.kusto.windows.net'
+      );
+      expect(mockKustoConnectionStringBuilder.withSystemManagedIdentity).toHaveBeenCalledWith(
+        'https://help.kusto.windows.net'
+      );
+    });
+
+    it('should use access token when auth provider is provided', async () => {
+      // Create provider with auth provider
+      const providerWithAuth = new AzureDataExplorerProvider(mockConfig, mockAuthProvider);
+
+      const request: QueryExecutionRequest = {
+        query: '.show version'
+      };
+
+      const mockResponse = {
+        primaryResults: [{
+          columns: [{ name: 'BuildVersion', type: 'string' }],
+          rows: createMockRowsGenerator([['1.0.0']])
+        }]
+      };
+
+      mockExecute.mockResolvedValueOnce(mockResponse);
+
+      await providerWithAuth.executeQuery(request);
+
+      // Verify auth provider token was used, no fallback needed
+      expect(mockAuthProvider.getAccessToken).toHaveBeenCalledWith(['https://help.kusto.windows.net/.default']);
+      expect(mockKustoConnectionStringBuilder.withAccessToken).toHaveBeenCalledWith(
+        'https://help.kusto.windows.net',
+        'mock-auth-token'
+      );
+      expect(mockKustoConnectionStringBuilder.withTokenCredential).not.toHaveBeenCalled();
+      expect(mockKustoConnectionStringBuilder.withAzLoginIdentity).not.toHaveBeenCalled();
+      expect(mockKustoConnectionStringBuilder.withSystemManagedIdentity).not.toHaveBeenCalled();
     });
   });
 });

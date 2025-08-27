@@ -64,9 +64,15 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
           // Use withTokenCredential for proper Azure AD integration
           connectionStringBuilder = this.KustoConnectionStringBuilder.withTokenCredential(this.clusterUri, credential);
         } catch (authError) {
-          // If no credentials available, try system managed identity as fallback
-          logger.debug('DefaultAzureCredential failed, trying system managed identity:', authError);
-          connectionStringBuilder = this.KustoConnectionStringBuilder.withSystemManagedIdentity(this.clusterUri);
+          logger.debug('DefaultAzureCredential failed, trying Azure CLI credential:', authError);
+          try {
+            // Try Azure CLI credential as fallback
+            connectionStringBuilder = this.KustoConnectionStringBuilder.withAzLoginIdentity(this.clusterUri);
+          } catch (azCliError) {
+            // If Azure CLI credential also fails, try system managed identity as final fallback
+            logger.debug('Azure CLI credential failed, trying system managed identity:', azCliError);
+            connectionStringBuilder = this.KustoConnectionStringBuilder.withSystemManagedIdentity(this.clusterUri);
+          }
         }
       }
 
