@@ -68,7 +68,7 @@ export class OpenAIProvider implements IAIProvider {
       const userPrompt = `Convert this natural language query to KQL: "${request.userInput}"`;
 
       const response = await this.openAIClient.chat.completions.create({
-        model: this.config.model || 'gpt-4',
+        model: this.config.model || 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -124,7 +124,7 @@ export class OpenAIProvider implements IAIProvider {
       const userPrompt = `Please explain this KQL query:\n\n${request.query}`;
 
       const response = await this.openAIClient.chat.completions.create({
-        model: this.config.model || 'gpt-4',
+        model: this.config.model || 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -161,7 +161,7 @@ export class OpenAIProvider implements IAIProvider {
       );
 
       const response = await this.openAIClient.chat.completions.create({
-        model: this.config.model || 'gpt-4',
+        model: this.config.model || 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -207,7 +207,7 @@ export class OpenAIProvider implements IAIProvider {
 
     try {
       const response = await this.openAIClient.chat.completions.create({
-        model: this.config.model || 'gpt-4',
+        model: this.config.model || 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 2000,
