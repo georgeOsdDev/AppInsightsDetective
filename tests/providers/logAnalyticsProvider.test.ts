@@ -144,6 +144,48 @@ describe('LogAnalyticsProvider', () => {
 
       await expect(logAnalyticsProvider.executeQuery(request)).rejects.toThrow('Log Analytics query execution failed');
     });
+
+    it('should execute query successfully with actual Log Analytics API format (capital Table)', async () => {
+      // This test uses the actual Log Analytics API response format with capital "Table"
+      const mockResponse = {
+        data: {
+          Table: [{
+            name: 'PrimaryResult',
+            columns: [
+              { name: 'TimeGenerated', type: 'datetime' },
+              { name: 'Count', type: 'int' }
+            ],
+            rows: [
+              ['2023-01-01T00:00:00Z', 100],
+              ['2023-01-01T01:00:00Z', 150]
+            ]
+          }]
+        }
+      };
+
+      mockAxiosInstance.post.mockResolvedValue(mockResponse);
+
+      const request: QueryExecutionRequest = {
+        query: 'Heartbeat | summarize count() by bin(TimeGenerated, 1h)',
+        timespan: 'PT24H'
+      };
+
+      const result = await logAnalyticsProvider.executeQuery(request);
+
+      expect(result).toEqual({
+        tables: [{
+          name: 'PrimaryResult',
+          columns: [
+            { name: 'TimeGenerated', type: 'datetime' },
+            { name: 'Count', type: 'long' }
+          ],
+          rows: [
+            ['2023-01-01T00:00:00Z', 100],
+            ['2023-01-01T01:00:00Z', 150]
+          ]
+        }]
+      });
+    });
   });
 
   describe('validateConnection', () => {
