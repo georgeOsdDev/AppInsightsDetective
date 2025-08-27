@@ -2,6 +2,7 @@ import { ServiceContainer } from '../infrastructure/di/ServiceContainer';
 import { ProviderFactory } from '../infrastructure/di/ProviderFactory';
 import { AzureOpenAIProvider } from '../providers/ai/AzureOpenAIProvider';
 import { OpenAIProvider } from '../providers/ai/OpenAIProvider';
+import { OllamaProvider } from '../providers/ai/OllamaProvider';
 import { ApplicationInsightsProvider } from '../providers/datasource/ApplicationInsightsProvider';
 import { LogAnalyticsProvider } from '../providers/datasource/LogAnalyticsProvider';
 import { AzureDataExplorerProvider } from '../providers/datasource/AzureDataExplorerProvider';
@@ -47,6 +48,7 @@ export class Bootstrap {
     // Phase 5: Register AI providers
     this.providerFactory.registerAIProvider('azure-openai', AzureOpenAIProvider);
     this.providerFactory.registerAIProvider('openai', OpenAIProvider);
+    this.providerFactory.registerAIProvider('ollama', OllamaProvider);
     
     // Phase 5: Register data source providers
     this.providerFactory.registerDataSourceProvider('application-insights', ApplicationInsightsProvider);

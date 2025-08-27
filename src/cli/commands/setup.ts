@@ -99,6 +99,7 @@ async function chooseAIProvider(): Promise<string> {
       choices: [
         { name: '🔷 Azure OpenAI (Recommended)', value: 'azure-openai' },
         { name: '🟢 OpenAI', value: 'openai' },
+        { name: '🏠 Ollama (Local LLM)', value: 'ollama' },
       ],
     },
   ]);
@@ -115,6 +116,8 @@ async function configureAIProvider(provider: string): Promise<any> {
       return await configureAzureOpenAI();
     case 'openai':
       return await configureOpenAI();
+    case 'ollama':
+      return await configureOllama();
     default:
       throw new Error(`Unsupported AI provider: ${provider}`);
   }
@@ -199,6 +202,44 @@ async function configureOpenAI(): Promise<any> {
     endpoint: answers.endpoint,
     apiKey: answers.apiKey,
     model: answers.model,
+  };
+}
+
+/**
+ * Configure Ollama
+ */
+async function configureOllama(): Promise<any> {
+  const answers = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'endpoint',
+      message: 'Enter your Ollama endpoint:',
+      default: 'http://localhost:11434/v1',
+      validate: (input) => {
+        const trimmedInput = input.trim();
+        if (trimmedInput === '') return 'Ollama endpoint is required';
+        try {
+          new URL(trimmedInput);
+          return true;
+        } catch {
+          return 'Please enter a valid URL';
+        }
+      },
+    },
+    {
+      type: 'input',
+      name: 'model',
+      message: 'Enter the Ollama model name:',
+      default: 'phi3:latest',
+      validate: (input) => input.trim() !== '' || 'Model name is required',
+    },
+  ]);
+
+  return {
+    type: 'ollama',
+    endpoint: answers.endpoint,
+    model: answers.model,
+    apiKey: 'ollama', // Ollama doesn't require API key, but OpenAI client needs it
   };
 }
 

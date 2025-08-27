@@ -96,6 +96,9 @@ export function createProvidersCommand(): Command {
           case 'ai:openai':
             newConfig = await configureOpenAI(currentConfig);
             break;
+          case 'ai:ollama':
+            newConfig = await configureOllama(currentConfig);
+            break;
           case 'dataSources:application-insights':
             newConfig = await configureApplicationInsights(currentConfig);
             break;
@@ -338,6 +341,40 @@ async function configureOpenAI(currentConfig: any): Promise<any> {
     endpoint: 'https://api.openai.com/v1',
     apiKey: answers.apiKey,
     model: modelAnswer.model,
+  };
+}
+
+async function configureOllama(currentConfig: any): Promise<any> {
+  const answers = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'endpoint',
+      message: 'Ollama endpoint:',
+      default: currentConfig.endpoint || 'http://localhost:11434/v1',
+      validate: (input: string) => {
+        if (!input.length) return 'Endpoint is required';
+        try {
+          new URL(input);
+          return true;
+        } catch {
+          return 'Please enter a valid URL';
+        }
+      },
+    },
+    {
+      type: 'input',
+      name: 'model',
+      message: 'Ollama model name:',
+      default: currentConfig.model || 'phi3:latest',
+      validate: (input: string) => input.length > 0 || 'Model name is required',
+    },
+  ]);
+
+  return {
+    type: 'ollama',
+    endpoint: answers.endpoint,
+    model: answers.model,
+    apiKey: 'ollama', // Placeholder, not actually used by Ollama
   };
 }
 

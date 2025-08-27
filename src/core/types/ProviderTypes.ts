@@ -1,5 +1,5 @@
 // Provider type enums
-export type AIProviderType = 'azure-openai' | 'openai' | 'anthropic';
+export type AIProviderType = 'azure-openai' | 'openai' | 'anthropic' | 'ollama';
 export type DataSourceType = 'application-insights' | 'log-analytics' | 'azure-metrics' | 'azure-data-explorer';
 export type AuthType = 'azure-managed-identity' | 'service-principal';
 export type ExternalExecutionProviderType = 'application-insights' | 'log-analytics';

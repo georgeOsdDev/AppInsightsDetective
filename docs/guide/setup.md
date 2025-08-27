@@ -13,7 +13,10 @@ Choose one or more data sources:
 - **Azure Application Insights** resource with data to query
 - **Azure Data Explorer (ADX)** cluster with accessible databases
 - **Azure Log Analytics** workspace with data to query
-- **Azure OpenAI** resource with a deployed model (GPT-4 recommended)
+- **AI Provider** (choose one):
+  - **Azure OpenAI** resource with a deployed model (GPT-4 recommended)
+  - **OpenAI API** account with API key  
+  - **Local LLM** using Ollama (for offline usage)
 - **Azure Tenant ID** for authentication and resource discovery
 
 ### Required Permissions
@@ -24,8 +27,14 @@ Your user account or managed identity needs the following permissions:
 - **Azure Data Explorer Database User** role on your ADX database (if using Azure Data Explorer)
 - **Log Analytics Reader** role on your Log Analytics workspace (if using Log Analytics)
 - **Azure Resource Graph Reader** role for automatic resource discovery
-- **Cognitive Services OpenAI User** role on your Azure OpenAI resource
 - **Subscription Reader** role for cross-subscription resource discovery
+
+For cloud AI providers:
+- **Cognitive Services OpenAI User** role on your Azure OpenAI resource (Azure OpenAI)
+- **OpenAI API access** with valid API key (OpenAI)
+
+For local LLM:
+- **Ollama installed and running** locally (no cloud permissions needed)
 
 > **Note**: For public ADX clusters like Microsoft's help cluster (`https://help.kusto.windows.net`), no authentication is required.
 
@@ -184,6 +193,41 @@ Create a configuration file at `~/.aidx/config.json`:
 3. **Set Permissions**:
    - Assign "Cognitive Services OpenAI User" role to your user account
 
+### OpenAI Setup
+
+For direct OpenAI API access:
+
+1. **Get OpenAI API Key**:
+   - Sign up at [OpenAI Platform](https://platform.openai.com)
+   - Navigate to API Keys section
+   - Create a new API key
+
+2. **Set Up Billing**:
+   - Add payment method to your OpenAI account
+   - Set usage limits to control costs
+
+3. **Configure with aidx**:
+   During setup, choose "🟢 OpenAI" and provide:
+   - **API Key**: Your OpenAI API key
+   - **Model**: gpt-4 (recommended) or gpt-3.5-turbo
+
+4. **Example Configuration**:
+   ```json
+   {
+     "providers": {
+       "ai": {
+         "default": "openai",
+         "openai": {
+           "type": "openai",
+           "endpoint": "https://api.openai.com/v1",
+           "apiKey": "${OPENAI_API_KEY}",
+           "model": "gpt-4"
+         }
+       }
+     }
+   }
+   ```
+
 ### Application Insights Setup
 
 1. **Find Application ID**:
@@ -286,6 +330,72 @@ For CI/CD or external environments:
   }
 }
 ```
+
+### Local LLM Setup (Ollama)
+
+For local AI without external dependencies, you can use Ollama:
+
+1. **Install Ollama**:
+   ```bash
+   # On macOS
+   brew install ollama
+   
+   # On Linux
+   curl -fsSL https://ollama.com/install.sh | sh
+   
+   # On Windows, download from https://ollama.com/download
+   ```
+
+2. **Pull a Model**:
+   ```bash
+   # Pull Phi-3 (recommended for KQL generation)
+   ollama pull phi3:latest
+   
+   # Or other supported models
+   ollama pull llama3.2:latest
+   ollama pull codellama:latest
+   ```
+
+3. **Start Ollama**:
+   ```bash
+   ollama serve
+   ```
+   This starts Ollama server on `http://localhost:11434`
+
+4. **Configure with aidx**:
+   During setup, choose "🏠 Ollama (Local LLM)" and provide:
+   - **Endpoint**: `http://localhost:11434/v1` (default)
+   - **Model**: `phi3:latest` (or your preferred model)
+
+5. **Example Configuration**:
+   ```json
+   {
+     "providers": {
+       "ai": {
+         "default": "ollama",
+         "ollama": {
+           "type": "ollama",
+           "endpoint": "http://localhost:11434/v1",
+           "model": "phi3:latest",
+           "apiKey": "ollama"
+         }
+       }
+     }
+   }
+   ```
+
+**Benefits of Local LLM:**
+- ✅ No external API calls or costs
+- ✅ Works completely offline
+- ✅ Data privacy (queries never leave your machine)
+- ✅ No rate limiting
+- ⚠️ Requires local compute resources
+- ⚠️ May have lower accuracy than cloud models
+
+**Recommended Models for KQL Generation:**
+- **phi3:latest** - Microsoft's small, efficient model optimized for code
+- **codellama:7b** - Meta's code-focused model
+- **llama3.2:3b** - Latest Llama model, good balance of size and performance
 
 ## Configuration Validation
 
