@@ -5,9 +5,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
-**Query Azure Application Insights with natural language using AI**
+**Query Azure Application Insights and Azure Data Explorer with natural language using AI**
 
-AppInsights Detective is an intelligent CLI tool that transforms natural language questions into KQL queries for Azure Application Insights, powered by Azure OpenAI.
+AppInsights Detective is an intelligent CLI tool that transforms natural language questions into KQL queries for Azure Application Insights and Azure Data Explorer, powered by Azure OpenAI.
 
 ![example](docs/guide/interactivemode.png)
 
@@ -20,13 +20,17 @@ AppInsights Detective is an intelligent CLI tool that transforms natural languag
 - 🕵️ **Interactive Mode** - Step-by-step query building with guided assistance
 - 📋 **Template System** - Create and reuse query templates
 - 🌐 **Azure Portal Integration** - One-click query execution in the portal
+- 🗃️ **Multiple Data Sources** - Support for Application Insights, Log Analytics, and Azure Data Explorer
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 18.0.0 or higher
-- Azure Application Insights resource
+- One or more of:
+  - Azure Application Insights resource
+  - Azure Data Explorer (ADX) cluster
+  - Azure Log Analytics workspace
 - Azure OpenAI resource
 - Appropriate Azure permissions ([see setup guide](docs/guide/setup.md#prerequisites))
 

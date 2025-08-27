@@ -1,6 +1,6 @@
 // Provider type enums
 export type AIProviderType = 'azure-openai' | 'openai' | 'anthropic';
-export type DataSourceType = 'application-insights' | 'log-analytics' | 'azure-metrics';
+export type DataSourceType = 'application-insights' | 'log-analytics' | 'azure-metrics' | 'azure-data-explorer';
 export type AuthType = 'azure-managed-identity' | 'service-principal';
 export type ExternalExecutionProviderType = 'application-insights' | 'log-analytics';
 
@@ -21,6 +21,10 @@ export interface DataSourceConfig {
   subscriptionId?: string;
   resourceGroup?: string;
   resourceName?: string;
+  // Azure Data Explorer specific fields
+  clusterUri?: string;
+  database?: string;
+  requiresAuthentication?: boolean;
 }
 
 export interface AuthConfig {

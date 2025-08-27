@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import { ConfigManager } from '../../utils/config';
 import { Visualizer } from '../../utils/visualizer';
 import { logger } from '../../utils/logger';
+import { ProviderConfigValidator } from '../../utils/providerValidation';
 import chalk from 'chalk';
 
 export function createStatusCommand(): Command {
@@ -63,17 +64,34 @@ async function checkStatus(configManager: ConfigManager, options: any): Promise<
   const dataSourceConfig = configManager.getProviderConfig('dataSources', defaultDataSource);
   
   console.log(chalk.cyan(`  📊 Data Source: ${defaultDataSource}`));
-  if (dataSourceConfig && (dataSourceConfig.applicationId || dataSourceConfig.workspaceId)) {
-    console.log(chalk.green('    ✅ Configured'));
-    if (options.verbose) {
-      console.log(chalk.dim(`    Endpoint: ${dataSourceConfig.endpoint}`));
-      if (dataSourceConfig.applicationId) {
-        console.log(chalk.dim(`    Application ID: ${dataSourceConfig.applicationId}`));
+  if (dataSourceConfig) {
+    const validation = ProviderConfigValidator.validateDataSourceConfig(dataSourceConfig);
+    if (validation.isValid) {
+      console.log(chalk.green('    ✅ Configured'));
+      if (options.verbose) {
+        // Show different details based on provider type
+        if (dataSourceConfig.type === 'azure-data-explorer') {
+          console.log(chalk.dim(`    Cluster URI: ${dataSourceConfig.clusterUri}`));
+          console.log(chalk.dim(`    Database: ${dataSourceConfig.database}`));
+          console.log(chalk.dim(`    Authentication: ${dataSourceConfig.requiresAuthentication ? 'Required' : 'Not required'}`));
+        } else {
+          console.log(chalk.dim(`    Endpoint: ${dataSourceConfig.endpoint}`));
+          if (dataSourceConfig.applicationId) {
+            console.log(chalk.dim(`    Application ID: ${dataSourceConfig.applicationId}`));
+          }
+          if (dataSourceConfig.workspaceId) {
+            console.log(chalk.dim(`    Workspace ID: ${dataSourceConfig.workspaceId}`));
+          }
+          console.log(chalk.dim(`    Tenant ID: ${dataSourceConfig.tenantId?.substring(0, 8)}...`));
+        }
       }
-      if (dataSourceConfig.workspaceId) {
-        console.log(chalk.dim(`    Workspace ID: ${dataSourceConfig.workspaceId}`));
+    } else {
+      console.log(chalk.red('    ❌ Not properly configured'));
+      if (options.verbose && validation.errors.length > 0) {
+        validation.errors.forEach(error => {
+          console.log(chalk.red(`      ⚠️  ${error}`));
+        });
       }
-      console.log(chalk.dim(`    Tenant ID: ${dataSourceConfig.tenantId?.substring(0, 8)}...`));
     }
   } else {
     console.log(chalk.red('    ❌ Not properly configured'));

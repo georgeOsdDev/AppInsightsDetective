@@ -63,6 +63,77 @@ describe('OpenAIProvider', () => {
     });
   });
 
+  describe('model configuration', () => {
+    it('should use configured model when provided', async () => {
+      const configWithModel: AIProviderConfig = {
+        type: 'openai',
+        apiKey: 'test-api-key',
+        model: 'gpt-4o'
+      };
+
+      const MockedOpenAI = require('openai').default as jest.MockedClass<typeof import('openai').default>;
+      const mockCreate = jest.fn().mockResolvedValue({
+        choices: [{
+          message: { content: '{"kql": "requests | count", "confidence": 0.85}' },
+          finish_reason: 'stop'
+        }]
+      });
+      MockedOpenAI.mockImplementation(() => ({
+        chat: {
+          completions: {
+            create: mockCreate
+          }
+        }
+      } as any));
+
+      const provider = new OpenAIProvider(configWithModel);
+      const request: QueryGenerationRequest = {
+        userInput: 'test query',
+        schema: { tables: ['requests'] }
+      };
+
+      await provider.generateQuery(request);
+
+      expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+        model: 'gpt-4o'
+      }));
+    });
+
+    it('should use default model when no model configured', async () => {
+      const configWithoutModel: AIProviderConfig = {
+        type: 'openai',
+        apiKey: 'test-api-key'
+      };
+
+      const MockedOpenAI = require('openai').default as jest.MockedClass<typeof import('openai').default>;
+      const mockCreate = jest.fn().mockResolvedValue({
+        choices: [{
+          message: { content: '{"kql": "requests | count", "confidence": 0.85, "reasoning": "Test reasoning"}' },
+          finish_reason: 'stop'
+        }]
+      });
+      MockedOpenAI.mockImplementation(() => ({
+        chat: {
+          completions: {
+            create: mockCreate
+          }
+        }
+      } as any));
+
+      const provider = new OpenAIProvider(configWithoutModel);
+      const request: QueryGenerationRequest = {
+        userInput: 'test query',
+        schema: { tables: ['requests'] }
+      };
+
+      await provider.generateQuery(request);
+
+      expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+        model: 'gpt-4o-mini'
+      }));
+    });
+  });
+
   describe('generateQuery', () => {
     it('should generate KQL query successfully', async () => {
       const request: QueryGenerationRequest = {
