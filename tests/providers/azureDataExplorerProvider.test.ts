@@ -83,7 +83,7 @@ describe('AzureDataExplorerProvider', () => {
             { name: 'State', type: 'string' },
             { name: 'EventCount', type: 'long' }
           ],
-          _rows: [
+          rows: () => [
             ['CALIFORNIA', 100],
             ['TEXAS', 75]
           ]
@@ -159,7 +159,7 @@ describe('AzureDataExplorerProvider', () => {
       const mockResponse = {
         primaryResults: [{
           columns: [{ name: 'BuildVersion', type: 'string' }],
-          _rows: [['1.0.0']]
+          rows: () => [['1.0.0']]
         }]
       };
 
@@ -191,7 +191,7 @@ describe('AzureDataExplorerProvider', () => {
       const mockTablesResponse = {
         primaryResults: [{
           columns: [{ name: 'TableName', type: 'string' }],
-          _rows: [['StormEvents'], ['PopulationData']]
+          rows: () => [['StormEvents'], ['PopulationData']]
         }]
       };
 
@@ -202,7 +202,7 @@ describe('AzureDataExplorerProvider', () => {
             { name: 'ColumnName', type: 'string' },
             { name: 'ColumnType', type: 'string' }
           ],
-          _rows: [
+          rows: () => [
             ['StormEvents', 'State', 'string'],
             ['StormEvents', 'EventType', 'string'],
             ['PopulationData', 'State', 'string'],
@@ -249,14 +249,14 @@ describe('AzureDataExplorerProvider', () => {
       const mockVersionResponse = {
         primaryResults: [{
           columns: [{ name: 'BuildVersion', type: 'string' }],
-          _rows: [['1.0.0']]
+          rows: () => [['1.0.0']]
         }]
       };
 
       const mockDatabaseResponse = {
         primaryResults: [{
           columns: [{ name: 'DatabaseName', type: 'string' }],
-          _rows: [['Samples']]
+          rows: () => [['Samples']]
         }]
       };
 

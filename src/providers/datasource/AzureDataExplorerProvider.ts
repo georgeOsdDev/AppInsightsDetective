@@ -222,8 +222,8 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
         type: col.type
       }));
 
-      // KustoResultTable stores raw row data in _rows property
-      const rows = primaryResult._rows || [];
+      // KustoResultTable has rows() method to access row data
+      const rows = primaryResult.rows() || [];
 
       logger.debug(`Transformed ADX response: ${rows.length} rows, ${columns.length} columns`);
 
