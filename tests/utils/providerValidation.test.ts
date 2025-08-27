@@ -194,6 +194,19 @@ describe('ProviderConfigValidator', () => {
         expect(result.errors).toHaveLength(0);
       });
 
+      it('should validate minimal Log Analytics configuration', () => {
+        const config: DataSourceConfig = {
+          type: 'log-analytics',
+          workspaceId: 'test-workspace-id',
+          tenantId: 'test-tenant-id'
+        };
+
+        const result = ProviderConfigValidator.validateDataSourceConfig(config);
+
+        expect(result.isValid).toBe(true);
+        expect(result.errors).toHaveLength(0);
+      });
+
       it('should reject Log Analytics config without required fields', () => {
         const config: DataSourceConfig = {
           type: 'log-analytics'
@@ -202,9 +215,8 @@ describe('ProviderConfigValidator', () => {
         const result = ProviderConfigValidator.validateDataSourceConfig(config);
 
         expect(result.isValid).toBe(false);
-        expect(result.errors).toContain('Log Analytics subscription ID is required');
-        expect(result.errors).toContain('Log Analytics resource group is required');
-        expect(result.errors).toContain('Log Analytics workspace name is required');
+        expect(result.errors).toContain('Log Analytics workspace ID is required');
+        expect(result.errors).toContain('Log Analytics tenant ID is required');
       });
 
       it('should warn about unused Application Insights parameters', () => {
