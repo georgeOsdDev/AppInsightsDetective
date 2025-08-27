@@ -33,6 +33,15 @@ describe('Data Source Aware Prompts', () => {
       expect(prompt).toContain('metric');
     });
 
+    it('should generate Azure Data Explorer specific prompt', () => {
+      const prompt = buildSystemPrompt('azure-data-explorer');
+      
+      expect(prompt).toContain('Azure Data Explorer');
+      expect(prompt).toContain('ADX');
+      expect(prompt).toContain('case-sensitive');
+      expect(prompt).toContain('materialized views');
+    });
+
     it('should default to Application Insights when no dataSourceType provided', () => {
       const prompt = buildSystemPrompt();
       
