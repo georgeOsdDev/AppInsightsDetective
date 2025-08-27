@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
+import { LogsQueryClient, LogsQueryResult, LogsQueryResultStatus } from '@azure/monitor-query-logs';
 import { IDataSourceProvider, QueryExecutionRequest, ValidationResult, SchemaResult, MetadataResult } from '../../core/interfaces/IDataSourceProvider';
 import { IAuthenticationProvider } from '../../core/interfaces/IAuthenticationProvider';
 import { DataSourceConfig } from '../../core/types/ProviderTypes';
@@ -9,7 +10,9 @@ import { logger } from '../../utils/logger';
  * Azure Monitor Log Analytics data source provider implementation
  */
 export class LogAnalyticsProvider implements IDataSourceProvider {
-  private httpClient: AxiosInstance;
+  private httpClient!: AxiosInstance; // Keep for metadata operations
+  private logsQueryClient!: LogsQueryClient;
+  private initializationPromise: Promise<void>;
 
   constructor(
     private config: DataSourceConfig,
@@ -23,6 +26,30 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
       throw new Error('Log Analytics provider requires subscriptionId, resourceGroup, and resourceName');
     }
 
+    // Initialize both clients asynchronously
+    this.initializationPromise = this.initializeClients();
+  }
+
+  private async initializeClients(): Promise<void> {
+    // Initialize LogsQueryClient for query operations
+    let credential;
+    if (this.authProvider) {
+      // Use provided auth provider - we need to create a TokenCredential compatible wrapper
+      credential = {
+        getToken: async (scopes: string[]) => {
+          const token = await this.authProvider!.getAccessToken(scopes);
+          return { token, expiresOnTimestamp: Date.now() + (3600 * 1000) }; // 1 hour default
+        }
+      };
+    } else {
+      // Use DefaultAzureCredential
+      const { DefaultAzureCredential } = await import('@azure/identity');
+      credential = new DefaultAzureCredential();
+    }
+    
+    this.logsQueryClient = new LogsQueryClient(credential);
+
+    // Keep HTTP client for metadata operations (still needed for workspace metadata)
     const baseURL = 'https://management.azure.com';
     this.httpClient = axios.create({
       baseURL,
@@ -30,6 +57,10 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
     });
 
     this.setupInterceptors();
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    await this.initializationPromise;
   }
 
   private setupInterceptors(): void {
@@ -56,24 +87,53 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
   }
 
   /**
+   * Get the workspace ID for the configured Log Analytics workspace
+   */
+  private async getWorkspaceId(): Promise<string> {
+    await this.ensureInitialized();
+    
+    try {
+      const workspaceUrl = `/subscriptions/${this.config.subscriptionId}/resourceGroups/${this.config.resourceGroup}/providers/Microsoft.OperationalInsights/workspaces/${this.config.resourceName}`;
+      const response = await this.httpClient.get(`${workspaceUrl}?api-version=2022-10-01`);
+      
+      const workspaceId = response.data.properties?.customerId;
+      if (!workspaceId) {
+        throw new Error('Workspace ID (customerId) not found in workspace metadata');
+      }
+      
+      return workspaceId;
+    } catch (error) {
+      logger.error('Failed to retrieve workspace ID:', error);
+      throw new Error(`Failed to retrieve workspace ID: ${error}`);
+    }
+  }
+
+  /**
    * Execute KQL query against Log Analytics workspace
    */
   async executeQuery(request: QueryExecutionRequest): Promise<QueryResult> {
     try {
-      logger.debug('Executing query on Log Analytics...');
+      await this.ensureInitialized();
+      logger.debug('Executing query on Log Analytics using LogsQueryClient...');
 
-      const queryUrl = `/subscriptions/${this.config.subscriptionId}/resourceGroups/${this.config.resourceGroup}/providers/Microsoft.OperationalInsights/workspaces/${this.config.resourceName}/api/query`;
-
-      const response = await this.httpClient.post(`${queryUrl}?api-version=2020-08-01`, {
-        query: request.query,
-        timespan: request.timespan || 'PT24H' // Default to last 24 hours
-      });
-
-      // Transform Log Analytics response to Application Insights format
-      const result = this.transformLogAnalyticsResponse(response.data);
+      const workspaceId = await this.getWorkspaceId();
       
-      logger.debug(`Log Analytics query executed successfully, returned ${result.tables[0]?.rows?.length || 0} rows`);
-      return result;
+      // Convert timespan to QueryTimeInterval format
+      const timespan = request.timespan 
+        ? { duration: request.timespan }
+        : { duration: 'PT24H' }; // Default to last 24 hours
+
+      const result = await this.logsQueryClient.queryWorkspace(
+        workspaceId,
+        request.query,
+        timespan
+      );
+
+      // Transform the result to Application Insights format
+      const transformedResult = this.transformLogsQueryResponse(result);
+      
+      logger.debug(`Log Analytics query executed successfully, returned ${transformedResult.tables[0]?.rows?.length || 0} rows`);
+      return transformedResult;
     } catch (error) {
       logger.error('Failed to execute Log Analytics query:', error);
       throw new Error(`Log Analytics query execution failed: ${error}`);
@@ -85,15 +145,18 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
    */
   async validateConnection(): Promise<ValidationResult> {
     try {
+      await this.ensureInitialized();
       logger.debug('Validating Log Analytics connection...');
 
-      // Test connection with a simple query
-      const queryUrl = `/subscriptions/${this.config.subscriptionId}/resourceGroups/${this.config.resourceGroup}/providers/Microsoft.OperationalInsights/workspaces/${this.config.resourceName}/api/query`;
-
-      await this.httpClient.post(`${queryUrl}?api-version=2020-08-01`, {
-        query: 'print "connection_test"',
-        timespan: 'PT1H'
-      });
+      const workspaceId = await this.getWorkspaceId();
+      
+      // Test connection with a simple query using the LogsQueryClient
+      const timespan = { duration: 'PT1H' };
+      await this.logsQueryClient.queryWorkspace(
+        workspaceId,
+        'print "connection_test"',
+        timespan
+      );
 
       logger.debug('Log Analytics connection validated successfully');
       return { isValid: true };
@@ -111,9 +174,10 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
    */
   async getSchema(): Promise<SchemaResult> {
     try {
+      await this.ensureInitialized();
       logger.debug('Retrieving Log Analytics schema...');
 
-      const queryUrl = `/subscriptions/${this.config.subscriptionId}/resourceGroups/${this.config.resourceGroup}/providers/Microsoft.OperationalInsights/workspaces/${this.config.resourceName}/api/query`;
+      const workspaceId = await this.getWorkspaceId();
 
       // Query to get table schema information
       const schemaQuery = `
@@ -127,15 +191,17 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
         | limit 100
       `;
 
-      const response = await this.httpClient.post(`${queryUrl}?api-version=2020-08-01`, {
-        query: schemaQuery,
-        timespan: 'PT1H'
-      });
+      const timespan = { duration: 'PT1H' };
+      const result = await this.logsQueryClient.queryWorkspace(
+        workspaceId,
+        schemaQuery,
+        timespan
+      );
 
-      const result = this.transformLogAnalyticsResponse(response.data);
+      const transformedResult = this.transformLogsQueryResponse(result);
       
       logger.debug('Log Analytics schema retrieved successfully');
-      return { schema: result };
+      return { schema: transformedResult };
     } catch (error) {
       logger.error('Failed to retrieve Log Analytics schema:', error);
       return { schema: null, error: `Schema retrieval failed: ${error}` };
@@ -169,6 +235,41 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
     } catch (error) {
       logger.error('Failed to retrieve Log Analytics metadata:', error);
       return { metadata: null, error: `Metadata retrieval failed: ${error}` };
+    }
+  }
+
+  /**
+   * Transform LogsQueryResult response to Application Insights format
+   */
+  private transformLogsQueryResponse(result: LogsQueryResult): QueryResult {
+    // Handle different result statuses
+    if (result.status === LogsQueryResultStatus.Success) {
+      const transformedTables = result.tables.map((table) => ({
+        name: table.name,
+        columns: table.columnDescriptors.map((col) => ({
+          name: col.name,
+          type: this.mapLogAnalyticsType(col.type)
+        })),
+        rows: table.rows
+      }));
+
+      return { tables: transformedTables };
+    } else if (result.status === LogsQueryResultStatus.PartialFailure) {
+      logger.warn('Query completed with partial failure:', result.partialError);
+      
+      const transformedTables = result.partialTables.map((table) => ({
+        name: table.name,
+        columns: table.columnDescriptors.map((col) => ({
+          name: col.name,
+          type: this.mapLogAnalyticsType(col.type)
+        })),
+        rows: table.rows
+      }));
+
+      return { tables: transformedTables };
+    } else {
+      // This should not happen as errors are thrown, but handle just in case
+      throw new Error('Query failed with unknown status');
     }
   }
 
@@ -207,6 +308,7 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
       case 'long':
         return 'long';
       case 'real':
+      case 'decimal':
         return 'real';
       case 'datetime':
         return 'datetime';
@@ -214,6 +316,8 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
         return 'bool';
       case 'dynamic':
         return 'dynamic';
+      case 'timespan':
+        return 'string'; // Map timespan to string for compatibility
       default:
         return logAnalyticsType || 'string';
     }

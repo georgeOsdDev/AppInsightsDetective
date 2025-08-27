@@ -54,6 +54,7 @@
     "@azure/arm-resourcegraph": "^4.2.1",
     "@azure/core-auth": "^1.10.0",
     "@azure/identity": "^4.11.1",
+    "@azure/monitor-query-logs": "^1.0.0",
     "@azure/openai": "^2.0.0",
     "axios": "^1.11.0",
     "azure-kusto-data": "^7.0.1",
