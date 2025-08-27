@@ -37,6 +37,9 @@
     "README.md"
   ],
   "devDependencies": {
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
     "@types/inquirer": "^9.0.9",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.3.0",
@@ -60,11 +63,16 @@
     "azure-kusto-data": "^7.0.1",
     "chalk": "^5.0.0",
     "commander": "^14.0.0",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
     "inquirer": "^12.9.2",
     "open": "^10.2.0",
     "openai": "^5.12.2",
     "ora": "^5.4.1",
+    "socket.io": "^4.8.1",
     "winston": "^3.17.0"
   }
 }

@@ -78,6 +78,13 @@ export class ExternalExecutionService {
   }
 
   /**
+   * Open query in Azure Portal (convenience method)
+   */
+  async openInPortal(kqlQuery: string): Promise<string> {
+    return await this.generateUrl('portal', kqlQuery);
+  }
+
+  /**
    * Validate provider configuration for external execution
    */
   validateConfiguration(): { isValid: boolean; missingFields: string[] } {
