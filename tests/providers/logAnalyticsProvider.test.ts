@@ -2,7 +2,21 @@ import { LogAnalyticsProvider } from '../../src/providers/datasource/LogAnalytic
 import { DataSourceConfig } from '../../src/core/types/ProviderTypes';
 import { QueryExecutionRequest } from '../../src/core/interfaces/IDataSourceProvider';
 
-// Mock axios
+// Mock @azure/monitor-query-logs
+const mockQueryWorkspace = jest.fn();
+
+jest.mock('@azure/monitor-query-logs', () => ({
+  LogsQueryClient: jest.fn(() => ({
+    queryWorkspace: mockQueryWorkspace
+  })),
+  LogsQueryResultStatus: {
+    Success: 'Success',
+    PartialFailure: 'PartialFailure',
+    Failure: 'Failure'
+  }
+}));
+
+// Mock axios (still needed for metadata operations)
 jest.mock('axios', () => ({
   create: jest.fn(() => ({
     post: jest.fn(),
@@ -28,6 +42,9 @@ describe('LogAnalyticsProvider', () => {
   let mockAxiosInstance: any;
 
   beforeEach(() => {
+    // Reset all mocks
+    jest.clearAllMocks();
+    
     mockConfig = {
       type: 'log-analytics',
       subscriptionId: 'test-subscription',
@@ -69,23 +86,32 @@ describe('LogAnalyticsProvider', () => {
 
   describe('executeQuery', () => {
     it('should execute query successfully', async () => {
-      const mockResponse = {
+      // Mock workspace metadata response (for getWorkspaceId)
+      const mockWorkspaceResponse = {
         data: {
-          tables: [{
-            name: 'PrimaryResult',
-            columns: [
-              { name: 'TimeGenerated', type: 'datetime' },
-              { name: 'Count', type: 'int' }
-            ],
-            rows: [
-              ['2023-01-01T00:00:00Z', 100],
-              ['2023-01-01T01:00:00Z', 150]
-            ]
-          }]
+          properties: {
+            customerId: 'test-workspace-id'
+          }
         }
       };
+      mockAxiosInstance.get.mockResolvedValue(mockWorkspaceResponse);
 
-      mockAxiosInstance.post.mockResolvedValue(mockResponse);
+      // Mock LogsQueryClient response
+      const mockQueryResponse = {
+        status: 'Success',
+        tables: [{
+          name: 'PrimaryResult',
+          columnDescriptors: [
+            { name: 'TimeGenerated', type: 'datetime' },
+            { name: 'Count', type: 'int' }
+          ],
+          rows: [
+            ['2023-01-01T00:00:00Z', 100],
+            ['2023-01-01T01:00:00Z', 150]
+          ]
+        }]
+      };
+      mockQueryWorkspace.mockResolvedValue(mockQueryResponse);
 
       const request: QueryExecutionRequest = {
         query: 'Heartbeat | summarize count() by bin(TimeGenerated, 1h)',
@@ -108,18 +134,32 @@ describe('LogAnalyticsProvider', () => {
         }]
       });
 
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-        '/subscriptions/test-subscription/resourceGroups/test-rg/providers/Microsoft.OperationalInsights/workspaces/test-workspace/api/query?api-version=2020-08-01',
-        {
-          query: 'Heartbeat | summarize count() by bin(TimeGenerated, 1h)',
-          timespan: 'PT24H'
-        }
+      // Verify workspace metadata was fetched
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith(
+        '/subscriptions/test-subscription/resourceGroups/test-rg/providers/Microsoft.OperationalInsights/workspaces/test-workspace?api-version=2022-10-01'
+      );
+
+      // Verify LogsQueryClient was called correctly
+      expect(mockQueryWorkspace).toHaveBeenCalledWith(
+        'test-workspace-id',
+        'Heartbeat | summarize count() by bin(TimeGenerated, 1h)',
+        { duration: 'PT24H' }
       );
     });
 
     it('should use default timespan when not provided', async () => {
-      const mockResponse = { data: { tables: [] } };
-      mockAxiosInstance.post.mockResolvedValue(mockResponse);
+      // Mock workspace metadata response
+      const mockWorkspaceResponse = {
+        data: { properties: { customerId: 'test-workspace-id' } }
+      };
+      mockAxiosInstance.get.mockResolvedValue(mockWorkspaceResponse);
+
+      // Mock LogsQueryClient response
+      const mockQueryResponse = {
+        status: 'Success',
+        tables: []
+      };
+      mockQueryWorkspace.mockResolvedValue(mockQueryResponse);
 
       const request: QueryExecutionRequest = {
         query: 'Heartbeat | count'
@@ -127,16 +167,21 @@ describe('LogAnalyticsProvider', () => {
 
       await logAnalyticsProvider.executeQuery(request);
 
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          timespan: 'PT24H'
-        })
+      expect(mockQueryWorkspace).toHaveBeenCalledWith(
+        'test-workspace-id',
+        'Heartbeat | count',
+        { duration: 'PT24H' }
       );
     });
 
     it('should handle query execution errors', async () => {
-      mockAxiosInstance.post.mockRejectedValue(new Error('Query failed'));
+      // Mock workspace metadata response
+      const mockWorkspaceResponse = {
+        data: { properties: { customerId: 'test-workspace-id' } }
+      };
+      mockAxiosInstance.get.mockResolvedValue(mockWorkspaceResponse);
+      
+      mockQueryWorkspace.mockRejectedValue(new Error('Query failed'));
 
       const request: QueryExecutionRequest = {
         query: 'invalid query'
@@ -190,22 +235,37 @@ describe('LogAnalyticsProvider', () => {
 
   describe('validateConnection', () => {
     it('should validate connection successfully', async () => {
-      mockAxiosInstance.post.mockResolvedValue({ data: {} });
+      // Mock workspace metadata response
+      const mockWorkspaceResponse = {
+        data: { properties: { customerId: 'test-workspace-id' } }
+      };
+      mockAxiosInstance.get.mockResolvedValue(mockWorkspaceResponse);
+
+      // Mock successful query response
+      const mockQueryResponse = {
+        status: 'Success',
+        tables: []
+      };
+      mockQueryWorkspace.mockResolvedValue(mockQueryResponse);
 
       const result = await logAnalyticsProvider.validateConnection();
 
       expect(result).toEqual({ isValid: true });
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          query: 'print "connection_test"',
-          timespan: 'PT1H'
-        })
+      expect(mockQueryWorkspace).toHaveBeenCalledWith(
+        'test-workspace-id',
+        'print "connection_test"',
+        { duration: 'PT1H' }
       );
     });
 
     it('should handle connection validation errors', async () => {
-      mockAxiosInstance.post.mockRejectedValue(new Error('Connection failed'));
+      // Mock workspace metadata response
+      const mockWorkspaceResponse = {
+        data: { properties: { customerId: 'test-workspace-id' } }
+      };
+      mockAxiosInstance.get.mockResolvedValue(mockWorkspaceResponse);
+      
+      mockQueryWorkspace.mockRejectedValue(new Error('Connection failed'));
 
       const result = await logAnalyticsProvider.validateConnection();
 
@@ -218,39 +278,49 @@ describe('LogAnalyticsProvider', () => {
 
   describe('getSchema', () => {
     it('should get schema successfully', async () => {
-      const mockResponse = {
-        data: {
-          tables: [{
-            name: 'PrimaryResult',
-            columns: [
-              { name: 'TableName', type: 'string' },
-              { name: 'ColumnCount', type: 'int' },
-              { name: 'Columns', type: 'dynamic' }
-            ],
-            rows: [
-              ['Heartbeat', 10, ['TimeGenerated:datetime', 'Computer:string']],
-              ['Event', 8, ['TimeGenerated:datetime', 'EventLog:string']]
-            ]
-          }]
-        }
+      // Mock workspace metadata response
+      const mockWorkspaceResponse = {
+        data: { properties: { customerId: 'test-workspace-id' } }
       };
+      mockAxiosInstance.get.mockResolvedValue(mockWorkspaceResponse);
 
-      mockAxiosInstance.post.mockResolvedValue(mockResponse);
+      // Mock schema query response
+      const mockQueryResponse = {
+        status: 'Success',
+        tables: [{
+          name: 'PrimaryResult',
+          columnDescriptors: [
+            { name: 'TableName', type: 'string' },
+            { name: 'ColumnCount', type: 'int' },
+            { name: 'Columns', type: 'dynamic' }
+          ],
+          rows: [
+            ['Heartbeat', 10, ['TimeGenerated:datetime', 'Computer:string']],
+            ['Event', 8, ['TimeGenerated:datetime', 'EventLog:string']]
+          ]
+        }]
+      };
+      mockQueryWorkspace.mockResolvedValue(mockQueryResponse);
 
       const result = await logAnalyticsProvider.getSchema();
 
       expect(result.schema).toBeDefined();
       expect(result.error).toBeUndefined();
-      expect(mockAxiosInstance.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          query: expect.stringContaining('getschema')
-        })
+      expect(mockQueryWorkspace).toHaveBeenCalledWith(
+        'test-workspace-id',
+        expect.stringContaining('getschema'),
+        { duration: 'PT1H' }
       );
     });
 
     it('should handle schema retrieval errors', async () => {
-      mockAxiosInstance.post.mockRejectedValue(new Error('Schema failed'));
+      // Mock workspace metadata response
+      const mockWorkspaceResponse = {
+        data: { properties: { customerId: 'test-workspace-id' } }
+      };
+      mockAxiosInstance.get.mockResolvedValue(mockWorkspaceResponse);
+      
+      mockQueryWorkspace.mockRejectedValue(new Error('Schema failed'));
 
       const result = await logAnalyticsProvider.getSchema();
 
@@ -306,26 +376,32 @@ describe('LogAnalyticsProvider', () => {
 
   describe('type mapping', () => {
     it('should map Log Analytics types to Application Insights format correctly', async () => {
-      const mockResponse = {
-        data: {
-          tables: [{
-            name: 'PrimaryResult',
-            columns: [
-              { name: 'StringCol', type: 'string' },
-              { name: 'IntCol', type: 'int' },
-              { name: 'LongCol', type: 'long' },
-              { name: 'RealCol', type: 'real' },
-              { name: 'DateCol', type: 'datetime' },
-              { name: 'BoolCol', type: 'bool' },
-              { name: 'DynamicCol', type: 'dynamic' },
-              { name: 'UnknownCol', type: 'unknown' }
-            ],
-            rows: []
-          }]
-        }
+      // Mock workspace metadata response
+      const mockWorkspaceResponse = {
+        data: { properties: { customerId: 'test-workspace-id' } }
       };
+      mockAxiosInstance.get.mockResolvedValue(mockWorkspaceResponse);
 
-      mockAxiosInstance.post.mockResolvedValue(mockResponse);
+      const mockQueryResponse = {
+        status: 'Success',
+        tables: [{
+          name: 'PrimaryResult',
+          columnDescriptors: [
+            { name: 'StringCol', type: 'string' },
+            { name: 'IntCol', type: 'int' },
+            { name: 'LongCol', type: 'long' },
+            { name: 'RealCol', type: 'real' },
+            { name: 'DecimalCol', type: 'decimal' },
+            { name: 'DateCol', type: 'datetime' },
+            { name: 'BoolCol', type: 'bool' },
+            { name: 'DynamicCol', type: 'dynamic' },
+            { name: 'TimespanCol', type: 'timespan' },
+            { name: 'UnknownCol', type: 'unknown' }
+          ],
+          rows: []
+        }]
+      };
+      mockQueryWorkspace.mockResolvedValue(mockQueryResponse);
 
       const request: QueryExecutionRequest = { query: 'test' };
       const result = await logAnalyticsProvider.executeQuery(request);
@@ -335,10 +411,47 @@ describe('LogAnalyticsProvider', () => {
         { name: 'IntCol', type: 'long' },
         { name: 'LongCol', type: 'long' },
         { name: 'RealCol', type: 'real' },
+        { name: 'DecimalCol', type: 'real' },
         { name: 'DateCol', type: 'datetime' },
         { name: 'BoolCol', type: 'bool' },
         { name: 'DynamicCol', type: 'dynamic' },
+        { name: 'TimespanCol', type: 'string' },
         { name: 'UnknownCol', type: 'unknown' }
+      ]);
+    });
+
+    it('should handle partial failure responses', async () => {
+      // Mock workspace metadata response
+      const mockWorkspaceResponse = {
+        data: { properties: { customerId: 'test-workspace-id' } }
+      };
+      mockAxiosInstance.get.mockResolvedValue(mockWorkspaceResponse);
+
+      const mockQueryResponse = {
+        status: 'PartialFailure',
+        partialTables: [{
+          name: 'PrimaryResult',
+          columnDescriptors: [
+            { name: 'TimeGenerated', type: 'datetime' },
+            { name: 'Count', type: 'int' }
+          ],
+          rows: [
+            ['2023-01-01T00:00:00Z', 100]
+          ]
+        }],
+        partialError: {
+          code: 'PartialError',
+          message: 'Query completed with warnings'
+        }
+      };
+      mockQueryWorkspace.mockResolvedValue(mockQueryResponse);
+
+      const request: QueryExecutionRequest = { query: 'test query' };
+      const result = await logAnalyticsProvider.executeQuery(request);
+
+      expect(result.tables[0].columns).toEqual([
+        { name: 'TimeGenerated', type: 'datetime' },
+        { name: 'Count', type: 'long' }
       ]);
     });
   });
