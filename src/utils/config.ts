@@ -206,6 +206,15 @@ export class ConfigManager {
         logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete`);
         return false;
       }
+    } else if (defaultDataSource.type === 'azure-data-explorer') {
+      if (!defaultDataSource.clusterUri) {
+        logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete: clusterUri is required`);
+        return false;
+      }
+      if (!defaultDataSource.database) {
+        logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete: database is required`);
+        return false;
+      }
     } else {
       logger.error(`Unknown data source provider type: '${defaultDataSource.type}'`);
       return false;
