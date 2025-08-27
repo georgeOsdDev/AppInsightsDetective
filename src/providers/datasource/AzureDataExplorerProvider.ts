@@ -176,17 +176,7 @@ export class AzureDataExplorerProvider implements IDataSourceProvider {
     }
   }
 
-  /**
-   * Validate connection during initialization (avoids circular dependency with executeQuery)
-   */
-  private async validateConnectionDuringInit(): Promise<void> {
-    const clientRequestProperties = new this.ClientRequestProperties();
-    clientRequestProperties.setOption('servertimeout', 30000); // 30 second timeout
-    
-    // Test connection with a simple query that should work on any ADX cluster
-    const testQuery = '.show version';
-    await this.client.execute(this.database, testQuery, clientRequestProperties);
-  }
+
 
   /**
    * Execute KQL query against Azure Data Explorer cluster
