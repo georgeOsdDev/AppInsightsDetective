@@ -1,4 +1,4 @@
-import { ResourceGraphService, ApplicationInsightsResource } from '../../src/services/resourceGraphService';
+import { ResourceGraphService, ApplicationInsightsResource, LogAnalyticsWorkspaceResource } from '../../src/services/resourceGraphService';
 
 // Mock the Azure SDK
 jest.mock('@azure/arm-resourcegraph');
@@ -18,6 +18,18 @@ describe('ResourceGraphService', () => {
     properties: {
       AppId: 'test-app-id',
       ApplicationId: 'test-app-id'
+    }
+  };
+
+  const mockLogAnalyticsWorkspaceResource = {
+    id: '/subscriptions/test-sub/resourceGroups/test-rg/providers/microsoft.operationalinsights/workspaces/test-workspace',
+    name: 'test-workspace',
+    type: 'microsoft.operationalinsights/workspaces',
+    subscriptionId: 'test-sub',
+    resourceGroup: 'test-rg',
+    tenantId: 'test-tenant',
+    properties: {
+      customerId: 'test-workspace-id'
     }
   };
 
@@ -138,6 +150,102 @@ describe('ResourceGraphService', () => {
         resourceName: 'test-appinsights',
         tenantId: 'test-tenant'
       });
+    });
+  });
+
+  describe('findLogAnalyticsWorkspaceResource', () => {
+    test('should find Log Analytics workspace resource by Workspace ID', async () => {
+      mockClient.resources.mockResolvedValue({
+        data: [mockLogAnalyticsWorkspaceResource]
+      });
+
+      const result = await service.findLogAnalyticsWorkspaceResource('test-workspace-id');
+
+      expect(result).toEqual({
+        id: mockLogAnalyticsWorkspaceResource.id,
+        name: 'test-workspace',
+        resourceGroup: 'test-rg',
+        subscriptionId: 'test-sub',
+        type: 'microsoft.operationalinsights/workspaces',
+        tenantId: 'test-tenant',
+        properties: {
+          customerId: 'test-workspace-id'
+        }
+      });
+
+      expect(mockClient.resources).toHaveBeenCalledWith({
+        query: expect.stringContaining("type == 'microsoft.operationalinsights/workspaces'"),
+        subscriptions: []
+      });
+    });
+
+    test('should return null when Log Analytics workspace is not found', async () => {
+      mockClient.resources.mockResolvedValue({
+        data: []
+      });
+
+      const result = await service.findLogAnalyticsWorkspaceResource('non-existent-id');
+
+      expect(result).toBeNull();
+    });
+
+    test('should handle errors when querying for Log Analytics workspace', async () => {
+      mockClient.resources.mockRejectedValue(new Error('API Error'));
+
+      await expect(service.findLogAnalyticsWorkspaceResource('test-workspace-id')).rejects.toThrow('Failed to find Log Analytics workspace: Error: API Error');
+    });
+
+    test('should handle multiple Log Analytics workspaces found', async () => {
+      mockClient.resources.mockResolvedValue({
+        data: [mockLogAnalyticsWorkspaceResource, mockLogAnalyticsWorkspaceResource]
+      });
+
+      const result = await service.findLogAnalyticsWorkspaceResource('test-workspace-id');
+
+      expect(result).toEqual({
+        id: mockLogAnalyticsWorkspaceResource.id,
+        name: 'test-workspace',
+        resourceGroup: 'test-rg',
+        subscriptionId: 'test-sub',
+        type: 'microsoft.operationalinsights/workspaces',
+        tenantId: 'test-tenant',
+        properties: {
+          customerId: 'test-workspace-id'
+        }
+      });
+    });
+  });
+
+  describe('getLogAnalyticsResourceInfo', () => {
+    test('should return complete resource info for Log Analytics workspace', async () => {
+      mockClient.resources.mockResolvedValue({
+        data: [mockLogAnalyticsWorkspaceResource]
+      });
+
+      const result = await service.getLogAnalyticsResourceInfo('test-workspace-id');
+
+      expect(result).toEqual({
+        subscriptionId: 'test-sub',
+        resourceGroup: 'test-rg',
+        resourceName: 'test-workspace',
+        tenantId: 'test-tenant'
+      });
+    });
+
+    test('should return null when Log Analytics workspace is not found', async () => {
+      mockClient.resources.mockResolvedValue({
+        data: []
+      });
+
+      const result = await service.getLogAnalyticsResourceInfo('non-existent-id');
+
+      expect(result).toBeNull();
+    });
+
+    test('should handle errors when getting Log Analytics resource info', async () => {
+      mockClient.resources.mockRejectedValue(new Error('API Error'));
+
+      await expect(service.getLogAnalyticsResourceInfo('test-workspace-id')).rejects.toThrow('API Error');
     });
   });
 });

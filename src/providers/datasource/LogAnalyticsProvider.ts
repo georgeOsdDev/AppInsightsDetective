@@ -179,11 +179,14 @@ export class LogAnalyticsProvider implements IDataSourceProvider {
     // Log Analytics returns data in a different format than Application Insights
     // We need to transform it to maintain compatibility
     
-    if (!data.tables || data.tables.length === 0) {
+    // Log Analytics API returns data in "Table" (capital T), not "tables" (lowercase)
+    const tables = data.Table || data.tables || [];
+    
+    if (!tables || tables.length === 0) {
       return { tables: [] };
     }
 
-    const transformedTables = data.tables.map((table: any) => ({
+    const transformedTables = tables.map((table: any) => ({
       name: table.name || 'Results',
       columns: table.columns.map((col: any) => ({
         name: col.name,

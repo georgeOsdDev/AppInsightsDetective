@@ -195,6 +195,22 @@ export class ConfigManager {
       return false;
     }
 
+    // Check for required fields based on data source type
+    if (defaultDataSource.type === 'application-insights') {
+      if (!defaultDataSource.applicationId) {
+        logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete`);
+        return false;
+      }
+    } else if (defaultDataSource.type === 'log-analytics') {
+      if (!defaultDataSource.workspaceId) {
+        logger.error(`Default data source provider '${providers.dataSources.default}' configuration is incomplete`);
+        return false;
+      }
+    } else {
+      logger.error(`Unknown data source provider type: '${defaultDataSource.type}'`);
+      return false;
+    }
+
     // Validate default auth provider configuration
     const defaultAuthKey = providers.auth.default;
     const defaultAuth = providers.auth[defaultAuthKey];
@@ -258,11 +274,6 @@ export class ConfigManager {
     const defaultDataSource = this.config.providers.dataSources.default;
     const dataSourceConfig = this.config.providers.dataSources[defaultDataSource];
     
-    if (!dataSourceConfig?.applicationId) {
-      logger.debug('No Application ID configured, skipping auto-enhancement');
-      return false;
-    }
-
     // Skip if resource info is already complete
     if (dataSourceConfig.subscriptionId && 
         dataSourceConfig.resourceGroup && 
@@ -274,12 +285,25 @@ export class ConfigManager {
     try {
       logger.info('Auto-enhancing configuration with Azure Resource Graph...');
       
-      const resourceInfo = await this.resourceGraphService.getResourceInfo(
-        dataSourceConfig.applicationId
-      );
+      let resourceInfo = null;
+
+      if (dataSourceConfig?.applicationId && dataSourceConfig?.type === 'application-insights') {
+        // Application Insights auto-enhancement
+        resourceInfo = await this.resourceGraphService.getResourceInfo(
+          dataSourceConfig.applicationId
+        );
+      } else if (dataSourceConfig?.workspaceId && dataSourceConfig?.type === 'log-analytics') {
+        // Log Analytics auto-enhancement
+        resourceInfo = await this.resourceGraphService.getLogAnalyticsResourceInfo(
+          dataSourceConfig.workspaceId
+        );
+      } else {
+        logger.debug('No suitable data source configuration found for auto-enhancement');
+        return false;
+      }
 
       if (!resourceInfo) {
-        logger.warn('Could not find Application Insights resource in Azure Resource Graph');
+        logger.warn('Could not find resource in Azure Resource Graph');
         return false;
       }
 
@@ -318,10 +342,14 @@ export class ConfigManager {
     const dataSourceConfig = this.config.providers.dataSources[defaultDataSource];
 
     // Try to auto-enhance if resource info is missing
-    if (dataSourceConfig?.applicationId && 
+    if ((dataSourceConfig?.applicationId && dataSourceConfig?.type === 'application-insights' &&
         (!dataSourceConfig.subscriptionId || 
          !dataSourceConfig.resourceGroup || 
-         !dataSourceConfig.resourceName)) {
+         !dataSourceConfig.resourceName)) ||
+        (dataSourceConfig?.workspaceId && dataSourceConfig?.type === 'log-analytics' &&
+        (!dataSourceConfig.subscriptionId || 
+         !dataSourceConfig.resourceGroup || 
+         !dataSourceConfig.resourceName))) {
       await this.autoEnhanceConfig();
     }
 

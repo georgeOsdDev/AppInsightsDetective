@@ -157,19 +157,35 @@ export class ProviderConfigValidator {
   private static validateLogAnalyticsConfig(config: DataSourceConfig): ValidationResult {
     const result: ValidationResult = { isValid: true, errors: [], warnings: [] };
 
-    if (!config.subscriptionId) {
-      result.errors.push('Log Analytics subscription ID is required');
-      result.isValid = false;
-    }
+    // Check for minimal setup (workspaceId + tenantId) OR enhanced setup (subscriptionId + resourceGroup + resourceName)
+    const hasMinimalSetup = config.workspaceId && config.tenantId;
+    const hasEnhancedSetup = config.subscriptionId && config.resourceGroup && config.resourceName;
 
-    if (!config.resourceGroup) {
-      result.errors.push('Log Analytics resource group is required');
-      result.isValid = false;
-    }
-
-    if (!config.resourceName) {
-      result.errors.push('Log Analytics workspace name is required');
-      result.isValid = false;
+    if (!hasMinimalSetup && !hasEnhancedSetup) {
+      if (!config.workspaceId) {
+        result.errors.push('Log Analytics workspace ID is required');
+        result.isValid = false;
+      }
+      if (!config.tenantId) {
+        result.errors.push('Log Analytics tenant ID is required');
+        result.isValid = false;
+      }
+      
+      // If minimal setup is missing but some enhanced fields are present, guide user
+      if (!hasMinimalSetup && (config.subscriptionId || config.resourceGroup || config.resourceName)) {
+        if (!config.subscriptionId) {
+          result.errors.push('Log Analytics subscription ID is required for enhanced setup');
+          result.isValid = false;
+        }
+        if (!config.resourceGroup) {
+          result.errors.push('Log Analytics resource group is required for enhanced setup');
+          result.isValid = false;
+        }
+        if (!config.resourceName) {
+          result.errors.push('Log Analytics workspace name is required for enhanced setup');
+          result.isValid = false;
+        }
+      }
     }
 
     // Application ID not used for Log Analytics

@@ -16,6 +16,7 @@ export interface AIProviderConfig {
 export interface DataSourceConfig {
   type: DataSourceType;
   applicationId?: string;
+  workspaceId?: string;
   tenantId?: string;
   endpoint?: string;
   subscriptionId?: string;
