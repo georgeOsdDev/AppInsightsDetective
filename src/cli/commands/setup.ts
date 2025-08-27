@@ -214,6 +214,7 @@ async function chooseDataSourceProvider(): Promise<string> {
       choices: [
         { name: '📊 Application Insights (Recommended)', value: 'application-insights' },
         { name: '📈 Log Analytics', value: 'log-analytics' },
+        { name: '🔍 Azure Data Explorer', value: 'azure-data-explorer' },
       ],
     },
   ]);
@@ -230,6 +231,8 @@ async function configureDataSourceProvider(provider: string): Promise<any> {
       return await configureApplicationInsights();
     case 'log-analytics':
       return await configureLogAnalytics();
+    case 'azure-data-explorer':
+      return await configureAzureDataExplorer();
     default:
       throw new Error(`Unsupported data source provider: ${provider}`);
   }
@@ -299,6 +302,78 @@ async function configureLogAnalytics(): Promise<any> {
     tenantId: answers.tenantId,
     endpoint: answers.endpoint,
   };
+}
+
+/**
+ * Configure Azure Data Explorer
+ */
+async function configureAzureDataExplorer(): Promise<any> {
+  const { clusterType } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'clusterType',
+      message: 'Choose your Azure Data Explorer cluster type:',
+      choices: [
+        { name: '🌐 Microsoft Help Cluster (Sample data)', value: 'help' },
+        { name: '🔐 Private Enterprise Cluster', value: 'private' },
+      ],
+    },
+  ]);
+
+  if (clusterType === 'help') {
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'clusterUri',
+        message: 'Enter cluster URI:',
+        default: 'https://help.kusto.windows.net',
+        validate: (input) => input.trim() !== '' || 'Cluster URI is required',
+      },
+      {
+        type: 'input',
+        name: 'database',
+        message: 'Enter database name:',
+        default: 'Samples',
+        validate: (input) => input.trim() !== '' || 'Database name is required',
+      },
+    ]);
+
+    return {
+      type: 'azure-data-explorer',
+      clusterUri: answers.clusterUri,
+      database: answers.database,
+      requiresAuthentication: true, // All clusters require Azure AD authentication
+    };
+  } else {
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'clusterUri',
+        message: 'Enter your Azure Data Explorer cluster URI:',
+        validate: (input) => input.trim() !== '' || 'Cluster URI is required',
+      },
+      {
+        type: 'input',
+        name: 'database',
+        message: 'Enter database name:',
+        validate: (input) => input.trim() !== '' || 'Database name is required',
+      },
+      {
+        type: 'input',
+        name: 'tenantId',
+        message: 'Enter your Azure Tenant ID:',
+        validate: (input) => input.trim() !== '' || 'Tenant ID is required',
+      },
+    ]);
+
+    return {
+      type: 'azure-data-explorer',
+      clusterUri: answers.clusterUri,
+      database: answers.database,
+      tenantId: answers.tenantId,
+      requiresAuthentication: true,
+    };
+  }
 }
 
 /**
