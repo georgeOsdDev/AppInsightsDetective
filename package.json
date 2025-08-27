@@ -7,7 +7,7 @@
     "aidx": "dist/src/cli/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r src/webui/public dist/src/webui/",
     "dev": "ts-node src/cli/index.ts",
     "start": "node dist/cli/index.js",
     "lint": "eslint src/**/*.ts",
