@@ -191,24 +191,33 @@ describe('LogAnalyticsProvider', () => {
     });
 
     it('should execute query successfully with actual Log Analytics API format (capital Table)', async () => {
-      // This test uses the actual Log Analytics API response format with capital "Table"
-      const mockResponse = {
+      // Mock workspace metadata response (for getWorkspaceId)
+      const mockWorkspaceResponse = {
         data: {
-          Table: [{
-            name: 'PrimaryResult',
-            columns: [
-              { name: 'TimeGenerated', type: 'datetime' },
-              { name: 'Count', type: 'int' }
-            ],
-            rows: [
-              ['2023-01-01T00:00:00Z', 100],
-              ['2023-01-01T01:00:00Z', 150]
-            ]
-          }]
+          properties: {
+            customerId: 'test-workspace-id'
+          }
         }
       };
+      mockAxiosInstance.get.mockResolvedValue(mockWorkspaceResponse);
 
-      mockAxiosInstance.post.mockResolvedValue(mockResponse);
+      // Mock LogsQueryClient response (this test uses the actual Log Analytics API response format with capital "Table")
+      const mockQueryResponse = {
+        status: 'Success',
+        tables: [{
+          name: 'PrimaryResult',
+          columnDescriptors: [
+            { name: 'TimeGenerated', type: 'datetime' },
+            { name: 'Count', type: 'int' }
+          ],
+          rows: [
+            ['2023-01-01T00:00:00Z', 100],
+            ['2023-01-01T01:00:00Z', 150]
+          ]
+        }]
+      };
+
+      mockQueryWorkspace.mockResolvedValue(mockQueryResponse);
 
       const request: QueryExecutionRequest = {
         query: 'Heartbeat | summarize count() by bin(TimeGenerated, 1h)',

@@ -5,7 +5,7 @@
 /**
  * Data source type for prompts
  */
-export type DataSourceType = 'application-insights' | 'log-analytics' | 'azure-metrics';
+export type DataSourceType = 'application-insights' | 'log-analytics' | 'azure-metrics' | 'azure-data-explorer';
 
 /**
  * Build system prompt for KQL generation based on data source type
@@ -85,6 +85,21 @@ Azure Metrics specific guidance:
 - Common metric categories: CPU, Memory, Network, Storage, etc.
 - Consider metric dimensions for filtering and grouping
 - Use appropriate aggregation functions: avg, sum, count, min, max`;
+
+    case 'azure-data-explorer':
+      return `You are an expert in Azure Data Explorer (ADX) KQL (Kusto Query Language).
+Your task is to convert natural language queries into valid KQL queries for Azure Data Explorer.
+Follow Azure Data Explorer best practices and proven patterns.
+
+Azure Data Explorer specific guidance:
+- Use proper table names based on the database schema
+- Tables and columns are case-sensitive in Azure Data Explorer
+- Use 'where' clauses early in queries for performance optimization
+- Consider using materialized views for frequently queried data
+- Use appropriate datetime functions for time-based filtering
+- Apply summarize operations for aggregations and grouping
+- Use join operations when working with multiple tables
+- Consider data retention and hot/cold cache policies`;
 
     default:
       return `You are an expert in KQL (Kusto Query Language).
