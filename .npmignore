@@ -1,0 +1,45 @@
+# Development files
+src/
+tests/
+coverage/
+demo/
+docs/developer/
+dist/tests/
+dist/demo/
+*.log
+.vscode/
+.github/
+jest.config.js
+eslint.config.js
+tsconfig.json
+renovate.json
+TODO.md
+verification-results.html
+output/
+
+# Environment files
+.env
+.env.example
+
+# Git files
+.git/
+.gitignore
+
+# IDE files
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+
+# Build artifacts that shouldn't be included
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

@@ -1,6 +1,8 @@
 # 🔍 AppInsights Detective 🕵
 
 [![CI](https://github.com/georgeOsdDev/AppInsightsDetective/actions/workflows/ci.yml/badge.svg)](https://github.com/georgeOsdDev/AppInsightsDetective/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/appinsights-detective.svg)](https://badge.fury.io/js/appinsights-detective)
+[![npm downloads](https://img.shields.io/npm/dm/appinsights-detective.svg)](https://www.npmjs.com/package/appinsights-detective)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -37,11 +39,13 @@ AppInsights Detective is an intelligent CLI tool that transforms natural languag
 
 ### Installation
 
+#### Install from NPM (Recommended)
 ```bash
-# Install from npm (coming soon)
 npm install -g appinsights-detective
+```
 
-# Or install from source
+#### Install from Source
+```bash
 git clone https://github.com/georgeOsdDev/AppInsightsDetective.git
 cd AppInsightsDetective
 npm install && npm run build && npm install -g .
