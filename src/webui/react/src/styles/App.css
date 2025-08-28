@@ -1036,6 +1036,162 @@ body {
   color: var(--text-secondary);
 }
 
+/* Configuration Manager specific styles */
+.configuration-manager {
+  padding: var(--space-lg);
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xl);
+}
+
+.config-header h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.config-filters {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.config-filters select {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: var(--space-lg);
+}
+
+.config-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  transition: all 0.2s ease;
+}
+
+.config-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-md);
+}
+
+.config-card-header {
+  margin-bottom: var(--space-md);
+}
+
+.config-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.config-title {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+}
+
+.config-icon {
+  width: 24px;
+  height: 24px;
+  margin-top: var(--space-xs);
+}
+
+.config-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.config-title h4 {
+  margin: 0 0 var(--space-xs) 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.config-description {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.config-status-badge {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.config-details {
+  margin-bottom: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.config-detail-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+  font-size: 13px;
+}
+
+.detail-key {
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  font-weight: 500;
+}
+
+.detail-value {
+  color: var(--text-primary);
+  font-family: var(--font-family-mono);
+  word-break: break-all;
+  text-align: right;
+  max-width: 60%;
+}
+
+.config-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.config-actions .btn-danger {
+  background: var(--error-color);
+  color: white;
+  border: none;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.config-actions .btn-danger:hover {
+  background: color-mix(in srgb, var(--error-color) 90%, black);
+  transform: translateY(-1px);
+}
+
+.no-configurations {
+  text-align: center;
+  padding: var(--space-2xl);
+  color: var(--text-secondary);
+}
+
 /* Export actions */
 .export-actions {
   display: flex;
