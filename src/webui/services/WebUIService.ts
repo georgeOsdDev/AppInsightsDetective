@@ -79,8 +79,17 @@ export class WebUIService {
     );
     this.app.use('/api', authMiddleware);
 
-    // Static file serving
+    // Static file serving - React build first, then legacy
+    const reactPath = path.join(__dirname, '..', 'react');
     const publicPath = path.join(__dirname, '..', 'public');
+    
+    // Serve React build if it exists
+    this.app.use('/react', express.static(reactPath, {
+      maxAge: '1d',
+      etag: true
+    }));
+    
+    // Serve legacy public files
     this.app.use(express.static(publicPath, {
       maxAge: '1d',
       etag: true
@@ -96,9 +105,38 @@ export class WebUIService {
     this.app.use('/api', apiRouter);
 
     // Serve the main HTML file for all non-API routes (SPA routing)
+    this.app.get('/react/*', (req, res) => {
+      const reactIndexPath = path.join(__dirname, '..', 'react', 'index.html');
+      res.sendFile(reactIndexPath, (err) => {
+        if (err) {
+          // Fallback to legacy version
+          const legacyIndexPath = path.join(__dirname, '..', 'public', 'index.html');
+          res.sendFile(legacyIndexPath);
+        }
+      });
+    });
+    
     this.app.get('*', (req, res) => {
-      const indexPath = path.join(__dirname, '..', 'public', 'index.html');
-      res.sendFile(indexPath);
+      // Check if React UI is requested or available
+      if (this.options.react) {
+        const reactIndexPath = path.join(__dirname, '..', 'react', 'index.html');
+        res.sendFile(reactIndexPath, (err) => {
+          if (err) {
+            const legacyIndexPath = path.join(__dirname, '..', 'public', 'index.html');
+            res.sendFile(legacyIndexPath);
+          }
+        });
+      } else {
+        // Default to React version if available, otherwise legacy
+        const reactIndexPath = path.join(__dirname, '..', 'react', 'index.html');
+        const legacyIndexPath = path.join(__dirname, '..', 'public', 'index.html');
+        
+        res.sendFile(reactIndexPath, (err) => {
+          if (err) {
+            res.sendFile(legacyIndexPath);
+          }
+        });
+      }
     });
   }
 
