@@ -15,7 +15,7 @@ export interface WebUIOptions {
 
 export function createWebUICommand(): Command {
   return new Command('webui')
-    .description('Start web-based user interface')
+    .description('Start web-based user interface (🧪 Experimental)')
     .option('-p, --port <port>', 'Port to run the web server on', '3000')
     .option('-h, --host <host>', 'Host to bind the web server to', 'localhost')
     .option('--no-open', 'Do not automatically open browser')
@@ -38,6 +38,7 @@ export function createWebUICommand(): Command {
 
 async function startWebUI(options: WebUIOptions): Promise<void> {
   console.log(chalk.cyan.bold('\n🌐 Starting AppInsights Detective WebUI'));
+  console.log(chalk.yellow.bold('🧪 EXPERIMENTAL FEATURE - WebUI is currently in beta'));
   console.log(chalk.dim('='.repeat(50)));
 
   // Validate configuration

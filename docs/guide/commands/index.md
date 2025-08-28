@@ -7,6 +7,7 @@ AppInsights Detective provides a comprehensive set of commands for querying, con
 | Command | Purpose | Quick Example |
 |---------|---------|---------------|
 | [query](#query-command) | Execute natural language or KQL queries | `aidx "show me errors"` |
+| [webui](#webui-command) | 🧪 Start web-based user interface (experimental) | `aidx webui` |
 | [setup](#setup-command) | Interactive configuration wizard | `aidx setup` |
 | [status](#status-command) | Check configuration and connections | `aidx status --verbose` |
 | [template](#template-command) | Manage query templates | `aidx template list` |
@@ -84,6 +85,58 @@ aidx "error details" --output errors.json --format json --pretty
 ```
 
 [→ See detailed query documentation](query.md)
+
+## WebUI Command
+
+🧪 **Experimental Feature** - Start a web-based user interface for AppInsights Detective.
+
+### Usage
+
+```bash
+# Start WebUI on default port (3000)
+aidx webui
+
+# Start on custom port
+aidx webui --port 8080
+
+# Start without opening browser automatically
+aidx webui --no-open
+
+# Start on specific host
+aidx webui --host 0.0.0.0 --port 3000
+```
+
+### WebUI Options
+
+| Option | Description | Default | Example |
+|--------|-------------|---------|---------|
+| `-p, --port <port>` | Port to run the web server on | `3000` | `aidx webui --port 8080` |
+| `-h, --host <host>` | Host to bind the web server to | `localhost` | `aidx webui --host 0.0.0.0` |
+| `--no-open` | Do not automatically open browser | `false` | `aidx webui --no-open` |
+
+### WebUI Features
+
+- **🎨 Visual Query Editor**: Build queries with guided interface
+- **📊 Interactive Results**: View data in tables, charts, and raw JSON
+- **📋 Template Management**: Browse and use query templates  
+- **🕵️ Query History**: Track and reuse previous queries
+- **🔍 Syntax Highlighting**: KQL syntax highlighting with proper formatting
+- **🌐 Portal Integration**: One-click Azure Portal query execution
+
+> **⚠️ Note**: WebUI is an experimental feature and may have limitations. For production use, consider the CLI commands or interactive mode.
+
+### Accessing WebUI
+
+After starting the WebUI, access it at `http://localhost:3000` (or your specified port). The interface provides all AppInsights Detective functionality through a modern web interface.
+
+### Prerequisites
+
+The WebUI requires the same configuration as CLI commands:
+- Configured Azure credentials
+- Application Insights access
+- Azure OpenAI setup
+
+Run `aidx setup` if you haven't configured the application yet.
 
 ## Setup Command
 

@@ -878,3 +878,66 @@ body {
     font-size: 0.75rem;
   }
 }
+
+/* KQL Syntax Highlighting Styles */
+.kql-keyword {
+  color: #569cd6; /* Blue - KQL keywords */
+  font-weight: 600;
+}
+
+.kql-table {
+  color: #4ec9b0; /* Teal - Table names */
+  font-weight: 500;
+}
+
+.kql-function {
+  color: #dcdcaa; /* Yellow - Functions */
+}
+
+.kql-operator {
+  color: #d4d4d4; /* Light gray - Operators */
+}
+
+.kql-string {
+  color: #ce9178; /* Orange - Strings */
+}
+
+.kql-number {
+  color: #b5cea8; /* Light green - Numbers */
+}
+
+.kql-comment {
+  color: #6a9955; /* Green - Comments */
+  font-style: italic;
+}
+
+/* Dark mode overrides for KQL syntax highlighting */
+@media (prefers-color-scheme: dark) {
+  .kql-keyword {
+    color: #569cd6;
+  }
+  
+  .kql-table {
+    color: #4ec9b0;
+  }
+  
+  .kql-function {
+    color: #dcdcaa;
+  }
+  
+  .kql-operator {
+    color: #d4d4d4;
+  }
+  
+  .kql-string {
+    color: #ce9178;
+  }
+  
+  .kql-number {
+    color: #b5cea8;
+  }
+  
+  .kql-comment {
+    color: #6a9955;
+  }
+}

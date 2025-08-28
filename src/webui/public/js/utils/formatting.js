@@ -1,79 +1,125 @@
 /**
  * Formatting Utilities for AppInsights Detective WebUI
- * Uses highlight.js library for proper syntax highlighting
+ * Custom KQL syntax highlighting implementation
  */
 class DataFormatter {
     constructor() {
-        // Initialize highlight.js for KQL support
-        this.initializeHighlightJS();
+        // No external dependencies needed
     }
 
     /**
-     * Initialize highlight.js and register KQL language if needed
-     */
-    initializeHighlightJS() {
-        // KQL language definition for highlight.js
-        if (window.hljs && !window.hljs.getLanguage('kql')) {
-            // Define KQL language for highlight.js
-            const kqlLanguage = {
-                name: 'KQL',
-                aliases: ['kusto', 'kql'],
-                keywords: {
-                    keyword: [
-                        'let', 'where', 'summarize', 'project', 'extend', 'join', 'union', 'sort', 'top', 'limit',
-                        'count', 'sum', 'avg', 'min', 'max', 'distinct', 'by', 'asc', 'desc', 'and', 'or', 'not',
-                        'between', 'contains', 'startswith', 'endswith', 'matches', 'regex', 'in', 'has', 'has_any',
-                        'ago', 'now', 'datetime', 'timespan', 'bin', 'floor', 'ceiling', 'round', 'abs', 'sqrt',
-                        'take', 'sample', 'evaluate', 'invoke', 'as', 'on', 'kind', 'with', 'parse', 'serialize',
-                        'mv-expand', 'mv-apply', 'make-series', 'render', 'fork', 'facet', 'range', 'print', 'order'
-                    ].join(' '),
-                    built_in: [
-                        'requests', 'dependencies', 'exceptions', 'traces', 'pageViews', 'customEvents', 'customMetrics',
-                        'availabilityResults', 'browserTimings', 'performanceCounters', 'heartbeat', 'usage',
-                        'tostring', 'toint', 'toreal', 'tobool', 'todatetime', 'totimespan',
-                        'strlen', 'substring', 'split', 'strcat', 'tolower', 'toupper', 'trim',
-                        'parse_json', 'parse_xml', 'parse_url', 'format_datetime', 'format_timespan'
-                    ].join(' ')
-                },
-                contains: [
-                    window.hljs.COMMENT('//', '$'),
-                    window.hljs.COMMENT('/\\*', '\\*/'),
-                    window.hljs.QUOTE_STRING_MODE,
-                    window.hljs.APOS_STRING_MODE,
-                    window.hljs.C_NUMBER_MODE,
-                    {
-                        className: 'operator',
-                        begin: /[=!<>]=?|[+\-*/%|&]/
-                    }
-                ]
-            };
-
-            // Register the KQL language
-            window.hljs.registerLanguage('kql', () => kqlLanguage);
-        }
-    }
-
-    /**
-     * Apply KQL syntax highlighting using highlight.js
+     * Apply KQL syntax highlighting using simple, safe pattern matching
      */
     highlightKQL(query) {
         if (!query) return '';
 
-        // Use highlight.js for proper syntax highlighting
-        if (window.hljs) {
-            try {
-                const result = window.hljs.highlight(query, { language: 'kql' });
-                return result.value;
-            } catch (error) {
-                console.warn('KQL highlighting failed, using fallback:', error);
-                // Fallback to auto-detection
-                const result = window.hljs.highlightAuto(query);
-                return result.value;
+        // Split the query into tokens to avoid nested replacements
+        const tokens = this.tokenizeKQL(query);
+        return tokens.map(token => {
+            if (token.type === 'text') {
+                return this.escapeHtml(token.value);
+            } else {
+                return `<span class="${token.type}">${this.escapeHtml(token.value)}</span>`;
             }
-        }
+        }).join('');
+    }
 
-        // Fallback: just escape HTML if highlight.js is not available
-        return this.escapeHtml(query);
+    /**
+     * Tokenize KQL query for syntax highlighting
+     */
+    tokenizeKQL(query) {
+        const tokens = [];
+        let i = 0;
+        
+        while (i < query.length) {
+            const char = query[i];
+            
+            // Handle comments
+            if (query.substr(i, 2) === '//') {
+                const endIndex = query.indexOf('\n', i);
+                const end = endIndex === -1 ? query.length : endIndex;
+                tokens.push({ type: 'kql-comment', value: query.slice(i, end) });
+                i = end;
+                continue;
+            }
+            
+            if (query.substr(i, 2) === '/*') {
+                const endIndex = query.indexOf('*/', i + 2);
+                const end = endIndex === -1 ? query.length : endIndex + 2;
+                tokens.push({ type: 'kql-comment', value: query.slice(i, end) });
+                i = end;
+                continue;
+            }
+            
+            // Handle strings
+            if (char === '"' || char === "'") {
+                const quote = char;
+                let j = i + 1;
+                while (j < query.length && query[j] !== quote) {
+                    if (query[j] === '\\' && j + 1 < query.length) {
+                        j += 2; // Skip escaped character
+                    } else {
+                        j++;
+                    }
+                }
+                if (j < query.length) j++; // Include closing quote
+                tokens.push({ type: 'kql-string', value: query.slice(i, j) });
+                i = j;
+                continue;
+            }
+            
+            // Handle words (keywords, tables, functions)
+            if (/[a-zA-Z_]/.test(char)) {
+                let j = i;
+                while (j < query.length && /[a-zA-Z0-9_-]/.test(query[j])) {
+                    j++;
+                }
+                const word = query.slice(i, j);
+                const lowerWord = word.toLowerCase();
+                
+                let type = 'text';
+                if (['let', 'where', 'summarize', 'project', 'extend', 'join', 'union', 'sort', 'top', 'limit', 'count', 'sum', 'avg', 'min', 'max', 'distinct', 'by', 'asc', 'desc', 'and', 'or', 'not', 'between', 'contains', 'startswith', 'endswith', 'matches', 'regex', 'in', 'has', 'has_any', 'ago', 'now', 'datetime', 'timespan', 'bin', 'floor', 'ceiling', 'round', 'abs', 'sqrt', 'take', 'sample', 'evaluate', 'invoke', 'as', 'on', 'kind', 'with', 'parse', 'serialize', 'mv-expand', 'mv-apply', 'make-series', 'render', 'fork', 'facet', 'range', 'print', 'order'].includes(lowerWord)) {
+                    type = 'kql-keyword';
+                } else if (['requests', 'dependencies', 'exceptions', 'traces', 'pageviews', 'customevents', 'custommetrics', 'availabilityresults', 'browsertimings', 'performancecounters', 'heartbeat', 'usage'].includes(lowerWord)) {
+                    type = 'kql-table';
+                } else if (['tostring', 'toint', 'toreal', 'tobool', 'todatetime', 'totimespan', 'strlen', 'substring', 'split', 'strcat', 'tolower', 'toupper', 'trim', 'parse_json', 'parse_xml', 'parse_url', 'format_datetime', 'format_timespan'].includes(lowerWord)) {
+                    type = 'kql-function';
+                }
+                
+                tokens.push({ type, value: word });
+                i = j;
+                continue;
+            }
+            
+            // Handle numbers
+            if (/\d/.test(char)) {
+                let j = i;
+                while (j < query.length && /[\d.]/.test(query[j])) {
+                    j++;
+                }
+                tokens.push({ type: 'kql-number', value: query.slice(i, j) });
+                i = j;
+                continue;
+            }
+            
+            // Handle operators
+            if (/[=!<>+\-*\/%|&]/.test(char)) {
+                let j = i + 1;
+                // Check for two-character operators
+                if (j < query.length && /[=]/.test(query[j])) {
+                    j++;
+                }
+                tokens.push({ type: 'kql-operator', value: query.slice(i, j) });
+                i = j;
+                continue;
+            }
+            
+            // Everything else is text
+            tokens.push({ type: 'text', value: char });
+            i++;
+        }
+        
+        return tokens;
     }
 
     /**
