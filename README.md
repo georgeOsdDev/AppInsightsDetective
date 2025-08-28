@@ -18,6 +18,7 @@ AppInsights Detective is an intelligent CLI tool that transforms natural languag
 - 🔐 **Secure Authentication** - Azure Managed Identity with multi-tenant support
 - 📊 **Rich Visualization** - Console charts, tables, and multiple output formats
 - 🕵️ **Interactive Mode** - Step-by-step query building with guided assistance
+- 🌐 **Web Interface** - Modern web UI for visual query building (🧪 experimental)
 - 📋 **Template System** - Create and reuse query templates
 - 🌐 **Azure Portal Integration** - One-click query execution in the portal
 - 🗃️ **Multiple Data Sources** - Support for Application Insights, Log Analytics, and Azure Data Explorer
@@ -67,6 +68,7 @@ aidx --interactive
 | `aidx status` | Check configuration and connection status | `aidx status --verbose` |
 | `aidx "question"` | Ask a natural language question | `aidx "top 10 slowest requests"` |
 | `aidx --interactive` | Start guided interactive session | `aidx -i` |
+| `aidx webui` | 🧪 Start web-based interface (experimental) | `aidx webui --port 3000` |
 | `aidx --raw "kql"` | Execute raw KQL query | `aidx --raw "requests \| take 5"` |
 | `aidx template list` | Manage query templates | `aidx template use performance-overview` |
 

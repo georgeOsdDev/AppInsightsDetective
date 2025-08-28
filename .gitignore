@@ -19,6 +19,9 @@ docs/design/
 !jest.config.js
 !eslint.config.js
 
+# Allow client-side JavaScript files for WebUI
+!src/webui/public/js/**/*.js
+
 # User-created templates (these should not be committed to the repo)
 templates/user/*.json
 output

@@ -7,6 +7,7 @@ import { createStatusCommand } from './commands/status';
 import { createTemplateCommand } from './commands/template';
 import { createListProvidersCommand } from './commands/listProviders';
 import { createProvidersCommand } from './commands/providers';
+import { createWebUICommand } from './commands/webui';
 import { logger } from '../utils/logger';
 import chalk from 'chalk';
 import { Bootstrap } from '../infrastructure/Bootstrap';
@@ -183,6 +184,7 @@ program.addCommand(createStatusCommand());
 program.addCommand(createTemplateCommand());
 program.addCommand(createListProvidersCommand());
 program.addCommand(createProvidersCommand());
+program.addCommand(createWebUICommand());
 
 // Default Action
 program

@@ -122,6 +122,8 @@ export class Bootstrap {
     // Register business logic layer
     const templateService = new TemplateService();
     this.container.register<ITemplateRepository>('templateRepository', templateService);
+    // Also register as templateService for WebUI compatibility
+    this.container.register('templateService', templateService);
 
     // Register orchestration layer (with template repository support)
     const queryOrchestrator = new QueryOrchestrator(aiProvider, dataSourceProvider, templateService);
