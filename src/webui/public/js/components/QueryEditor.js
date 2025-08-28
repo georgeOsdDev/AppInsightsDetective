@@ -223,10 +223,10 @@ class QueryEditor {
         try {
             const response = await window.apiClient.explainQuery(this.currentQuery);
             
-            if (response.success) {
-                alert(response.explanation); // Simple alert for now
-            } else {
+            if (response.error) {
                 throw new Error(response.error);
+            } else {
+                alert(response.explanation); // Simple alert for now
             }
         } catch (error) {
             this.showError('Explanation failed', error);
