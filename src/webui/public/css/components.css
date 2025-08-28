@@ -242,7 +242,46 @@
   animation: slideIn 0.3s ease;
 }
 
-/* Query syntax highlighting (basic) */
+/* KQL syntax highlighting using highlight.js */
+.hljs-keyword {
+  color: #0066cc;
+  font-weight: 600;
+}
+
+.hljs-string {
+  color: #d14;
+}
+
+.hljs-number {
+  color: #099;
+}
+
+.hljs-comment {
+  color: #998;
+  font-style: italic;
+}
+
+.hljs-operator {
+  color: #a67f59;
+  font-weight: 600;
+}
+
+.hljs-function {
+    color: #795da3;
+    font-weight: 600;
+}
+
+.hljs-built_in {
+    color: #0086b3;
+    font-weight: 600;
+}
+
+.hljs-type {
+    color: #458;
+    font-weight: 600;
+}
+
+/* Legacy KQL classes for backward compatibility */
 .kql-keyword {
   color: #0066cc;
   font-weight: 600;
@@ -266,7 +305,10 @@
   font-weight: 600;
 }
 
-/* JavaScript Component Styles */
+.kql-function {
+    color: #795da3;
+    font-weight: 600;
+}
 
 /* Loading and Error States */
 .loading-message {
@@ -1366,12 +1408,6 @@
 .json-null {
     color: #999;
     font-style: italic;
-}
-
-/* KQL syntax highlighting */
-.kql-function {
-    color: #795da3;
-    font-weight: 600;
 }
 
 /* Interactive states */
