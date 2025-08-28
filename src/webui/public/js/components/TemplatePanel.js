@@ -166,7 +166,7 @@ class TemplatePanel {
             // Use the template
             const response = await window.apiClient.useTemplate(templateId, parameters);
             
-            if (response.success) {
+            if (!response.error) {
                 // Switch to query panel and populate input
                 window.app.switchPanel('query');
                 window.queryEditor.setQueryText(response.userInput || response.query);

@@ -136,7 +136,7 @@ class QueryEditor {
             // Generate query using AI
             const generateResponse = await window.apiClient.generateQuery(userInput, this.mode);
             
-            if (!generateResponse.success) {
+            if (generateResponse.error) {
                 throw new Error(generateResponse.error || 'Failed to generate query');
             }
 
@@ -160,7 +160,7 @@ class QueryEditor {
         try {
             const response = await window.apiClient.executeQuery(query, 'raw');
             
-            if (response.success) {
+            if (!response.error) {
                 window.resultsViewer.displayResults(response);
                 this.addToHistory(query, 'raw', response);
             } else {
@@ -175,7 +175,7 @@ class QueryEditor {
         try {
             const response = await window.apiClient.executeQuery(query, this.mode);
             
-            if (response.success) {
+            if (!response.error) {
                 window.resultsViewer.displayResults(response);
                 this.addToHistory(query, this.mode, response, this.reviewData);
             } else {
@@ -250,7 +250,7 @@ class QueryEditor {
                 feedback
             );
 
-            if (response.success) {
+            if (!response.error) {
                 this.currentQuery = response.query;
                 this.reviewData = response;
                 this.showReviewSection(response);
@@ -270,8 +270,8 @@ class QueryEditor {
         try {
             const response = await window.apiClient.openInPortal(this.currentQuery);
             
-            if (response.success && response.url) {
-                window.open(response.url, '_blank');
+            if (!response.error && response.portalUrl) {
+                window.open(response.portalUrl, '_blank');
             } else {
                 throw new Error(response.error || 'Failed to generate portal URL');
             }
@@ -337,7 +337,7 @@ class QueryEditor {
             reasoning: generateData?.reasoning,
             resultCount: results.data?.length || 0,
             executionTime: results.executionTime,
-            success: results.success
+            success: !results.error
         };
 
         window.historyPanel.addHistoryItem(historyItem);

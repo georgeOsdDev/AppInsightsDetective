@@ -153,7 +153,7 @@ class ResultsViewer {
 
         // Show the complete response data
         const displayData = {
-            success: this.currentData.success,
+            success: !this.currentData.error,
             query: this.currentData.query,
             executionTime: this.currentData.executionTime,
             confidence: this.currentData.confidence,
