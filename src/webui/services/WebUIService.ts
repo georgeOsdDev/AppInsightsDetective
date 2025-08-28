@@ -1,6 +1,5 @@
 import express, { Express } from 'express';
 import { Server } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -11,7 +10,6 @@ import { logger } from '../../utils/logger';
 import { WebUIOptions } from '../../cli/commands/webui';
 import { createAPIRoutes } from '../server/routes/api';
 import { createAuthMiddleware } from '../server/middleware/auth';
-import { setupWebSocket } from '../server/websocket/handler';
 import { 
   IAIProvider,
   IDataSourceProvider,
@@ -21,12 +19,11 @@ import { QueryService } from '../../services/QueryService';
 import { TemplateService } from '../../services/TemplateService';
 
 /**
- * WebUI Service - Manages the Express server and WebSocket connections
+ * WebUI Service - Manages the Express server for HTTP API and static file serving
  */
 export class WebUIService {
   private app: Express;
   private server: Server | null = null;
-  private io: SocketIOServer | null = null;
 
   constructor(
     private container: ServiceContainer,
@@ -47,10 +44,10 @@ export class WebUIService {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+          scriptSrc: ["'self'", "https://cdnjs.cloudflare.com"],
           imgSrc: ["'self'", "data:", "https:"],
-          connectSrc: ["'self'", "ws:", "wss:"],
+          connectSrc: ["'self'"],
           fontSrc: ["'self'"],
         }
       }
@@ -113,25 +110,6 @@ export class WebUIService {
       try {
         this.server = this.app.listen(this.options.port, this.options.host, () => {
           logger.info(`WebUI server started on ${this.options.host}:${this.options.port}`);
-
-          // Setup WebSocket
-          if (this.server) {
-            this.io = new SocketIOServer(this.server, {
-              cors: {
-                origin: [
-                  'http://localhost:3000',
-                  'http://127.0.0.1:3000',
-                  `http://localhost:${this.options.port}`,
-                  `http://127.0.0.1:${this.options.port}`,
-                  `http://${this.options.host}:${this.options.port}`
-                ],
-                credentials: true
-              }
-            });
-
-            setupWebSocket(this.io, this.container);
-          }
-
           resolve();
         });
 
@@ -152,12 +130,6 @@ export class WebUIService {
    */
   async stop(): Promise<void> {
     return new Promise((resolve) => {
-      if (this.io) {
-        this.io.close(() => {
-          logger.info('WebSocket server closed');
-        });
-      }
-
       if (this.server) {
         this.server.close(() => {
           logger.info('WebUI server stopped');

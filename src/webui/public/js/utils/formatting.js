@@ -1,231 +1,79 @@
 /**
  * Formatting Utilities for AppInsights Detective WebUI
- * Provides text formatting, syntax highlighting, and data formatting
+ * Uses highlight.js library for proper syntax highlighting
  */
 class DataFormatter {
     constructor() {
-        // Initialize improved KQL highlighting
-        this.initializeKQLTokens();
+        // Initialize highlight.js for KQL support
+        this.initializeHighlightJS();
     }
 
     /**
-     * Initialize KQL syntax tokens for better highlighting
+     * Initialize highlight.js and register KQL language if needed
      */
-    initializeKQLTokens() {
-        this.kqlTokens = {
-            keywords: new Set([
-                'let', 'where', 'summarize', 'project', 'extend', 'join', 'union', 'sort', 'top', 'limit',
-                'count', 'sum', 'avg', 'min', 'max', 'distinct', 'by', 'asc', 'desc', 'and', 'or', 'not',
-                'between', 'contains', 'startswith', 'endswith', 'matches', 'regex', 'in', 'has', 'has_any',
-                'ago', 'now', 'datetime', 'timespan', 'bin', 'floor', 'ceiling', 'round', 'abs', 'sqrt',
-                'take', 'sample', 'evaluate', 'invoke', 'as', 'on', 'kind', 'with', 'parse', 'serialize',
-                'mv-expand', 'mv-apply', 'make-series', 'render', 'fork', 'facet', 'range', 'print', 'order'
-            ]),
-            tables: new Set([
-                'requests', 'dependencies', 'exceptions', 'traces', 'pageViews', 'customEvents', 'customMetrics',
-                'availabilityResults', 'browserTimings', 'performanceCounters', 'heartbeat', 'usage'
-            ]),
-            operators: [
-                '==', '!=', '<=', '>=', '<>', '<', '>', '=~', '!~', '+', '-', '*', '/', '%', '|'
-            ],
-            functions: new Set([
-                'tostring', 'toint', 'toreal', 'tobool', 'todatetime', 'totimespan',
-                'strlen', 'substring', 'split', 'strcat', 'tolower', 'toupper', 'trim',
-                'parse_json', 'parse_xml', 'parse_url', 'format_datetime', 'format_timespan'
-            ])
-        };
+    initializeHighlightJS() {
+        // KQL language definition for highlight.js
+        if (window.hljs && !window.hljs.getLanguage('kql')) {
+            // Define KQL language for highlight.js
+            const kqlLanguage = {
+                name: 'KQL',
+                aliases: ['kusto', 'kql'],
+                keywords: {
+                    keyword: [
+                        'let', 'where', 'summarize', 'project', 'extend', 'join', 'union', 'sort', 'top', 'limit',
+                        'count', 'sum', 'avg', 'min', 'max', 'distinct', 'by', 'asc', 'desc', 'and', 'or', 'not',
+                        'between', 'contains', 'startswith', 'endswith', 'matches', 'regex', 'in', 'has', 'has_any',
+                        'ago', 'now', 'datetime', 'timespan', 'bin', 'floor', 'ceiling', 'round', 'abs', 'sqrt',
+                        'take', 'sample', 'evaluate', 'invoke', 'as', 'on', 'kind', 'with', 'parse', 'serialize',
+                        'mv-expand', 'mv-apply', 'make-series', 'render', 'fork', 'facet', 'range', 'print', 'order'
+                    ].join(' '),
+                    built_in: [
+                        'requests', 'dependencies', 'exceptions', 'traces', 'pageViews', 'customEvents', 'customMetrics',
+                        'availabilityResults', 'browserTimings', 'performanceCounters', 'heartbeat', 'usage',
+                        'tostring', 'toint', 'toreal', 'tobool', 'todatetime', 'totimespan',
+                        'strlen', 'substring', 'split', 'strcat', 'tolower', 'toupper', 'trim',
+                        'parse_json', 'parse_xml', 'parse_url', 'format_datetime', 'format_timespan'
+                    ].join(' ')
+                },
+                contains: [
+                    window.hljs.COMMENT('//', '$'),
+                    window.hljs.COMMENT('/\\*', '\\*/'),
+                    window.hljs.QUOTE_STRING_MODE,
+                    window.hljs.APOS_STRING_MODE,
+                    window.hljs.C_NUMBER_MODE,
+                    {
+                        className: 'operator',
+                        begin: /[=!<>]=?|[+\-*/%|&]/
+                    }
+                ]
+            };
+
+            // Register the KQL language
+            window.hljs.registerLanguage('kql', () => kqlLanguage);
+        }
     }
 
     /**
-     * Apply KQL syntax highlighting with proper tokenization to avoid HTML escaping issues
+     * Apply KQL syntax highlighting using highlight.js
      */
     highlightKQL(query) {
         if (!query) return '';
 
-        // Simple but robust tokenization approach
-        // This avoids the HTML escaping conflicts by processing tokens individually
-        
-        // Split the query into tokens while preserving whitespace and structure
-        const tokens = this.tokenizeKQL(query);
-        
-        return tokens.map(token => {
-            if (token.type === 'whitespace' || token.type === 'newline') {
-                return token.value;
+        // Use highlight.js for proper syntax highlighting
+        if (window.hljs) {
+            try {
+                const result = window.hljs.highlight(query, { language: 'kql' });
+                return result.value;
+            } catch (error) {
+                console.warn('KQL highlighting failed, using fallback:', error);
+                // Fallback to auto-detection
+                const result = window.hljs.highlightAuto(query);
+                return result.value;
             }
-            
-            // Escape HTML for the token content
-            const escapedValue = this.escapeHtml(token.value);
-            
-            // Apply appropriate styling based on token type
-            switch (token.type) {
-                case 'keyword':
-                    return `<span class="hljs-keyword">${escapedValue}</span>`;
-                case 'table':
-                    return `<span class="hljs-built_in">${escapedValue}</span>`;
-                case 'function':
-                    return `<span class="hljs-function">${escapedValue}</span>`;
-                case 'operator':
-                    return `<span class="hljs-operator">${escapedValue}</span>`;
-                case 'string':
-                    return `<span class="hljs-string">${escapedValue}</span>`;
-                case 'number':
-                    return `<span class="hljs-number">${escapedValue}</span>`;
-                case 'comment':
-                    return `<span class="hljs-comment">${escapedValue}</span>`;
-                default:
-                    return escapedValue;
-            }
-        }).join('');
-    }
-
-    /**
-     * Tokenize KQL query into meaningful parts
-     */
-    tokenizeKQL(query) {
-        const tokens = [];
-        let i = 0;
-        
-        while (i < query.length) {
-            const char = query[i];
-            
-            // Handle whitespace
-            if (/\s/.test(char)) {
-                let whitespace = '';
-                while (i < query.length && /\s/.test(query[i])) {
-                    whitespace += query[i];
-                    i++;
-                }
-                tokens.push({
-                    type: whitespace.includes('\n') ? 'newline' : 'whitespace',
-                    value: whitespace
-                });
-                continue;
-            }
-            
-            // Handle strings
-            if (char === '"' || char === "'") {
-                const quote = char;
-                let string = quote;
-                i++;
-                
-                while (i < query.length) {
-                    const current = query[i];
-                    string += current;
-                    i++;
-                    
-                    if (current === quote) {
-                        // Check if it's escaped
-                        let backslashCount = 0;
-                        let j = i - 2;
-                        while (j >= 0 && query[j] === '\\') {
-                            backslashCount++;
-                            j--;
-                        }
-                        
-                        // If even number of backslashes (including 0), the quote is not escaped
-                        if (backslashCount % 2 === 0) {
-                            break;
-                        }
-                    }
-                }
-                
-                tokens.push({ type: 'string', value: string });
-                continue;
-            }
-            
-            // Handle comments
-            if (char === '/' && i + 1 < query.length) {
-                if (query[i + 1] === '/') {
-                    // Single line comment
-                    let comment = '';
-                    while (i < query.length && query[i] !== '\n') {
-                        comment += query[i];
-                        i++;
-                    }
-                    tokens.push({ type: 'comment', value: comment });
-                    continue;
-                } else if (query[i + 1] === '*') {
-                    // Multi-line comment
-                    let comment = '/*';
-                    i += 2;
-                    
-                    while (i < query.length - 1) {
-                        comment += query[i];
-                        if (query[i] === '*' && query[i + 1] === '/') {
-                            comment += '/';
-                            i += 2;
-                            break;
-                        }
-                        i++;
-                    }
-                    
-                    tokens.push({ type: 'comment', value: comment });
-                    continue;
-                }
-            }
-            
-            // Handle operators (multi-character first)
-            const twoCharOp = query.substr(i, 2);
-            const multiCharOps = ['==', '!=', '<=', '>=', '<>', '=~', '!~'];
-            if (multiCharOps.includes(twoCharOp)) {
-                tokens.push({ type: 'operator', value: twoCharOp });
-                i += 2;
-                continue;
-            }
-            
-            // Single character operators
-            if ('+-*/%|<>=()[]{},.'.includes(char)) {
-                tokens.push({ type: 'operator', value: char });
-                i++;
-                continue;
-            }
-            
-            // Handle numbers
-            if (/\d/.test(char)) {
-                let number = '';
-                while (i < query.length && /[\d.eE+-]/.test(query[i])) {
-                    number += query[i];
-                    i++;
-                }
-                tokens.push({ type: 'number', value: number });
-                continue;
-            }
-            
-            // Handle identifiers (keywords, functions, table names, etc.)
-            if (/[a-zA-Z_]/.test(char)) {
-                let identifier = '';
-                while (i < query.length && /[a-zA-Z0-9_-]/.test(query[i])) {
-                    identifier += query[i];
-                    i++;
-                }
-                
-                // Classify the identifier
-                const lowerIdentifier = identifier.toLowerCase();
-                let tokenType = 'identifier';
-                
-                if (this.kqlTokens.keywords.has(lowerIdentifier)) {
-                    tokenType = 'keyword';
-                } else if (this.kqlTokens.tables.has(identifier)) {
-                    tokenType = 'table';
-                } else if (this.kqlTokens.functions.has(lowerIdentifier)) {
-                    // Check if it's followed by parentheses to confirm it's a function
-                    let j = i;
-                    while (j < query.length && /\s/.test(query[j])) j++;
-                    if (j < query.length && query[j] === '(') {
-                        tokenType = 'function';
-                    }
-                }
-                
-                tokens.push({ type: tokenType, value: identifier });
-                continue;
-            }
-            
-            // Default: treat as regular character
-            tokens.push({ type: 'text', value: char });
-            i++;
         }
-        
-        return tokens;
+
+        // Fallback: just escape HTML if highlight.js is not available
+        return this.escapeHtml(query);
     }
 
     /**

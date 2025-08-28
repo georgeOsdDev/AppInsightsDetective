@@ -226,13 +226,68 @@ class QueryEditor {
             if (response.error) {
                 throw new Error(response.error);
             } else {
-                alert(response.explanation); // Simple alert for now
+                // Create and display explanation modal
+                this.showExplanationModal(response.explanation);
             }
         } catch (error) {
             this.showError('Explanation failed', error);
         } finally {
             this.setLoading(false);
         }
+    }
+
+    showExplanationModal(explanation) {
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Query Explanation</h3>
+                    <button class="modal-close-btn" aria-label="Close">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="explanation-content">${this.formatExplanation(explanation)}</div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-primary modal-close-btn">Close</button>
+                </div>
+            </div>
+        `;
+
+        // Add event listeners
+        modal.querySelectorAll('.modal-close-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                modal.remove();
+            });
+        });
+
+        // Close on overlay click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+
+        // Close on Escape key
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                modal.remove();
+                document.removeEventListener('keydown', handleKeyDown);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+
+        // Add to document
+        document.body.appendChild(modal);
+    }
+
+    formatExplanation(explanation) {
+        // Simple text formatting - convert line breaks to paragraphs
+        return explanation
+            .split('\n\n')
+            .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+            .join('');
     }
 
     async regenerateQuery() {
