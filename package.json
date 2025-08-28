@@ -24,17 +24,33 @@
     "cli",
     "ai",
     "openai",
-    "typescript"
+    "typescript",
+    "azure-data-explorer",
+    "log-analytics",
+    "kusto",
+    "data-analysis",
+    "monitoring",
+    "logging",
+    "observability"
   ],
   "author": "AppInsights Detective Team",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/georgeOsdDev/AppInsightsDetective.git"
+  },
+  "bugs": {
+    "url": "https://github.com/georgeOsdDev/AppInsightsDetective/issues"
+  },
+  "homepage": "https://github.com/georgeOsdDev/AppInsightsDetective#readme",
   "engines": {
     "node": ">=18.0.0"
   },
   "files": [
-    "dist/**/*",
+    "dist/src/**/*",
     "config/**/*",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "devDependencies": {
     "@types/compression": "^1.8.1",
@@ -47,7 +63,6 @@
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",
     "eslint": "^9.33.0",
-    "express": "^4.21.2",
     "jest": "^30.0.5",
     "prettier": "^3.6.2",
     "ts-jest": "^29.4.1",
@@ -67,6 +82,7 @@
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
+    "express": "^4.21.2",
     "helmet": "^8.1.0",
     "highlight.js": "^11.11.1",
     "inquirer": "^12.9.2",
