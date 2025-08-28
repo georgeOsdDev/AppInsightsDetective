@@ -66,8 +66,13 @@ class ResultsViewer {
     updateResultsInfo(response) {
         if (!this.resultsInfo) return;
 
-        const count = response.data?.length || 0;
-        const executionTime = response.executionTime;
+        // Extract data from nested result structure
+        const resultData = response.result?.result || response.result || response;
+        const tables = resultData.tables || [];
+        const totalRows = tables.reduce((sum, table) => sum + (table.rows?.length || 0), 0);
+        
+        const count = totalRows;
+        const executionTime = response.executionTime || response.result?.executionTime || 0;
         const formattedCount = window.dataFormatter.formatResultsCount(count, executionTime);
         
         let statusInfo = '';
@@ -111,22 +116,50 @@ class ResultsViewer {
     }
 
     renderTableView() {
-        if (!this.currentData?.data) {
+        // Extract data from nested result structure
+        const resultData = this.currentData.result?.result || this.currentData.result || this.currentData;
+        const tables = resultData.tables || [];
+        
+        if (!tables.length || tables.every(table => !table.rows || table.rows.length === 0)) {
             this.tableContainer.innerHTML = '<div class="empty-state">No data to display</div>';
             return;
         }
 
-        window.chartRenderer.renderTable(this.tableContainer, this.currentData.data);
+        // For now, render the first table. In the future, we might want to handle multiple tables
+        const primaryTable = tables[0];
+        const tableData = primaryTable.rows.map(row => {
+            const rowObj = {};
+            primaryTable.columns.forEach((column, index) => {
+                rowObj[column.name] = row[index];
+            });
+            return rowObj;
+        });
+
+        window.chartRenderer.renderTable(this.tableContainer, tableData);
     }
 
     renderChartView() {
-        if (!this.currentData?.data || this.currentData.data.length === 0) {
+        // Extract data from nested result structure
+        const resultData = this.currentData.result?.result || this.currentData.result || this.currentData;
+        const tables = resultData.tables || [];
+        
+        if (!tables.length || tables.every(table => !table.rows || table.rows.length === 0)) {
             this.chartContainer.innerHTML = '<div class="empty-state">No data available for charting</div>';
             return;
         }
 
+        // Convert first table to flat data structure for charting
+        const primaryTable = tables[0];
+        const tableData = primaryTable.rows.map(row => {
+            const rowObj = {};
+            primaryTable.columns.forEach((column, index) => {
+                rowObj[column.name] = row[index];
+            });
+            return rowObj;
+        });
+
         // Get chart suggestions and render the best one
-        const suggestions = window.chartRenderer.getChartSuggestions(this.currentData.data);
+        const suggestions = window.chartRenderer.getChartSuggestions(tableData);
         const chartType = suggestions[0] === 'table' ? suggestions[1] || 'bar' : suggestions[0];
         
         if (chartType === 'table' || !chartType) {
@@ -139,9 +172,9 @@ class ResultsViewer {
             return;
         }
 
-        window.chartRenderer.renderChart(this.chartContainer, this.currentData.data, {
+        window.chartRenderer.renderChart(this.chartContainer, tableData, {
             type: chartType,
-            title: this.currentData.query
+            title: primaryTable.name || 'Query Results'
         });
     }
 
@@ -151,29 +184,32 @@ class ResultsViewer {
             return;
         }
 
-        // Show the complete response data
-        const displayData = {
-            success: !this.currentData.error,
-            query: this.currentData.query,
-            executionTime: this.currentData.executionTime,
-            confidence: this.currentData.confidence,
-            data: this.currentData.data,
-            metadata: this.currentData.metadata
-        };
-
-        this.rawJsonElement.innerHTML = window.dataFormatter.formatJSON(displayData);
+        // Show the complete response data with proper structure
+        this.rawJsonElement.innerHTML = window.dataFormatter.formatJSON(this.currentData);
     }
 
     /**
      * Export results as JSON
      */
     exportAsJson() {
-        if (!this.currentData?.data) {
+        // Extract data from nested result structure
+        const resultData = this.currentData?.result?.result || this.currentData?.result || this.currentData;
+        const tables = resultData?.tables || [];
+        
+        if (!tables.length) {
             alert('No data to export');
             return;
         }
 
-        const dataStr = JSON.stringify(this.currentData.data, null, 2);
+        // Convert tables to more user-friendly format
+        const exportData = tables.map(table => ({
+            name: table.name,
+            columns: table.columns,
+            rows: table.rows,
+            totalRows: table.rows?.length || 0
+        }));
+
+        const dataStr = JSON.stringify(exportData, null, 2);
         this.downloadFile(dataStr, 'query-results.json', 'application/json');
     }
 
@@ -181,19 +217,23 @@ class ResultsViewer {
      * Export results as CSV
      */
     exportAsCsv() {
-        if (!this.currentData?.data || this.currentData.data.length === 0) {
+        // Extract data from nested result structure
+        const resultData = this.currentData?.result?.result || this.currentData?.result || this.currentData;
+        const tables = resultData?.tables || [];
+        
+        if (!tables.length || !tables[0].rows || tables[0].rows.length === 0) {
             alert('No data to export');
             return;
         }
 
-        const data = this.currentData.data;
-        const headers = Object.keys(data[0]);
+        // Use the first table for CSV export
+        const primaryTable = tables[0];
+        const headers = primaryTable.columns.map(col => col.name);
         
         let csv = headers.join(',') + '\n';
         
-        data.forEach(row => {
-            const values = headers.map(header => {
-                const value = row[header];
+        primaryTable.rows.forEach(row => {
+            const values = row.map(value => {
                 if (value === null || value === undefined) return '';
                 if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
                     return `"${value.replace(/"/g, '""')}"`;

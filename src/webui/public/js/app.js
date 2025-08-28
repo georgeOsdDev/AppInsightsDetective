@@ -6,7 +6,6 @@ class AppInsightsDetectiveApp {
     constructor() {
         this.currentPanel = 'query';
         this.isInitialized = false;
-        this.socket = null;
         
         this.initializeApp();
     }
@@ -19,9 +18,6 @@ class AppInsightsDetectiveApp {
             
             // Start session with backend
             await this.startSession();
-            
-            // Initialize Socket.IO connection
-            this.initializeSocket();
             
             // Load initial data
             await this.loadInitialData();
@@ -148,35 +144,7 @@ class AppInsightsDetectiveApp {
         }
     }
 
-    initializeSocket() {
-        try {
-            this.socket = io();
-            
-            this.socket.on('connect', () => {
-                console.log('Socket.IO connected');
-                this.updateSessionStatus('Connected');
-            });
-            
-            this.socket.on('disconnect', () => {
-                console.log('Socket.IO disconnected');
-                this.updateSessionStatus('Disconnected');
-            });
-            
-            this.socket.on('error', (error) => {
-                console.error('Socket.IO error:', error);
-                this.updateSessionStatus('Connection Error');
-            });
-            
-            // Listen for real-time updates
-            this.socket.on('query-progress', (data) => {
-                console.log('Query progress:', data);
-            });
-            
-        } catch (error) {
-            console.warn('Socket.IO initialization failed:', error);
-            // Continue without real-time features
-        }
-    }
+
 
     async loadInitialData() {
         // Load templates in background
