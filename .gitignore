@@ -26,3 +26,7 @@ docs/design/
 # User-created templates (these should not be committed to the repo)
 templates/user/*.json
 output
+
+# Next.js build artifacts
+src/webui/nextjs/.next/
+src/webui/nextjs/node_modules/
