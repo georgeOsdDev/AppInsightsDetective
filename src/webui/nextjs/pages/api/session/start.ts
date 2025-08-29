@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
 import { getServiceContainer } from '../../../lib/serviceContainer';
 import { SessionManager } from '../../../../../services/orchestration/SessionManager';
-import { logger } from '../../../../../utils/logger';
+import { logger } from '../../../lib/logger';
 
 /**
  * Request interface for create session endpoint

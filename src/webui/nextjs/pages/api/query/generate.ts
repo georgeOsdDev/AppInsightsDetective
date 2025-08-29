@@ -1,10 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
-import { getServiceContainer, getConfigManager } from '../../../lib/serviceContainer';
+import { getServiceContainer } from '../../../lib/serviceContainer';
 import { QueryService } from '../../../../../services/QueryService';
 import { IAIProvider, IDataSourceProvider } from '../../../../../core/interfaces';
 import { DataSourceType } from '../../../../../core/types/ProviderTypes';
-import { logger } from '../../../../../utils/logger';
+import { logger } from '../../../lib/logger';
 
 /**
  * Request interface for generate query endpoint
@@ -42,7 +42,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const container = await getServiceContainer();
     const aiProvider = container.resolve<IAIProvider>('aiProvider');
     const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
-    const configManager = getConfigManager();
 
     // Ensure AI provider is initialized
     await aiProvider.initialize();
@@ -56,9 +55,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       logger.warn('Could not retrieve schema for query generation:', error);
     }
 
-    // Get data source type from config or request
-    const config = configManager.getConfig();
-    const finalDataSourceType = dataSourceType || config.providers.dataSources.default as DataSourceType;
+    // Get data source type from request or use default
+    const finalDataSourceType = dataSourceType || 'application-insights' as DataSourceType;
 
     // Generate the query
     const nlQuery = await aiProvider.generateQuery({

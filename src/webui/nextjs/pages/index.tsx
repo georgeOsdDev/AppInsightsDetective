@@ -84,4 +84,11 @@ const Home: React.FC = () => {
   );
 };
 
+// Force server-side rendering to avoid SSG issues
+export async function getServerSideProps() {
+  return {
+    props: {}
+  };
+}
+
 export default Home;

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
 import { getServiceContainer } from '../../../lib/serviceContainer';
 import { QueryService, QueryServiceRequest } from '../../../../../services/QueryService';
-import { logger } from '../../../../../utils/logger';
+import { logger } from '../../../lib/logger';
 
 /**
  * Request interface for execute query endpoint

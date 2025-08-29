@@ -22,10 +22,15 @@ interface ThemeProviderProps {
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
+  const [theme, setTheme] = useState<Theme>('dark'); // Default theme for SSR
+
+  // Load saved theme on client-side only
+  useEffect(() => {
     const savedTheme = localStorage.getItem('aidx-theme');
-    return (savedTheme as Theme) || 'dark';
-  });
+    if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
+      setTheme(savedTheme as Theme);
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('aidx-theme', theme);

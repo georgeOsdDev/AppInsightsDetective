@@ -41,14 +41,19 @@ interface AppProviderProps {
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [apiClient] = useState(() => new APIClient());
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [settings, setSettings] = useState<AppSettings>(() => {
+  const [settings, setSettings] = useState<AppSettings>(defaultSettings); // Default for SSR
+
+  // Load saved settings on client-side only
+  useEffect(() => {
     try {
       const savedSettings = localStorage.getItem('aidx-settings');
-      return savedSettings ? { ...defaultSettings, ...JSON.parse(savedSettings) } : defaultSettings;
-    } catch {
-      return defaultSettings;
+      if (savedSettings) {
+        setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
+      }
+    } catch (error) {
+      console.warn('Failed to load saved settings:', error);
     }
-  });
+  }, []);
 
   useEffect(() => {
     // Initialize session

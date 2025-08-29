@@ -1,9 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
-import { getServiceContainer, getConfigManager } from '../../../lib/serviceContainer';
+import { getServiceContainer } from '../../../lib/serviceContainer';
 import { IAIProvider, IDataSourceProvider } from '../../../../../core/interfaces';
 import { DataSourceType } from '../../../../../core/types/ProviderTypes';
-import { logger } from '../../../../../utils/logger';
+import { logger } from '../../../lib/logger';
 
 /**
  * Request interface for regenerate query endpoint
@@ -40,7 +40,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const container = await getServiceContainer();
     const aiProvider = container.resolve<IAIProvider>('aiProvider');
     const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
-    const configManager = getConfigManager();
 
     // Get schema if available
     let schema;
@@ -51,9 +50,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       logger.warn('Could not retrieve schema for query regeneration:', error);
     }
 
-    // Get data source type from config
-    const config = configManager.getConfig();
-    const dataSourceType = config.providers.dataSources.default as DataSourceType;
+    // Use default data source type
+    const dataSourceType = 'application-insights' as DataSourceType;
 
     // Create enhanced input with feedback
     const enhancedInput = `${userInput}\n\nFeedback on previous query: ${feedback}\nPrevious query: ${originalQuery}`;

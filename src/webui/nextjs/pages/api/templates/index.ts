@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
 import { getServiceContainer } from '../../../lib/serviceContainer';
 import { TemplateService } from '../../../../../services/TemplateService';
-import { logger } from '../../../../../utils/logger';
+import { logger } from '../../../lib/logger';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {

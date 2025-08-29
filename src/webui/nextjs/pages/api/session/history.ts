@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
 import { getServiceContainer } from '../../../lib/serviceContainer';
 import { SessionManager } from '../../../../../services/orchestration/SessionManager';
-import { logger } from '../../../../../utils/logger';
+import { logger } from '../../../lib/logger';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -30,7 +30,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const container = await getServiceContainer();
     const sessionManager = container.resolve<SessionManager>('sessionManager');
 
-    const session = sessionManager.getSession(sessionId);
+    const session = await sessionManager.getSession(sessionId);
     if (!session) {
       return res.status(404).json({
         error: 'Session not found',

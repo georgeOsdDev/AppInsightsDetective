@@ -3,7 +3,6 @@ import { ConfigManager } from '../../utils/config';
 import { Visualizer } from '../../utils/visualizer';
 import { logger } from '../../utils/logger';
 import { Bootstrap } from '../../infrastructure/Bootstrap';
-import { WebUIService } from '../../webui/services/WebUIService';
 import { NextJSWebUIService } from '../../webui/services/NextJSWebUIService';
 import chalk from 'chalk';
 import open from 'open';
@@ -12,26 +11,20 @@ export interface WebUIOptions {
   port: number;
   host: string;
   open: boolean;
-  react: boolean;
-  legacy: boolean;
 }
 
 export function createWebUICommand(): Command {
   return new Command('webui')
-    .description('Start web-based user interface')
+    .description('Start web-based user interface powered by Next.js')
     .option('-p, --port <port>', 'Port to run the web server on', '3000')
     .option('-h, --host <host>', 'Host to bind the web server to', 'localhost')
     .option('--no-open', 'Do not automatically open browser')
-    .option('--legacy', 'Use the legacy Express-based UI instead of Next.js')
-    .option('--react', 'Legacy option - React is now the default')
     .action(async (options) => {
       try {
         const webUIOptions: WebUIOptions = {
           port: parseInt(options.port, 10),
           host: options.host,
-          open: options.open !== false,
-          react: true, // React is now always true
-          legacy: options.legacy === true
+          open: options.open !== false
         };
 
         await startWebUI(webUIOptions);
@@ -45,7 +38,7 @@ export function createWebUICommand(): Command {
 
 async function startWebUI(options: WebUIOptions): Promise<void> {
   console.log(chalk.cyan.bold('\n🌐 Starting AppInsights Detective WebUI'));
-  console.log(chalk.green('🚀 Now powered by Next.js with React as the default!'));
+  console.log(chalk.green('🚀 Powered by Next.js with React'));
   console.log(chalk.dim('='.repeat(70)));
 
   // Validate configuration
@@ -61,16 +54,9 @@ async function startWebUI(options: WebUIOptions): Promise<void> {
   await bootstrap.initialize();
   const container = bootstrap.getContainer();
 
-  // Choose service based on options
-  let webUIService: WebUIService | NextJSWebUIService;
-  
-  if (options.legacy) {
-    console.log(chalk.yellow('⚠️  Using legacy Express-based WebUI'));
-    webUIService = new WebUIService(container, configManager, options);
-  } else {
-    console.log(chalk.green('🆕 Using Next.js-based WebUI'));
-    webUIService = new NextJSWebUIService(container, configManager, options);
-  }
+  // Use Next.js service
+  console.log(chalk.green('🚀 Starting Next.js-based WebUI'));
+  const webUIService = new NextJSWebUIService(container, configManager, options);
   
   console.log(chalk.blue(`🚀 Starting web server on ${options.host}:${options.port}...`));
   

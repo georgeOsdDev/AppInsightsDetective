@@ -1,5 +1,5 @@
 import React from 'react';
-import { PanelType } from '../App';
+import { PanelType } from '../types';
 
 interface SidebarProps {
   currentPanel: PanelType;

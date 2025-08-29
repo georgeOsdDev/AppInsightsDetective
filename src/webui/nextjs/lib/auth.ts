@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { IAuthenticationProvider } from '../../../core/interfaces';
 import { getServiceContainer } from './serviceContainer';
-import { logger } from '../../../utils/logger';
+import { logger } from './logger';
 
 /**
  * Middleware function to validate Azure credentials for Next.js API routes
