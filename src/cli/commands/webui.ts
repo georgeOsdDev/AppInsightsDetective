@@ -11,20 +11,23 @@ export interface WebUIOptions {
   port: number;
   host: string;
   open: boolean;
+  react: boolean;
 }
 
 export function createWebUICommand(): Command {
   return new Command('webui')
-    .description('Start web-based user interface (🧪 Experimental)')
+    .description('Start web-based user interface')
     .option('-p, --port <port>', 'Port to run the web server on', '3000')
     .option('-h, --host <host>', 'Host to bind the web server to', 'localhost')
     .option('--no-open', 'Do not automatically open browser')
+    .option('--react', 'Use the React-based UI (default: auto-detect)')
     .action(async (options) => {
       try {
         const webUIOptions: WebUIOptions = {
           port: parseInt(options.port, 10),
           host: options.host,
-          open: options.open !== false
+          open: options.open !== false,
+          react: options.react === true
         };
 
         await startWebUI(webUIOptions);
@@ -38,8 +41,8 @@ export function createWebUICommand(): Command {
 
 async function startWebUI(options: WebUIOptions): Promise<void> {
   console.log(chalk.cyan.bold('\n🌐 Starting AppInsights Detective WebUI'));
-  console.log(chalk.yellow.bold('🧪 EXPERIMENTAL FEATURE - WebUI is currently in beta'));
-  console.log(chalk.dim('='.repeat(50)));
+  console.log(chalk.green('🆕 Now with React support for improved UI and configuration management!'));
+  console.log(chalk.dim('='.repeat(70)));
 
   // Validate configuration
   const configManager = new ConfigManager();

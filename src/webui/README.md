@@ -4,14 +4,24 @@ This directory contains the web-based user interface for AppInsights Detective.
 
 ## Features
 
-### Current Implementation
+### New React-based Implementation ✨
+- **React + TypeScript**: Modern component-based architecture with full type safety
+- **Improved Design System**: Professional UI with light/dark theme support
+- **Enhanced Configuration Management**: Comprehensive settings interface with real-time status
+- **Better State Management**: React Context for global state and settings
+- **Component Architecture**: Modular, maintainable components with proper separation of concerns
+- **Modern Build System**: Webpack-based build with hot reloading during development
+
+### Core Functionality
 - **Express.js Server**: TypeScript-based web server with security middleware
 - **REST API**: Complete API for query operations, session management, templates, and configuration
 - **WebSocket Support**: Real-time updates for query generation and execution
-- **Responsive Frontend**: Modern HTML/CSS/JS interface with multiple panels
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
 - **Azure Authentication**: Integration with existing Azure Managed Identity
 - **Query Interface**: Support for Smart, Review, and Raw KQL modes
 - **Results Display**: Table view with data formatting and export capabilities
+- **Template Management**: Enhanced template discovery and usage interface
+- **Query History**: Improved history with search, filter, and management features
 
 ### Architecture
 
@@ -21,15 +31,21 @@ This directory contains the web-based user interface for AppInsights Detective.
 - **Middleware**: Authentication and security middleware
 - **WebSocket**: Real-time communication handler
 
-#### Frontend (`src/webui/public/`)
-- **HTML**: Single-page application structure
-- **CSS**: Responsive design with dark mode support
-- **JavaScript**: Modern vanilla JS with API client and utilities
+#### Frontend Options
+1. **React UI** (`src/webui/react/`) - **Recommended**
+   - Modern React + TypeScript components
+   - Enhanced styling with CSS design tokens
+   - Context-based state management
+   - Comprehensive configuration interface
+
+2. **Legacy UI** (`src/webui/public/`) - **Maintained for compatibility**
+   - Original vanilla HTML/CSS/JS implementation
+   - Automatic fallback if React build unavailable
 
 ## Usage
 
 ```bash
-# Start WebUI with default settings (localhost:3000)
+# Start WebUI with default settings (React UI, localhost:3000)
 aidx webui
 
 # Start on specific port
@@ -40,7 +56,59 @@ aidx webui --no-open
 
 # Start with specific host binding
 aidx webui --host 0.0.0.0 --port 3000
+
+# Force React UI (automatically detected by default)
+aidx webui --react
+
+# Development with hot reloading (React only)
+npm run dev:react
 ```
+
+## Development
+
+### Building the React UI
+
+```bash
+# Build React application
+npm run build:react
+
+# Build entire project (includes React)
+npm run build
+
+# Development server with hot reloading
+npm run dev:react
+```
+
+### React Component Structure
+
+```
+src/webui/react/src/
+├── components/
+│   ├── Header.tsx          # App header with theme toggle
+│   ├── Sidebar.tsx         # Navigation sidebar
+│   ├── QueryPanel.tsx      # Query editor and execution
+│   ├── TemplatePanel.tsx   # Template management
+│   ├── HistoryPanel.tsx    # Query history
+│   └── SettingsModal.tsx   # Configuration management
+├── contexts/
+│   ├── AppContext.tsx      # Global app state
+│   └── ThemeContext.tsx    # Theme management
+├── services/
+│   └── api.ts              # API client
+├── styles/
+│   └── App.css             # Main stylesheet with design tokens
+└── types/                  # TypeScript type definitions
+```
+
+## Configuration Management
+
+The React UI provides an enhanced configuration interface with:
+
+- **Real-time Status**: Live validation of Azure connections
+- **Tabbed Interface**: Organized settings across General, Configuration, and Advanced tabs  
+- **Theme Management**: Light/dark theme with system preference detection
+- **Export/Import**: Backup and restore settings
+- **Configuration Validation**: Visual status indicators for all services
 
 ## API Endpoints
 
@@ -77,8 +145,12 @@ aidx webui --host 0.0.0.0 --port 3000
 
 ## Future Enhancements
 
-- Template management interface
-- Query editing with syntax highlighting
-- Enhanced chart visualizations
-- Configuration management through web interface
-- Export functionality improvements
+- ~~Template management interface~~ ✅ **Completed**
+- ~~Query editing with syntax highlighting~~ ⏳ **In Progress**
+- ~~Enhanced chart visualizations~~ ⏳ **Planned**
+- ~~Configuration management through web interface~~ ✅ **Completed**
+- ~~Export functionality improvements~~ ⏳ **Planned**
+- **Code Completion**: IntelliSense for KQL queries
+- **Query Sharing**: Share queries via URLs
+- **Dashboard Builder**: Create custom dashboards from query results
+- **Advanced Visualizations**: Charts, graphs, and custom visualizations
