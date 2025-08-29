@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AppInsights Detective - WebUI</title>
+    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="icon" type="image/svg+xml" href="/assets/icons/detective.svg">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7.01 5 5 7.01 5 9.5S7.01 14 9.5 14 14 11.99 14 9.5 11.99 5 9.5 5z"/>
+                    </svg>
+                    <span class="logo-text">AppInsights Detective</span>
+                </div>
+                
+                <div class="header-actions">
+                    <div class="session-info" id="session-info">
+                        <span class="session-status">Initializing...</span>
+                    </div>
+                    <button class="icon-button" id="settings-btn" title="Settings">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11.03L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11.03C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <nav class="sidebar-nav">
+                    <div class="nav-section">
+                        <h3 class="nav-section-title">Query</h3>
+                        <button class="nav-item active" id="query-tab">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7.01 5 5 7.01 5 9.5S7.01 14 9.5 14 14 11.99 14 9.5 11.99 5 9.5 5z"/>
+                            </svg>
+                            Query Editor
+                        </button>
+                    </div>
+
+                    <div class="nav-section">
+                        <h3 class="nav-section-title">Templates</h3>
+                        <button class="nav-item" id="templates-tab">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M6,2A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2H6Z"/>
+                            </svg>
+                            Templates
+                        </button>
+                    </div>
+
+                    <div class="nav-section">
+                        <h3 class="nav-section-title">History</h3>
+                        <button class="nav-item" id="history-tab">
+                            <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M13.5,8H12V13L16.28,15.54L17,14.33L13.5,12.25V8M13,3A9,9 0 0,0 4,12H1L4.96,16.03L9,12H6A7,7 0 0,1 13,5A7,7 0 0,1 20,12A7,7 0 0,1 13,19C11.07,19 9.32,18.21 8.06,16.94L6.64,18.36C8.27,20 10.5,21 13,21A9,9 0 0,0 22,12A9,9 0 0,0 13,3"/>
+                            </svg>
+                            History
+                        </button>
+                    </div>
+                </nav>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Query Panel -->
+                <div class="panel query-panel active" id="query-panel">
+                    <!-- Query Input Section -->
+                    <div class="query-input-section">
+                        <div class="input-header">
+                            <h2>Ask a Question</h2>
+                            <div class="mode-selector">
+                                <label class="mode-option">
+                                    <input type="radio" name="execution-mode" value="smart" checked>
+                                    <span>Smart Mode</span>
+                                </label>
+                                <label class="mode-option">
+                                    <input type="radio" name="execution-mode" value="review">
+                                    <span>Review Mode</span>
+                                </label>
+                                <label class="mode-option">
+                                    <input type="radio" name="execution-mode" value="raw">
+                                    <span>Raw KQL</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="query-input-container">
+                            <textarea 
+                                id="query-input" 
+                                placeholder="Ask a question about your application in natural language, e.g., 'Show me errors from the last hour'"
+                                rows="3"
+                            ></textarea>
+                            <div class="input-actions">
+                                <button class="btn-secondary" id="clear-btn">Clear</button>
+                                <button class="btn-primary" id="execute-btn">
+                                    <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                                    </svg>
+                                    Execute
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Query Review Section (Initially Hidden) -->
+                    <div class="query-review-section hidden" id="query-review-section">
+                        <div class="review-header">
+                            <h3>Query Review</h3>
+                            <div class="confidence-indicator">
+                                <span class="confidence-label">Confidence:</span>
+                                <div class="confidence-bar">
+                                    <div class="confidence-fill" id="confidence-fill"></div>
+                                </div>
+                                <span class="confidence-value" id="confidence-value">0%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="generated-query">
+                            <div class="query-header">
+                                <h4>Generated KQL Query</h4>
+                                <button class="btn-icon" id="copy-query-btn" title="Copy Query">
+                                    <svg viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <pre class="code-block" id="generated-query-code"></pre>
+                        </div>
+                        
+                        <div class="reasoning-section" id="reasoning-section">
+                            <h4>AI Reasoning</h4>
+                            <p class="reasoning-text" id="reasoning-text"></p>
+                        </div>
+                        
+                        <div class="review-actions">
+                            <button class="btn-secondary" id="explain-btn">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                                </svg>
+                                Explain Query
+                            </button>
+                            <button class="btn-secondary" id="regenerate-btn">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12,6V9L16,5L12,1V4A8,8 0 0,0 4,12C4,13.57 4.46,15.03 5.24,16.26L6.7,14.8C6.25,13.97 6,13 6,12A6,6 0 0,1 12,6M18.76,7.74L17.3,9.2C17.74,10.04 18,11 18,12A6,6 0 0,1 12,18V15L8,19L12,23V20A8,8 0 0,0 20,12C20,10.43 19.54,8.97 18.76,7.74Z"/>
+                                </svg>
+                                Regenerate
+                            </button>
+                            <button class="btn-secondary" id="portal-btn">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z"/>
+                                </svg>
+                                Open in Portal
+                            </button>
+                            <button class="btn-primary" id="execute-reviewed-btn">
+                                <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M8,5.14V19.14L19,12.14L8,5.14Z"/>
+                                </svg>
+                                Execute Query
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div class="results-section hidden" id="results-section">
+                        <div class="results-header">
+                            <h3>Results</h3>
+                            <div class="results-info" id="results-info"></div>
+                            <div class="results-actions">
+                                <button class="btn-secondary" id="export-json-btn">Export JSON</button>
+                                <button class="btn-secondary" id="export-csv-btn">Export CSV</button>
+                            </div>
+                        </div>
+                        
+                        <div class="results-content">
+                            <div class="results-tabs">
+                                <button class="tab-btn active" id="table-tab">Table</button>
+                                <button class="tab-btn" id="chart-tab">Chart</button>
+                                <button class="tab-btn" id="raw-tab">Raw JSON</button>
+                            </div>
+                            
+                            <div class="results-container">
+                                <div class="results-view active" id="table-view">
+                                    <div class="table-container" id="table-container">
+                                        <!-- Table will be inserted here -->
+                                    </div>
+                                </div>
+                                
+                                <div class="results-view" id="chart-view">
+                                    <div class="chart-container" id="chart-container">
+                                        <!-- Chart will be inserted here -->
+                                    </div>
+                                </div>
+                                
+                                <div class="results-view" id="raw-view">
+                                    <pre class="json-view" id="raw-json"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Templates Panel -->
+                <div class="panel templates-panel" id="templates-panel">
+                    <div class="panel-header">
+                        <h2>Templates</h2>
+                        <div class="search-container">
+                            <input type="text" id="template-search" placeholder="Search templates...">
+                        </div>
+                    </div>
+                    
+                    <div class="templates-content">
+                        <div class="templates-grid" id="templates-grid">
+                            <!-- Templates will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Panel -->
+                <div class="panel history-panel" id="history-panel">
+                    <div class="panel-header">
+                        <h2>Query History</h2>
+                        <button class="btn-secondary" id="clear-history-btn">Clear History</button>
+                    </div>
+                    
+                    <div class="history-content">
+                        <div class="history-list" id="history-list">
+                            <!-- History items will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay hidden" id="loading-overlay">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <div class="loading-text" id="loading-text">Processing...</div>
+            </div>
+        </div>
+
+        <!-- Settings Modal -->
+        <div class="modal-overlay hidden" id="settings-modal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>Settings</h3>
+                    <button class="btn-icon modal-close" id="close-settings-btn">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="modal-content">
+                    <div class="setting-group">
+                        <label for="default-mode">Default Execution Mode:</label>
+                        <select id="default-mode">
+                            <option value="smart">Smart Mode</option>
+                            <option value="review">Review Mode</option>
+                            <option value="raw">Raw KQL</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label for="default-time-range">Default Time Range:</label>
+                        <select id="default-time-range">
+                            <option value="1h">Last Hour</option>
+                            <option value="24h">Last 24 Hours</option>
+                            <option value="7d">Last 7 Days</option>
+                            <option value="30d">Last 30 Days</option>
+                        </select>
+                    </div>
+                    <div class="setting-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="show-empty-columns">
+                            <span>Show Empty Columns</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" id="cancel-settings-btn">Cancel</button>
+                    <button class="btn-primary" id="save-settings-btn">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/utils/api.js"></script>
+    <script src="/js/utils/charts.js"></script>
+    <script src="/js/utils/formatting.js"></script>
+    <script src="/js/components/QueryEditor.js"></script>
+    <script src="/js/components/ResultsViewer.js"></script>
+    <script src="/js/components/TemplatePanel.js"></script>
+    <script src="/js/components/HistoryPanel.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
