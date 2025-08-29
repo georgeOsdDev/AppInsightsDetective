@@ -8,6 +8,7 @@ import { createTemplateCommand } from './commands/template';
 import { createListProvidersCommand } from './commands/listProviders';
 import { createProvidersCommand } from './commands/providers';
 import { createWebUICommand } from './commands/webui';
+import { createInvestigateCommand } from './commands/investigate';
 import { logger } from '../utils/logger';
 import chalk from 'chalk';
 import { Bootstrap } from '../infrastructure/Bootstrap';
@@ -185,6 +186,7 @@ program.addCommand(createTemplateCommand());
 program.addCommand(createListProvidersCommand());
 program.addCommand(createProvidersCommand());
 program.addCommand(createWebUICommand());
+program.addCommand(createInvestigateCommand());
 
 // Default Action
 program
@@ -382,6 +384,11 @@ function showWelcomeMessage(): void {
   console.log(chalk.cyan('  aidx "show me errors"') + chalk.dim('        # Ask a question (auto step-mode for low confidence)'));
   console.log(chalk.cyan('  aidx --interactive') + chalk.dim('           # Full interactive session'));
   console.log(chalk.cyan('  aidx --raw "requests | take 5"') + chalk.dim(' # Raw KQL query'));
+  console.log('');
+  console.log('AI Investigation:');
+  console.log(chalk.cyan('  aidx investigate "app is slow"') + chalk.dim('            # AI-driven problem investigation'));
+  console.log(chalk.cyan('  aidx investigate --interactive') + chalk.dim('           # Interactive guided investigation'));
+  console.log(chalk.cyan('  aidx investigate --history') + chalk.dim('              # View past investigations'));
   console.log('');
   console.log('Provider management:');
   console.log(chalk.cyan('  aidx list-providers') + chalk.dim('                     # List available providers'));
