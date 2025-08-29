@@ -238,3 +238,6 @@ export interface ExternalExecutionResult {
   launched: boolean;
   error?: string;
 }
+
+// Export investigation types
+export * from './investigation';
