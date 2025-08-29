@@ -18,6 +18,7 @@ docs/design/
 *.d.ts.map
 !jest.config.js
 !eslint.config.js
+!tests/__mocks__/*.js
 
 # Allow client-side JavaScript files for WebUI
 !src/webui/public/js/**/*.js
