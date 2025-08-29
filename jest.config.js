@@ -10,7 +10,8 @@ module.exports = {
     '^.+\\.ts$': 'ts-jest',
   },
   moduleNameMapper: {
-    '^open$': '<rootDir>/tests/__mocks__/open.js'
+    '^open$': '<rootDir>/tests/__mocks__/open.js',
+    '^ora$': '<rootDir>/tests/__mocks__/ora.js'
   },
   collectCoverageFrom: [
     'src/**/*.ts',
