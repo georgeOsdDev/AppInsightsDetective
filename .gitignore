@@ -30,3 +30,4 @@ output
 # Next.js build artifacts
 src/webui/nextjs/.next/
 src/webui/nextjs/node_modules/
+src/webui/nextjs/tsconfig.tsbuildinfo

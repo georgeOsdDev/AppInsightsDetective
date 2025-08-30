@@ -179,20 +179,20 @@ export const QueryPanel: React.FC = () => {
           </div>
           
           <div className="results-content">
-            {results.data && results.data.length > 0 ? (
+            {results.data && results.data.rows && results.data.rows.length > 0 ? (
               <div className="results-table-container">
                 <table className="results-table">
                   <thead>
                     <tr>
-                      {Object.keys(results.data[0]).map((header) => (
-                        <th key={header}>{header}</th>
+                      {results.data.columns.map((column: any) => (
+                        <th key={column.name}>{column.name}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {results.data.slice(0, 100).map((row: any, index: number) => (
+                    {results.data.rows.slice(0, 100).map((row: any[], index: number) => (
                       <tr key={index}>
-                        {Object.values(row).map((value: any, cellIndex: number) => (
+                        {row.map((value: any, cellIndex: number) => (
                           <td key={cellIndex}>
                             {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                           </td>
