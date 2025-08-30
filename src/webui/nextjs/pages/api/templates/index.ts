@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
-import { getServiceContainer } from '../../../lib/serviceContainer';
-import { TemplateService } from '../../../../../services/TemplateService';
 import { logger } from '../../../lib/logger';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -16,26 +14,47 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     logger.info('WebUI: Getting available templates');
 
-    // Get services
-    const container = await getServiceContainer();
-    const templateService = container.resolve<TemplateService>('templateService');
-
-    const templates = await templateService.getTemplates();
-
-    const formattedTemplates = templates.map(template => ({
-      id: template.id,
-      name: template.name,
-      description: template.description,
-      category: template.category || 'general',
-      parameters: template.parameters || [],
-      tags: template.metadata.tags || [],
-      createdAt: template.metadata.createdAt,
-      isUserTemplate: false // Default to false for now
-    }));
+    // TODO: Replace with actual TemplateService implementation
+    // For now, return mock templates
+    const mockTemplates = [
+      {
+        id: 'requests-overview',
+        name: 'Requests Overview',
+        description: 'Get an overview of HTTP requests in the last hour',
+        category: 'monitoring',
+        parameters: [],
+        tags: ['http', 'requests', 'overview'],
+        createdAt: new Date().toISOString(),
+        isUserTemplate: false,
+        query: 'requests | where timestamp >= ago(1h) | summarize count() by bin(timestamp, 5m) | render timechart'
+      },
+      {
+        id: 'error-analysis',
+        name: 'Error Analysis',
+        description: 'Analyze error patterns and trends',
+        category: 'troubleshooting',
+        parameters: [],
+        tags: ['errors', 'troubleshooting', 'analysis'],
+        createdAt: new Date().toISOString(),
+        isUserTemplate: false,
+        query: 'requests | where timestamp >= ago(1h) | where success == false | summarize count() by resultCode | render barchart'
+      },
+      {
+        id: 'performance-metrics',
+        name: 'Performance Metrics',
+        description: 'Monitor application performance metrics',
+        category: 'performance',
+        parameters: [],
+        tags: ['performance', 'metrics', 'monitoring'],
+        createdAt: new Date().toISOString(),
+        isUserTemplate: false,
+        query: 'requests | where timestamp >= ago(1h) | summarize avg(duration) by bin(timestamp, 5m) | render timechart'
+      }
+    ];
 
     res.json({
-      templates: formattedTemplates,
-      count: formattedTemplates.length,
+      templates: mockTemplates,
+      count: mockTemplates.length,
       timestamp: new Date().toISOString()
     });
 

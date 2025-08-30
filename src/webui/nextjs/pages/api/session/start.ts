@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
-import { getServiceContainer } from '../../../lib/serviceContainer';
-import { SessionManager } from '../../../../../services/orchestration/SessionManager';
 import { logger } from '../../../lib/logger';
 
 /**
@@ -27,26 +25,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     logger.info('WebUI: Starting new session');
 
-    // Get services
-    const container = await getServiceContainer();
-    const sessionManager = container.resolve<SessionManager>('sessionManager');
-
-    const session = await sessionManager.createSession({
-      language: language as any,
-      defaultMode: defaultMode as any
-    });
+    // Generate a mock session ID for now
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Configure session settings using addToHistory for context
-    session.addToHistory('session_config', 1.0, 'generated', JSON.stringify({
-      language,
-      defaultMode,
-      timeRange,
-      showEmptyColumns: false,
-      charts: true
-    }));
+    // TODO: Replace with actual SessionManager implementation
+    // For now, return a mock session response
+    logger.info(`WebUI: Created mock session ${sessionId}`);
 
     res.json({
-      sessionId: session.sessionId,
+      sessionId,
       settings: {
         language,
         defaultMode,

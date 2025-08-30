@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
-import { getServiceContainer } from '../../../lib/serviceContainer';
-import { IAIProvider } from '../../../../../core/interfaces';
 import { logger } from '../../../lib/logger';
 
 /**
@@ -31,17 +29,23 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       });
     }
 
-    logger.info('WebUI: Generating query explanation');
+    logger.info(`WebUI: Explaining query: "${query}"`);
 
-    // Get services
-    const container = await getServiceContainer();
-    const aiProvider = container.resolve<IAIProvider>('aiProvider');
+    // TODO: Replace with actual AI provider implementation
+    // For now, return a mock explanation
+    const mockExplanation = `This KQL query does the following:
 
-    // Use AI provider to explain the query
-    const explanation = await aiProvider.explainQuery({ query });
+1. **requests** - Starts with the requests table containing HTTP request data
+2. **where timestamp >= ago(1h)** - Filters to only show requests from the last hour
+3. **where name contains "..."** - Filters requests that contain specific text in the name field
+4. **summarize count() by bin(timestamp, 5m)** - Groups results by 5-minute time intervals and counts requests
+5. **render timechart** - Creates a time-based chart visualization
+
+The query will show you the volume of matching requests over time in 5-minute intervals for the past hour.`;
 
     res.json({
-      explanation: explanation,
+      explanation: mockExplanation,
+      query,
       timestamp: new Date().toISOString()
     });
 

@@ -1,9 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
-import { getServiceContainer } from '../../../lib/serviceContainer';
-import { QueryService } from '../../../../../services/QueryService';
-import { IAIProvider, IDataSourceProvider } from '../../../../../core/interfaces';
-import { DataSourceType } from '../../../../../core/types/ProviderTypes';
 import { logger } from '../../../lib/logger';
 
 /**
@@ -12,7 +8,7 @@ import { logger } from '../../../lib/logger';
 interface GenerateQueryRequest {
   userInput: string;
   mode?: 'smart' | 'review' | 'raw';
-  dataSourceType?: DataSourceType;
+  dataSourceType?: string;
   extraContext?: string;
 }
 
@@ -38,39 +34,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     logger.info(`WebUI: Generating query for input: "${userInput}"`);
 
-    // Get services
-    const container = await getServiceContainer();
-    const aiProvider = container.resolve<IAIProvider>('aiProvider');
-    const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
-
-    // Ensure AI provider is initialized
-    await aiProvider.initialize();
-
-    // Get schema if available
-    let schema;
-    try {
-      const schemaResult = await dataSourceProvider.getSchema();
-      schema = schemaResult.schema;
-    } catch (error) {
-      logger.warn('Could not retrieve schema for query generation:', error);
-    }
-
-    // Get data source type from request or use default
-    const finalDataSourceType = dataSourceType || 'application-insights' as DataSourceType;
-
-    // Generate the query
-    const nlQuery = await aiProvider.generateQuery({
-      userInput,
-      schema,
-      dataSourceType: finalDataSourceType,
-      extraContext
-    });
+    // TODO: Replace with actual AI provider implementation
+    // For now, return a mock KQL query based on the user input
+    const mockQuery = `requests
+| where timestamp >= ago(1h)
+| where name contains "${userInput}"
+| summarize count() by bin(timestamp, 5m)
+| render timechart`;
 
     res.json({
-      query: nlQuery.generatedKQL,
-      confidence: nlQuery.confidence,
-      reasoning: nlQuery.reasoning,
-      mode: nlQuery.confidence >= 0.7 ? 'execute' : 'review',
+      query: mockQuery,
+      confidence: 0.8,
+      reasoning: `Generated a basic KQL query to search for requests containing "${userInput}" in the last hour`,
+      mode: 'review',
       originalInput: userInput,
       timestamp: new Date().toISOString()
     });

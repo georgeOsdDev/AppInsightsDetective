@@ -1,18 +1,19 @@
-import winston from 'winston';
-
-// Simple logger for Next.js API routes
-const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: winston.format.combine(
-    winston.format.colorize(),
-    winston.format.timestamp(),
-    winston.format.printf(({ timestamp, level, message, ...meta }) => {
-      return `${timestamp} [${level}]: ${message} ${Object.keys(meta).length ? JSON.stringify(meta, null, 2) : ''}`;
-    })
-  ),
-  transports: [
-    new winston.transports.Console()
-  ]
-});
+// Simple console-based logger for Next.js API routes
+const logger = {
+  info: (message: string, ...args: any[]) => {
+    console.log(`[INFO] ${new Date().toISOString()}: ${message}`, ...args);
+  },
+  warn: (message: string, ...args: any[]) => {
+    console.warn(`[WARN] ${new Date().toISOString()}: ${message}`, ...args);
+  },
+  error: (message: string, ...args: any[]) => {
+    console.error(`[ERROR] ${new Date().toISOString()}: ${message}`, ...args);
+  },
+  debug: (message: string, ...args: any[]) => {
+    if (process.env.LOG_LEVEL === 'debug') {
+      console.debug(`[DEBUG] ${new Date().toISOString()}: ${message}`, ...args);
+    }
+  }
+};
 
 export { logger };

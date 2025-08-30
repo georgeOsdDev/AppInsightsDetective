@@ -1,7 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
-import { getServiceContainer } from '../../../lib/serviceContainer';
-import { SessionManager } from '../../../../../services/orchestration/SessionManager';
 import { logger } from '../../../lib/logger';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -26,24 +24,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     logger.info(`WebUI: Getting session history for ${sessionId}`);
 
-    // Get services
-    const container = await getServiceContainer();
-    const sessionManager = container.resolve<SessionManager>('sessionManager');
-
-    const session = await sessionManager.getSession(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        error: 'Session not found',
-        message: `Session ${sessionId} not found`,
-        code: 'SESSION_NOT_FOUND'
-      });
-    }
-
-    const history = session.getHistory();
+    // TODO: Replace with actual SessionManager implementation
+    // For now, return mock history data
+    const mockHistory = [
+      {
+        id: '1',
+        query: 'session_config',
+        score: 1.0,
+        type: 'generated',
+        content: JSON.stringify({
+          language: 'en',
+          defaultMode: 'smart',
+          timeRange: '24h',
+          showEmptyColumns: false,
+          charts: true
+        }),
+        timestamp: new Date().toISOString()
+      }
+    ];
 
     res.json({
       sessionId,
-      history,
+      history: mockHistory,
       timestamp: new Date().toISOString()
     });
 

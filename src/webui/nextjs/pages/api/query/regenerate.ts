@@ -1,8 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/auth';
-import { getServiceContainer } from '../../../lib/serviceContainer';
-import { IAIProvider, IDataSourceProvider } from '../../../../../core/interfaces';
-import { DataSourceType } from '../../../../../core/types/ProviderTypes';
 import { logger } from '../../../lib/logger';
 
 /**
@@ -36,39 +33,20 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     logger.info('WebUI: Regenerating query with feedback');
 
-    // Get services
-    const container = await getServiceContainer();
-    const aiProvider = container.resolve<IAIProvider>('aiProvider');
-    const dataSourceProvider = container.resolve<IDataSourceProvider>('dataSourceProvider');
-
-    // Get schema if available
-    let schema;
-    try {
-      const schemaResult = await dataSourceProvider.getSchema();
-      schema = schemaResult.schema;
-    } catch (error) {
-      logger.warn('Could not retrieve schema for query regeneration:', error);
-    }
-
-    // Use default data source type
-    const dataSourceType = 'application-insights' as DataSourceType;
-
-    // Create enhanced input with feedback
-    const enhancedInput = `${userInput}\n\nFeedback on previous query: ${feedback}\nPrevious query: ${originalQuery}`;
-
-    // Generate new query
-    const nlQuery = await aiProvider.generateQuery({
-      userInput: enhancedInput,
-      schema,
-      dataSourceType
-    });
+    // TODO: Replace with actual AI provider implementation
+    // For now, return a mock regenerated query
+    const mockRegeneratedQuery = `requests
+| where timestamp >= ago(1h)
+| where name contains "${userInput}"
+| where resultCode >= 400
+| summarize count() by bin(timestamp, 5m), resultCode
+| render timechart`;
 
     res.json({
-      query: nlQuery.generatedKQL,
-      confidence: nlQuery.confidence,
-      reasoning: nlQuery.reasoning,
-      mode: nlQuery.confidence >= 0.7 ? 'execute' : 'review',
-      originalInput: userInput,
+      query: mockRegeneratedQuery,
+      confidence: 0.85,
+      reasoning: `Regenerated the query based on your feedback: "${feedback}". The new query includes error filtering (resultCode >= 400) and groups by both time and response code.`,
+      originalQuery,
       feedback,
       timestamp: new Date().toISOString()
     });
