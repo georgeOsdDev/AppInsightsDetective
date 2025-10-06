@@ -1,0 +1,94 @@
+CLI Help Output:
+Usage: aidx investigate [options] [problem]
+
+🧠 AI-driven intelligent investigation of Application Insights problems
+
+Arguments:
+  problem               Problem description in natural language
+
+Options:
+  -i, --interactive     Run in interactive guided mode (default: false)
+  -t, --type <type>     Investigation type
+                        (performance|availability|data-quality|dependencies)
+  --continue <id>       Continue an existing investigation
+  --resume <id>         Resume a paused investigation
+  --cancel <id>         Cancel an ongoing investigation
+  --status <id>         Check status of an investigation
+  --history             Show investigation history
+  --export <id>         Export investigation results
+  --format <format>     Export format (json|markdown|html) (default: "markdown")
+  --max-time <minutes>  Maximum investigation time in minutes (default: "5")
+  -h, --help            display help for command
+
+
+Main CLI Output:
+
+🔍 Welcome to AppInsights Detective!
+Query your Application Insights data with natural language.
+
+Quick start:
+  aidx setup                    # Configure your settings
+  aidx status                   # Check configuration status
+  aidx "show me errors"        # Ask a question (auto step-mode for low confidence)
+  aidx --interactive           # Full interactive session
+  aidx --raw "requests | take 5" # Raw KQL query
+
+AI Investigation:
+  aidx investigate "app is slow"            # AI-driven problem investigation
+  aidx investigate --interactive           # Interactive guided investigation
+  aidx investigate --history              # View past investigations
+
+Provider management:
+  aidx list-providers                     # List available providers
+  aidx providers show                    # Show current provider configuration
+  aidx providers set-default ai openai  # Switch AI provider
+  aidx providers configure ai azure-openai # Configure specific provider
+
+Template management:
+  aidx template list                     # List available templates
+  aidx template use <templateId>        # Use a template
+  aidx template create                  # Create new template
+
+Output formats:
+  aidx "errors" --format json                          # Display JSON to console
+  aidx "errors" --format csv                           # Display CSV to console
+  aidx "errors" --output data.json --format json       # Save to JSON file
+  aidx "errors" --output data.csv --format csv         # Save to CSV file
+  aidx "errors" --output data.tsv --format tsv --pretty # Save to TSV with pretty printing
+  aidx "errors" --output out.json --format json --encoding utf16le # Custom encoding
+
+For more help, use: aidx --help
+Usage: aidx [options] [command] [question]
+
+AppInsights Detective - Query Application Insights with natural language
+
+Arguments:
+  question                         Natural language question to ask
+
+Options:
+  -V, --version                    output the version number
+  -i, --interactive                Run in interactive mode with step-by-step
+                                   guidance
+  -r, --raw                        Execute raw KQL query
+  -f, --format <format>            Output format (table, json, csv, tsv, raw)
+                                   (default: "table")
+  -o, --output <file>              Output file path
+  --pretty                         Pretty print JSON output
+  --no-headers                     Exclude headers in CSV/TSV output
+  --encoding <encoding>            File encoding (utf8, utf16le, etc.) (default:
+                                   "utf8")
+  --show-empty-columns             Show all columns including empty ones
+                                   (default: hide empty columns)
+  -h, --help                       display help for command
+
+Commands:
+  setup                            Setup AppInsights Detective configuration
+  status [options]                 Check system status and configuration
+  template|tpl                     Manage query templates
+  list-providers [options]         List all available providers and their
+                                   registration status
+  providers|provider               Manage and configure providers
+  webui [options]                  Start web-based user interface (🧪
+                                   Experimental)
+  investigate [options] [problem]  🧠 AI-driven intelligent investigation of
+                                   Application Insights problems

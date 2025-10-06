@@ -17,7 +17,8 @@ import {
   IQueryOrchestrator,
   ISessionManager,
   IOutputRenderer,
-  ITemplateRepository
+  ITemplateRepository,
+  IIntelligentInvestigationService
 } from '../core/interfaces';
 import { ConfigManager } from '../utils/config';
 import { logger } from '../utils/logger';
@@ -29,6 +30,7 @@ import { ConsoleOutputRenderer } from '../presentation/renderers/ConsoleOutputRe
 import { InteractiveSessionController } from '../presentation/InteractiveSessionController';
 import { QueryEditorService } from '../services/QueryEditorService';
 import { ExternalExecutionService } from '../services/externalExecutionService';
+import { IntelligentInvestigationService } from '../services/IntelligentInvestigationService';
 import { IQueryEditorService } from '../core/interfaces/IQueryEditorService';
 
 /**
@@ -139,6 +141,14 @@ export class Bootstrap {
     // Register query editor service
     const queryEditorService = new QueryEditorService();
     this.container.register<IQueryEditorService>('queryEditorService', queryEditorService);
+
+    // Register intelligent investigation service
+    const intelligentInvestigationService = new IntelligentInvestigationService(
+      aiProvider, 
+      dataSourceProvider, 
+      sessionManager
+    );
+    this.container.register<IIntelligentInvestigationService>('intelligentInvestigationService', intelligentInvestigationService);
 
     // Register external execution service (initialized with configuration later)
     this.container.registerFactory('externalExecutionService', () => {

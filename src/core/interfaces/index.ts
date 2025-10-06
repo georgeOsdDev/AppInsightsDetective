@@ -10,3 +10,4 @@ export * from './ISessionManager';
 export * from './IOutputRenderer';
 export * from './ITemplateRepository';
 export * from './IQueryEditorService';
+export * from './IIntelligentInvestigationService';
